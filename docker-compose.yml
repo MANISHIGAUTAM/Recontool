@@ -1,0 +1,33 @@
+# Optional backing services for production-grade deployments.
+# Recontool runs without these (SQLite + in-process rate limiter by default).
+# Bring them up when you want PostgreSQL + Redis:
+#   docker compose up -d
+# then set in .env:
+#   RECON_DB_URL=postgresql+psycopg://recon:recon@localhost:5432/recontool
+#   RECON_REDIS_URL=redis://localhost:6379/0
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: recon
+      POSTGRES_PASSWORD: recon
+      POSTGRES_DB: recontool
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recon"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+volumes:
+  pgdata:
