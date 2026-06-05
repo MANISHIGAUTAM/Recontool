@@ -130,6 +130,11 @@ See the full design in [`docs/pipeline/`](docs/pipeline/):
 - `02-plan-of-action.md` — pipeline model, A→B→C chaining, atomic-check methodology.
 - `03-category-pipelines.md` — the tool flow for every category.
 - `04-tool-catalog.md` — capability / invocation / output per tool.
+- `05-flow-architecture.md` — tool-by-tool data handoffs + parallelization map.
+- `06-recursive-flow.md` — the convergence engine: passive → validate-live → active on
+  live hosts only → feed discoveries back → loop until convergence; console/UI display.
+- `07-tool-io-reference.md` — per-tool invocation, sample output, and DB/filesystem storage.
+- `08-feature-advancements.md` — ranked roadmap of enhancements beyond the current design.
 
 ---
 
