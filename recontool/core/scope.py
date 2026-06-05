@@ -125,6 +125,28 @@ def _apex(host: str) -> str:
     return ".".join(parts[-2:])
 
 
+def apex_domain(host: str) -> str:
+    """Public apex extractor (last two labels). Handles URLs/emails too."""
+    return _apex(host)
+
+
+def is_subdomain_of(host: str, domain: str) -> bool:
+    """True iff `host` is `domain` itself or a real subdomain of it.
+
+    Guards against two common false positives seen in live data:
+      - sibling-suffix collisions: 'm.testexample.com' must NOT match 'example.com'
+        (loose endswith() would wrongly accept it),
+      - email addresses in cert subjects: 'name@example.com' is not a host.
+    """
+    if not host:
+        return False
+    host = host.lower().rstrip(".").lstrip("*.")
+    if "@" in host or " " in host:
+        return False
+    domain = domain.lower().rstrip(".")
+    return host == domain or host.endswith("." + domain)
+
+
 def classify_seed(seed: str) -> str:
     """Detect the input type from a raw seed string."""
     s = seed.strip()

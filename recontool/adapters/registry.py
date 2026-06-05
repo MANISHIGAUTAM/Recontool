@@ -48,3 +48,4 @@ def load_builtin() -> None:
     """Import adapter modules so their @register decorators fire."""
     from recontool.adapters import passive  # noqa: F401
     from recontool.adapters import active    # noqa: F401
+    from recontool.adapters import internet_search  # noqa: F401  (Category 1)

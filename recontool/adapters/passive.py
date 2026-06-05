@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 
 from recontool.adapters.base import Adapter, AdapterContext, Event
 from recontool.adapters.registry import register
+from recontool.core.scope import is_subdomain_of
 
 _JS_RE = re.compile(r"\.js(\?|$)", re.I)
 
@@ -45,7 +46,7 @@ class CrtSh(Adapter):
             for row in resp.json():
                 for name in str(row.get("name_value", "")).splitlines():
                     name = name.strip().lstrip("*.").lower()
-                    if name and name.endswith(domain) and name not in seen:
+                    if name and name not in seen and is_subdomain_of(name, domain):
                         seen.add(name)
                         events.append(Event.asset(self.name, "subdomain", name))
                         events.append(Event.edge(self.name, name, domain, "subdomain_of"))
@@ -82,7 +83,7 @@ class HackerTarget(Adapter):
                     continue
                 host, ip = line.split(",", 1)
                 host, ip = host.strip().lower(), ip.strip()
-                if host.endswith(domain):
+                if is_subdomain_of(host, domain):
                     events.append(Event.asset(self.name, "subdomain", host))
                     events.append(Event.asset(self.name, "ip", ip))
                     events.append(Event.edge(self.name, host, ip, "resolves_to"))
@@ -115,7 +116,7 @@ class AlienVaultOTX(Adapter):
             for rec in data.get("passive_dns", []):
                 host = str(rec.get("hostname", "")).strip().lower()
                 ip = str(rec.get("address", "")).strip()
-                if host and host.endswith(domain):
+                if host and is_subdomain_of(host, domain):
                     events.append(Event.asset(self.name, "subdomain", host))
                     if ip and _looks_ip(ip):
                         events.append(Event.asset(self.name, "ip", ip))

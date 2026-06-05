@@ -198,7 +198,7 @@ class JsAnalyze(Adapter):
     category = "CAT-4"
     is_active = False  # operates on already-downloaded files
     consumes = ("url",)
-    produces = ("endpoint", "finding")
+    produces = ("url", "finding")
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
         events: list[Event] = []

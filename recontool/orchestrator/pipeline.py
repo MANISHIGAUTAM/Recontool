@@ -19,13 +19,13 @@ from dataclasses import dataclass, field
 
 from sqlalchemy import select
 
-from recontool.adapters.base import AdapterContext
+from recontool.adapters.base import AdapterContext, Event
 from recontool.adapters.registry import adapters_for, load_builtin
 from recontool.config import settings
 from recontool.core.artifacts import ArtifactStore
 from recontool.core.db import create_all, session_scope
 from recontool.core.models import Asset, AuditLog, Scan
-from recontool.core.scope import Scope, classify_seed
+from recontool.core.scope import Scope, apex_domain, classify_seed
 from recontool.net.http_client import HttpClient
 from recontool.net.proxy_pool import ProxyPool
 from recontool.net.rate_limiter import RateLimiter
@@ -87,7 +87,9 @@ class ReconPipeline:
         api_keys = {
             k: settings.api_key(k) for k in
             ("SHODAN_API_KEY", "VIRUSTOTAL_API_KEY", "SECURITYTRAILS_API_KEY",
-             "GITHUB_TOKEN", "CENSYS_API_ID", "CENSYS_API_SECRET", "CHAOS_API_KEY")
+             "GITHUB_TOKEN", "CENSYS_API_ID", "CENSYS_API_SECRET", "CHAOS_API_KEY",
+             "NETLAS_API_KEY", "GREYNOISE_API_KEY", "LEAKIX_API_KEY", "URLSCAN_API_KEY",
+             "FULLHUNT_API_KEY", "CRIMINALIP_API_KEY", "CERTSPOTTER_API_KEY", "IPINFO_TOKEN")
         }
 
         with session_scope() as s:
@@ -99,6 +101,10 @@ class ReconPipeline:
             s.add(AuditLog(scan_id=scan_id, action="scan.start",
                            target=seed, profile=profile.name,
                            detail={"scope": scope.to_json(), "authorize_active": authorize_active}))
+
+        # Inject the SEED as the first canonical asset so it flows to adapters as
+        # input (without this, the first phase has nothing to consume).
+        self._seed_asset(scan_id, seed, seed_type, scope)
 
         result = ScanResult(scan_id=scan_id, seed=seed, seed_type=seed_type, profile=profile.name)
         load_builtin()
@@ -116,17 +122,15 @@ class ReconPipeline:
                 inputs = self._gather_inputs(scan_id, scope, active=False)
                 pr = await self._run_phase(phase, base_ctx(inputs), scan_id, progress)
                 result.phases.append(pr)
-            # supervisor decides whether to recurse passive discovery
-            if recursion >= self.max_recursion:
+            # Without an AI supervisor, do a single deterministic pass.
+            # With one, recurse passive discovery only if it says new surface remains.
+            if not self.supervisor or recursion >= self.max_recursion:
                 break
-            if self.supervisor and not await self._ask_recurse(scan_id, result):
+            if not await self._ask_recurse(scan_id, result):
                 break
-            recursion += 1
-            if recursion > self.max_recursion:
-                break
-            # only recurse if there's genuinely new surface; else stop
             if not self._has_unprobed_growth(scan_id):
                 break
+            recursion += 1
 
         # ── ACTIVE GATE (ADR-009) ───────────────────────────────────────────
         if not profile.active_enabled:
@@ -217,6 +221,28 @@ class ReconPipeline:
         return pr
 
     # ── chaining: read discovered assets back as next-phase inputs ─────────
+    def _seed_asset(self, scan_id, seed: str, seed_type: str, scope: Scope) -> None:
+        """Write the seed into the canonical store so phase 1 has input to consume.
+        For domain/url seeds we seed the APEX domain (recon targets the whole
+        footprint), and also the original host if it differs."""
+        events: list[Event] = []
+        if seed_type in ("domain", "subdomain", "url"):
+            apex = apex_domain(seed)
+            events.append(Event.asset("seed", "domain", apex))
+            host = seed.split("://")[-1].split("/")[0]
+            if host and host != apex:
+                events.append(Event.asset("seed", "subdomain", host))
+        elif seed_type == "ip":
+            events.append(Event.asset("seed", "ip", seed))
+        elif seed_type == "cidr":
+            events.append(Event.asset("seed", "cidr", seed))
+        elif seed_type == "asn":
+            events.append(Event.asset("seed", "asn", seed))
+        else:
+            events.append(Event.asset("seed", "domain", seed))
+        with session_scope() as s:
+            Normalizer(s, scan_id, scope=scope).ingest(events)
+
     def _gather_inputs(self, scan_id, scope: Scope, active: bool) -> dict[str, list[str]]:
         inputs: dict[str, list[str]] = {}
         with session_scope() as s:
