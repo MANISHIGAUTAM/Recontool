@@ -43,29 +43,107 @@ schema, ADRs, API specs, OPSEC, roadmap, build-vs-buy, code structure, risks).
 
 ## Quick start
 
+### Option A — Docker (recommended; ships with all recon tools)
+
 ```bash
-# 1. install (Python 3.10+)
+# build the all-in-one image (Python platform + subfinder/httpx/nuclei/naabu/...)
+docker compose build recontool
+
+# passive scan — just pass a scope domain
+docker compose run --rm recontool scan www.xyz.com
+
+# full pipeline against an AUTHORISED target
+docker compose run --rm recontool scan xyz.com --profile stealth --authorize-active
+```
+
+### Option B — local (Python 3.10+)
+
+```bash
+# 1. install the platform
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .                      # provides the `recontool` command
 
-# 2. (optional) configure keys / proxies / AI
-cp .env.example .env                  # everything works WITHOUT this
+# 2. (optional) install the external CLI tools (subfinder, httpx, nuclei, ...)
+bash docker/install_tools.sh core     # or `all` for the full set
 
-# 3. run a PASSIVE scan (safe, no target contact)
-recontool scan www.example.com
+# 3. (optional) configure API keys / proxies / AI
+cp config/recontool.example.yaml config/recontool.yaml   # everything works WITHOUT this
 
-# 4. run the FULL pipeline against an AUTHORISED target
-recontool scan example.com --profile stealth --authorize-active -o results.json
-
-# inspect
-recontool tools           # what adapters exist + which are available now
-recontool scans           # past scans
-recontool report <id>     # summary of a stored scan
-recontool export <id> -o out.json
+# 4. RUN — the platform is driven by a single scope domain
+recontool scan www.xyz.com                               # passive (safe, default)
+recontool scan xyz.com --authorize-active -o results.json # full pipeline (authorised)
 ```
 
-If you don't `pip install -e .`, run it as a module: `python -m recontool.cli scan www.example.com`.
+If you don't `pip install -e .`, run it as a module: `python -m recontool.cli scan www.xyz.com`.
+
+### Inspect results
+
+```bash
+recontool tools              # all adapters + which are available right now
+recontool scans              # past scans
+recontool report <scan_id>   # summary of a stored scan
+recontool export <scan_id> -o out.json
+```
+
+---
+
+## Configuration
+
+Two config files live in `config/`:
+
+| File | Purpose |
+|------|---------|
+| `config/recontool.yaml` | Main config — API keys, profile, proxies, AI, enabled categories. Copy from `recontool.example.yaml`. **Gitignored.** |
+| `config/tools.yaml` | Machine-readable **tool registry** — every tool's invocation, input/output, install method. The integration backbone. |
+
+**Precedence:** environment variable → `config/recontool.yaml` → built-in default. So you
+can keep secrets in env vars (CI) or in the YAML file (local). All keys are **optional** —
+passive recon runs with zero keys; adding keys unlocks more sources and higher limits.
+
+```yaml
+# config/recontool.yaml (excerpt)
+general: { profile: normal }
+network: { proxies: ["http://user:pass@proxy1:8080", "socks5://proxy2:1080"] }
+api_keys:
+  shodan: "..."
+  securitytrails: "..."
+  github_token: "..."
+```
+
+---
+
+## Running by category (pipeline model)
+
+The platform is built as **per-category pipelines** that chain tools (A's output → B's
+input) through a shared DB. You drive everything with a scope domain:
+
+```bash
+recontool scan www.xyz.com                  # default preset (passive categories)
+recontool scan www.xyz.com --category 2     # run ONLY the Cat-2 subdomain pipeline
+recontool scan www.xyz.com --authorize-active   # unlock active categories
+```
+
+See the full design in [`docs/pipeline/`](docs/pipeline/):
+- `01-gap-analysis.md` — missing tools/categories we added (content discovery, port
+  scanning, JS analysis, API/GraphQL, TLS, param discovery).
+- `02-plan-of-action.md` — pipeline model, A→B→C chaining, atomic-check methodology.
+- `03-category-pipelines.md` — the tool flow for every category.
+- `04-tool-catalog.md` — capability / invocation / output per tool.
+
+---
+
+## Setup: external tools & resources
+
+`docker/install_tools.sh` downloads and installs the recon CLIs (graceful — Recontool
+works without any of them, adapters just report unavailable):
+
+```bash
+bash docker/install_tools.sh core        # default-on set: subfinder, httpx, dnsx, naabu,
+                                          #   nuclei, asnmap, uncover, gau (+ templates)
+bash docker/install_tools.sh all         # full set + SecLists wordlists + resolver list
+bash docker/install_tools.sh resources   # just wordlists + clean DNS resolvers
+```
 
 ---
 
@@ -107,10 +185,14 @@ narrative, with a hard per-scan call budget (`RECON_AI_MAX_CALLS`).
 
 ## Optional external tools
 
-Recontool runs fully on its built-in Python adapters. If these Go binaries are on
-`PATH`, the matching adapters light up automatically (graceful detection):
-`subfinder`, `naabu`, `nuclei`. Install via
-[ProjectDiscovery](https://github.com/projectdiscovery).
+Recontool runs fully on its built-in Python adapters (crt.sh, HackerTarget, OTX,
+Wayback, DNS resolution, HTTP probing, JS analysis). If the Go/CLI binaries are on
+`PATH`, the matching adapters light up automatically (graceful detection): `subfinder`,
+`httpx`, `dnsx`, `naabu`, `nuclei`, `katana`, `tlsx`, `gau`, `gowitness`, and more.
+
+Install them with `bash docker/install_tools.sh all`, or use the Docker image which
+bundles everything. Full list + invocation details in
+[`config/tools.yaml`](config/tools.yaml) and [`docs/pipeline/04-tool-catalog.md`](docs/pipeline/04-tool-catalog.md).
 
 ---
 

@@ -1,0 +1,1125 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Recontool — Machine-readable Tool Registry (the integration backbone)
+#
+# Each tool declares a CONTRACT the orchestrator uses to chain tools:
+#   category        : 1..28 (see docs/pipeline/03-category-pipelines.md)
+#   phase           : pipeline phase (p1_seed | p2_expansion | p3_enrichment |
+#                     p4_verify | p5_deep | p6_vuln)  — maps to adapter registry
+#   type            : passive | active            (active => requires --authorize-active)
+#   integration     : cli | api | python | dataset
+#   binary          : executable name (cli) — used for availability check
+#   install         : how setup.sh installs it  {method: go|pip|apt|git|binary, ref: ...}
+#   invocation      : command/endpoint template; {domain},{host},{ip},{url},{infile},{outfile}
+#   input           : artifact type consumed  (domain|subdomain|ip|cidr|asn|url|host_port|js_file|cert)
+#   output          : artifact type produced
+#   output_format   : json | jsonl | text | xml | csv | screenshot
+#   requires_key    : env var name of API key, or false
+#   default_on      : true => ships wired-on; false => toggle
+#   chains_to       : categories/phases this output naturally feeds
+#
+# This file is BOTH documentation and runtime config. Adapters read it to know how to
+# invoke a tool and what to expect back. Tools without an adapter yet are still listed
+# (status: planned) so the catalog stays complete.
+# ─────────────────────────────────────────────────────────────────────────────
+
+meta:
+  version: 1
+  schema: recontool-tool-registry/v1
+
+# ===========================================================================
+# CATEGORY 1 — Internet-Wide Search Engines & Asset Discovery   [PASSIVE]
+# ===========================================================================
+tools:
+
+  uncover:
+    category: 1
+    phase: p1_seed
+    type: passive
+    integration: cli
+    binary: uncover
+    install: {method: go, ref: "github.com/projectdiscovery/uncover/cmd/uncover@latest"}
+    invocation: "uncover -q {domain} -json"
+    input: domain
+    output: host_port
+    output_format: jsonl
+    requires_key: false   # uses provider keys from env if present (shodan/censys/fofa)
+    default_on: true
+    chains_to: [3, 5, 21]
+    notes: "One query hits Shodan/Censys/FOFA/ZoomEye/Netlas. Primary Cat-1 entrypoint."
+
+  shodan:
+    category: 1
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "GET https://api.shodan.io/shodan/host/search?key={key}&query=hostname:{domain}"
+    input: domain
+    output: service
+    output_format: json
+    requires_key: SHODAN_API_KEY
+    default_on: true
+    chains_to: [3, 12, 21]
+    notes: "Banners, ports, CVE hints. Free InternetDB endpoint (internetdb) needs no credits."
+
+  internetdb:
+    category: 1
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "GET https://internetdb.shodan.io/{ip}"
+    input: ip
+    output: service
+    output_format: json
+    requires_key: false
+    default_on: true
+    chains_to: [12, 21]
+    notes: "Free Shodan: ports + CVEs per IP, no API credits consumed."
+
+  censys:
+    category: 1
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "POST https://search.censys.io/api/v2/hosts/search"
+    input: domain
+    output: cert
+    output_format: json
+    requires_key: CENSYS_API_ID   # also CENSYS_API_SECRET
+    default_on: true
+    chains_to: [2, 24]
+    notes: "Best cert analytics; SANs -> new subdomains (feeds Cat 2/24)."
+
+  netlas:
+    category: 1
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "GET https://app.netlas.io/api/responses/?q={domain}"
+    input: domain
+    output: service
+    output_format: json
+    requires_key: NETLAS_API_KEY
+    default_on: false
+    chains_to: [3, 21]
+    notes: "Modern Shodan/Censys alternative; generous free tier."
+
+  greynoise:
+    category: 1
+    phase: p3_enrichment
+    type: passive
+    integration: api
+    invocation: "GET https://api.greynoise.io/v3/community/{ip}"
+    input: ip
+    output: tag
+    output_format: json
+    requires_key: GREYNOISE_API_KEY   # community endpoint works keyless-ish
+    default_on: true
+    chains_to: []
+    notes: "Enrichment overlay: tags mass-scanner IPs to suppress noise. No new assets."
+
+  leakix:
+    category: 1
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "GET https://leakix.net/host/{ip}"
+    input: ip
+    output: finding
+    output_format: json
+    requires_key: LEAKIX_API_KEY
+    default_on: false
+    chains_to: [12]
+    notes: "Exposed services/leaks -> exposure findings."
+
+  fullhunt:
+    category: 1
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "GET https://fullhunt.io/api/v1/domain/{domain}/details"
+    input: domain
+    output: subdomain
+    output_format: json
+    requires_key: FULLHUNT_API_KEY
+    default_on: false
+    chains_to: [2, 5]
+
+  urlscan:
+    category: 1
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "GET https://urlscan.io/api/v1/search/?q=domain:{domain}"
+    input: domain
+    output: url
+    output_format: json
+    requires_key: URLSCAN_API_KEY   # search works without key (lower limits)
+    default_on: true
+    chains_to: [4, 22]
+    notes: "Web fingerprint, JS, related infra. Use unlisted/private for live engagements."
+
+  criminalip:
+    category: 1
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "GET https://api.criminalip.io/v1/asset/domain/report?query={domain}"
+    input: domain
+    output: service
+    output_format: json
+    requires_key: CRIMINALIP_API_KEY
+    default_on: false
+
+  # ===========================================================================
+  # CATEGORY 2 — Passive DNS & Subdomain Enumeration   [PASSIVE -> ACTIVE]
+  # ===========================================================================
+
+  subfinder:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: cli
+    binary: subfinder
+    install: {method: go, ref: "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest"}
+    invocation: "subfinder -d {domain} -silent -all -json"
+    input: domain
+    output: subdomain
+    output_format: jsonl
+    requires_key: false   # optional provider keys via ~/.config/subfinder/provider-config.yaml
+    default_on: true
+    chains_to: [2, 5]
+    notes: "Primary passive aggregator (30+ sources). Industry standard."
+
+  crtsh:
+    category: 2
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "GET https://crt.sh/?q=%25.{domain}&output=json"
+    input: domain
+    output: subdomain
+    output_format: json
+    requires_key: false
+    default_on: true
+    chains_to: [2, 24]
+    notes: "CT logs (authoritative, conf 0.9). Flaky uptime -> cache 6-24h."
+
+  certspotter:
+    category: 2
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "GET https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names"
+    input: domain
+    output: subdomain
+    output_format: json
+    requires_key: CERTSPOTTER_API_KEY
+    default_on: true
+    chains_to: [2]
+    notes: "Great for CONTINUOUS CT monitoring (EASM alerts on new certs)."
+
+  chaos:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: api
+    invocation: "GET https://dns.projectdiscovery.io/dns/{domain}/subdomains"
+    input: domain
+    output: subdomain
+    output_format: json
+    requires_key: CHAOS_API_KEY
+    default_on: false
+    chains_to: [2]
+
+  securitytrails:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: api
+    invocation: "GET https://api.securitytrails.com/v1/domain/{domain}/subdomains"
+    input: domain
+    output: subdomain
+    output_format: json
+    requires_key: SECURITYTRAILS_API_KEY
+    default_on: false
+    chains_to: [2, 3]
+    notes: "Best paid passive DNS + history. Throttle to plan quota."
+
+  virustotal:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: api
+    invocation: "GET https://www.virustotal.com/api/v3/domains/{domain}/subdomains"
+    input: domain
+    output: subdomain
+    output_format: json
+    requires_key: VIRUSTOTAL_API_KEY
+    default_on: false
+    notes: "Free tier 4 req/min, 500/day -> hard throttle."
+
+  hackertarget:
+    category: 2
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "GET https://api.hackertarget.com/hostsearch/?q={domain}"
+    input: domain
+    output: subdomain
+    output_format: csv
+    requires_key: false
+    default_on: true
+    chains_to: [2, 3]
+    notes: "Free hostsearch gives subdomain,ip pairs. Daily quota."
+
+  alienvault_otx:
+    category: 2
+    phase: p1_seed
+    type: passive
+    integration: api
+    invocation: "GET https://otx.alienvault.com/api/v1/indicators/domain/{domain}/passive_dns"
+    input: domain
+    output: subdomain
+    output_format: json
+    requires_key: false
+    default_on: true
+    chains_to: [2, 12]
+
+  github_subdomains:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: cli
+    binary: github-subdomains
+    install: {method: go, ref: "github.com/gwen001/github-subdomains@latest"}
+    invocation: "github-subdomains -d {domain} -t {key} -o {outfile}"
+    input: domain
+    output: subdomain
+    output_format: text
+    requires_key: GITHUB_TOKEN
+    default_on: false
+    chains_to: [2, 9]
+
+  amass:
+    category: 2
+    phase: p2_expansion
+    type: passive          # passive mode; active brute is a toggle
+    integration: cli
+    binary: amass
+    install: {method: go, ref: "github.com/owasp-amass/amass/v4/...@master"}
+    invocation: "amass enum -passive -d {domain} -json {outfile}"
+    input: domain
+    output: subdomain
+    output_format: jsonl
+    requires_key: false
+    default_on: false
+    chains_to: [2, 3]
+    notes: "Comprehensive but heavy. Run as one source, not the platform."
+
+  alterx:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: cli
+    binary: alterx
+    install: {method: go, ref: "github.com/projectdiscovery/alterx/cmd/alterx@latest"}
+    invocation: "alterx -l {infile} -o {outfile}"
+    input: subdomain
+    output: subdomain     # permutation candidates (must be resolved)
+    output_format: text
+    requires_key: false
+    default_on: false
+    chains_to: [2]
+    notes: "Modern permutation engine; output MUST go through puredns/dnsx."
+
+  dnsx:
+    category: 2
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: dnsx
+    install: {method: go, ref: "github.com/projectdiscovery/dnsx/cmd/dnsx@latest"}
+    invocation: "dnsx -l {infile} -json -a -aaaa -cname -resp"
+    input: subdomain
+    output: ip
+    output_format: jsonl
+    requires_key: false
+    default_on: true
+    chains_to: [21, 24]
+    notes: "Resolve/validate. A/AAAA -> resolves_to, CNAME -> cname_to (takeover input)."
+
+  puredns:
+    category: 2
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: puredns
+    install: {method: go, ref: "github.com/d3mondev/puredns/v2@latest"}
+    invocation: "puredns resolve {infile} -r {resolvers} --write {outfile}"
+    input: subdomain
+    output: subdomain     # resolving + wildcard-filtered
+    output_format: text
+    requires_key: false
+    default_on: false
+    chains_to: [4, 5]
+    notes: "Orchestrates massdns; killer feature is wildcard filtering. Needs resolvers."
+
+  massdns:
+    category: 2
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: massdns
+    install: {method: git, ref: "https://github.com/blechschmidt/massdns"}
+    invocation: "massdns -r {resolvers} -t A -o S -w {outfile} {infile}"
+    input: subdomain
+    output: ip
+    output_format: text
+    requires_key: false
+    default_on: false
+    notes: "Internet-scale resolver; used under puredns/shuffledns."
+
+  dnsvalidator:
+    category: 2
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: dnsvalidator
+    install: {method: pip, ref: "dnsvalidator"}
+    invocation: "dnsvalidator -tL https://public-dns.info/nameservers.txt -threads 100 -o {outfile}"
+    input: none
+    output: resolver_list
+    output_format: text
+    requires_key: false
+    default_on: false
+    notes: "Produces clean resolver list for puredns/massdns (reduces false positives)."
+
+  tlsx:
+    category: 24
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: tlsx
+    install: {method: go, ref: "github.com/projectdiscovery/tlsx/cmd/tlsx@latest"}
+    invocation: "tlsx -l {infile} -json -san -cn -so"
+    input: host_port
+    output: subdomain    # SANs/CN from live certs
+    output_format: jsonl
+    requires_key: false
+    default_on: false
+    chains_to: [2, 24]
+    notes: "Pulls SANs from live certs -> new subdomains. Also TLS fingerprint (JARM)."
+
+  # ===========================================================================
+  # CATEGORY 3 — WHOIS / ASN / BGP / Network Intelligence   [PASSIVE]
+  # ===========================================================================
+
+  asnmap:
+    category: 3
+    phase: p3_enrichment
+    type: passive
+    integration: cli
+    binary: asnmap
+    install: {method: go, ref: "github.com/projectdiscovery/asnmap/cmd/asnmap@latest"}
+    invocation: "asnmap -d {domain} -json"
+    input: domain
+    output: cidr
+    output_format: jsonl
+    requires_key: false
+    default_on: true
+    chains_to: [21]
+    notes: "domain/org/asn/ip -> CIDR ranges. Feeds port scanning targets."
+
+  bgpview:
+    category: 3
+    phase: p3_enrichment
+    type: passive
+    integration: api
+    invocation: "GET https://api.bgpview.io/asn/{asn}/prefixes"
+    input: asn
+    output: cidr
+    output_format: json
+    requires_key: false
+    default_on: true
+    chains_to: [21]
+
+  ripestat:
+    category: 3
+    phase: p3_enrichment
+    type: passive
+    integration: api
+    invocation: "GET https://stat.ripe.net/data/announced-prefixes/data.json?resource={asn}"
+    input: asn
+    output: cidr
+    output_format: json
+    requires_key: false
+    default_on: true
+
+  ipinfo:
+    category: 3
+    phase: p3_enrichment
+    type: passive
+    integration: api
+    invocation: "GET https://ipinfo.io/{ip}?token={key}"
+    input: ip
+    output: asn
+    output_format: json
+    requires_key: IPINFO_TOKEN
+    default_on: false
+    notes: "IP -> asn/org/geo enrichment. Free 50k/mo."
+
+  metabigor:
+    category: 3
+    phase: p3_enrichment
+    type: passive
+    integration: cli
+    binary: metabigor
+    install: {method: go, ref: "github.com/j3ssie/metabigor@latest"}
+    invocation: "echo {org} | metabigor net --org -o {outfile}"
+    input: org
+    output: cidr
+    output_format: text
+    requires_key: false
+    default_on: false
+    notes: "ASN/IP/org discovery with NO API key. Great free pivot."
+
+  mapcidr:
+    category: 3
+    phase: p3_enrichment
+    type: passive
+    integration: cli
+    binary: mapcidr
+    install: {method: go, ref: "github.com/projectdiscovery/mapcidr/cmd/mapcidr@latest"}
+    invocation: "mapcidr -cidr {cidr} -o {outfile}"
+    input: cidr
+    output: ip
+    output_format: text
+    requires_key: false
+    default_on: false
+    chains_to: [21]
+
+  # ===========================================================================
+  # CATEGORY 4 — Search Engine Dorking & URL Recon   [PASSIVE]
+  # ===========================================================================
+
+  gau:
+    category: 4
+    phase: p3_enrichment
+    type: passive
+    integration: cli
+    binary: gau
+    install: {method: go, ref: "github.com/lc/gau/v2/cmd/gau@latest"}
+    invocation: "gau {domain} --threads 5 --json"
+    input: domain
+    output: url
+    output_format: jsonl
+    requires_key: false
+    default_on: true
+    chains_to: [22, 25]
+    notes: "Aggregates wayback+commoncrawl+otx+urlscan in one call."
+
+  waybackurls:
+    category: 4
+    phase: p3_enrichment
+    type: passive
+    integration: cli
+    binary: waybackurls
+    install: {method: go, ref: "github.com/tomnomnom/waybackurls@latest"}
+    invocation: "waybackurls {domain}"
+    input: domain
+    output: url
+    output_format: text
+    requires_key: false
+    default_on: false
+    notes: "Subset of gau (wayback only)."
+
+  gf:
+    category: 4
+    phase: p5_deep
+    type: passive
+    integration: cli
+    binary: gf
+    install: {method: go, ref: "github.com/tomnomnom/gf@latest"}
+    invocation: "cat {infile} | gf {pattern}"
+    input: url
+    output: url
+    output_format: text
+    requires_key: false
+    default_on: false
+    chains_to: [25]
+    notes: "Pattern-match URLs (ssrf/xss/redirect/idor) to triage attack surface."
+
+  unfurl:
+    category: 4
+    phase: p5_deep
+    type: passive
+    integration: cli
+    binary: unfurl
+    install: {method: go, ref: "github.com/tomnomnom/unfurl@latest"}
+    invocation: "cat {infile} | unfurl {mode}"
+    input: url
+    output: url
+    output_format: text
+    requires_key: false
+    default_on: false
+
+  paramspider:
+    category: 25
+    phase: p5_deep
+    type: passive
+    integration: cli
+    binary: paramspider
+    install: {method: pip, ref: "git+https://github.com/devanshbatham/ParamSpider"}
+    invocation: "paramspider -d {domain}"
+    input: domain
+    output: url
+    output_format: text
+    requires_key: false
+    default_on: false
+    chains_to: [25]
+
+  # ===========================================================================
+  # CATEGORY 5 — Web Tech Fingerprinting + HTTP Probing   [ACTIVE]
+  # ===========================================================================
+
+  httpx:
+    category: 5
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: httpx
+    install: {method: go, ref: "github.com/projectdiscovery/httpx/cmd/httpx@latest"}
+    invocation: "httpx -l {infile} -json -sc -title -tech-detect -tls-grab -cdn -ip -cname -hash sha256 -web-server"
+    input: subdomain
+    output: url
+    output_format: jsonl
+    requires_key: false
+    default_on: true
+    chains_to: [13, 20, 22, 27]
+    notes: "The active hub. Sets is_live, tech[], cdn/waf tags, TLS, content hash."
+
+  whatweb:
+    category: 5
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: whatweb
+    install: {method: apt, ref: "whatweb"}
+    invocation: "whatweb --log-json={outfile} {url}"
+    input: url
+    output: tech
+    output_format: json
+    requires_key: false
+    default_on: false
+
+  wafw00f:
+    category: 5
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: wafw00f
+    install: {method: pip, ref: "wafw00f"}
+    invocation: "wafw00f {url} -o {outfile} -f json"
+    input: url
+    output: tag
+    output_format: json
+    requires_key: false
+    default_on: false
+    notes: "Detect WAF -> informs rate strategy."
+
+  cdncheck:
+    category: 5
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: cdncheck
+    install: {method: go, ref: "github.com/projectdiscovery/cdncheck/cmd/cdncheck@latest"}
+    invocation: "cdncheck -i {infile} -resp"
+    input: ip
+    output: tag
+    output_format: text
+    requires_key: false
+    default_on: false
+    notes: "Flag CDN hosts so we don't port-scan CDN edge ranges."
+
+  # ===========================================================================
+  # CATEGORY 6 — Historical & Archive Recon   [PASSIVE]
+  # ===========================================================================
+
+  waymore:
+    category: 6
+    phase: p3_enrichment
+    type: passive
+    integration: cli
+    binary: waymore
+    install: {method: pip, ref: "waymore"}
+    invocation: "waymore -i {domain} -mode U -oU {outfile}"
+    input: domain
+    output: url
+    output_format: text
+    requires_key: false
+    default_on: false
+    chains_to: [22, 25]
+    notes: "Best archive aggregator (wayback+cc+otx+urlscan + downloads responses)."
+
+  wayback_cdx:
+    category: 6
+    phase: p3_enrichment
+    type: passive
+    integration: api
+    invocation: "GET http://web.archive.org/cdx/search/cdx?url=*.{domain}/*&output=json&fl=original&collapse=urlkey"
+    input: domain
+    output: url
+    output_format: json
+    requires_key: false
+    default_on: true
+    chains_to: [22]
+    notes: "Also downloads .js to artifacts/js/ for Cat 22."
+
+  # ===========================================================================
+  # CATEGORY 9 — GitHub / GitLab / Source-Code Recon   [PASSIVE -> ACTIVE]
+  # ===========================================================================
+
+  gitleaks:
+    category: 9
+    phase: p5_deep
+    type: passive
+    integration: cli
+    binary: gitleaks
+    install: {method: go, ref: "github.com/gitleaks/gitleaks/v8@latest"}
+    invocation: "gitleaks detect --source {repo} --report-format json --report-path {outfile} --no-banner"
+    input: repo
+    output: finding
+    output_format: json
+    requires_key: false
+    default_on: false
+    notes: "Store hash+mask+location ONLY, never raw secret."
+
+  trufflehog:
+    category: 9
+    phase: p5_deep
+    type: passive          # verification (--only-verified) is active -> toggle
+    integration: cli
+    binary: trufflehog
+    install: {method: go, ref: "github.com/trufflesecurity/trufflehog/v3@latest"}
+    invocation: "trufflehog filesystem {repo} --json"
+    input: repo
+    output: finding
+    output_format: jsonl
+    requires_key: false
+    default_on: false
+
+  github_search:
+    category: 9
+    phase: p3_enrichment
+    type: passive
+    integration: api
+    invocation: "GET https://api.github.com/search/code?q={dork}+org:{org}"
+    input: org
+    output: repo
+    output_format: json
+    requires_key: GITHUB_TOKEN
+    default_on: false
+    notes: "30 req/min code search + strict secondary limits -> queue + token rotation."
+
+  # ===========================================================================
+  # CATEGORY 10 — Cloud & Storage Recon   [PASSIVE -> ACTIVE]
+  # ===========================================================================
+
+  grayhatwarfare:
+    category: 10
+    phase: p3_enrichment
+    type: passive
+    integration: api
+    invocation: "GET https://buckets.grayhatwarfare.com/api/v2/buckets?keywords={keyword}"
+    input: keyword
+    output: bucket
+    output_format: json
+    requires_key: GRAYHATWARFARE_API_KEY
+    default_on: false
+
+  cloud_enum:
+    category: 10
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: cloud_enum
+    install: {method: git, ref: "https://github.com/initstring/cloud_enum"}
+    invocation: "cloud_enum -k {keyword} -l {outfile}"
+    input: keyword
+    output: bucket
+    output_format: text
+    requires_key: false
+    default_on: false
+
+  s3scanner:
+    category: 10
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: s3scanner
+    install: {method: go, ref: "github.com/sa7mon/s3scanner@latest"}
+    invocation: "s3scanner -bucket-file {infile} -json"
+    input: bucket
+    output: finding
+    output_format: jsonl
+    requires_key: false
+    default_on: false
+
+  # ===========================================================================
+  # CATEGORY 12 — Malware / IOC / Threat Intel & CVE Correlation   [PASSIVE]
+  # ===========================================================================
+
+  nvd:
+    category: 12
+    phase: p6_vuln
+    type: passive
+    integration: api
+    invocation: "GET https://services.nvd.nist.gov/rest/json/cves/2.0?cpeName={cpe}"
+    input: cpe
+    output: finding
+    output_format: json
+    requires_key: NVD_API_KEY
+    default_on: false
+    notes: "Authoritative CVE metadata. Without key = harsh throttle. GET a key."
+
+  epss:
+    category: 12
+    phase: p6_vuln
+    type: passive
+    integration: api
+    invocation: "GET https://api.first.org/data/v1/epss?cve={cve}"
+    input: cve
+    output: finding
+    output_format: json
+    requires_key: false
+    default_on: true
+    notes: "Exploit probability -> drives priority_rank."
+
+  vulners:
+    category: 12
+    phase: p6_vuln
+    type: passive
+    integration: api
+    invocation: "POST https://vulners.com/api/v3/search/lucene/"
+    input: cpe
+    output: finding
+    output_format: json
+    requires_key: VULNERS_API_KEY
+    default_on: false
+
+  # ===========================================================================
+  # CATEGORY 13 — Visual Recon & Screenshotting   [ACTIVE]
+  # ===========================================================================
+
+  gowitness:
+    category: 13
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: gowitness
+    install: {method: go, ref: "github.com/sensepost/gowitness@latest"}
+    invocation: "gowitness scan file -f {infile} --write-db --screenshot-path {outdir}"
+    input: url
+    output: screenshot
+    output_format: screenshot
+    requires_key: false
+    default_on: false
+    notes: "Headless chrome screenshots -> artifacts/, link to endpoint.evidence_ref."
+
+  # ===========================================================================
+  # CATEGORY 20 — Content & Directory Discovery   [ACTIVE]   (NEW)
+  # ===========================================================================
+
+  ffuf:
+    category: 20
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: ffuf
+    install: {method: go, ref: "github.com/ffuf/ffuf/v2@latest"}
+    invocation: "ffuf -u {url}/FUZZ -w {wordlist} -of json -o {outfile} -mc 200,204,301,302,307,401,403"
+    input: url
+    output: url
+    output_format: json
+    requires_key: false
+    default_on: false
+    chains_to: [25, 27]
+    notes: "Wordlists from Cat 28 (SecLists) + harvested paths (Cat 11)."
+
+  feroxbuster:
+    category: 20
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: feroxbuster
+    install: {method: binary, ref: "https://github.com/epi052/feroxbuster"}
+    invocation: "feroxbuster -u {url} -w {wordlist} --json -o {outfile}"
+    input: url
+    output: url
+    output_format: jsonl
+    requires_key: false
+    default_on: false
+
+  # ===========================================================================
+  # CATEGORY 21 — Port Scanning & Service Detection   [ACTIVE]   (NEW)
+  # ===========================================================================
+
+  naabu:
+    category: 21
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: naabu
+    install: {method: go, ref: "github.com/projectdiscovery/naabu/v2/cmd/naabu@latest"}
+    invocation: "naabu -list {infile} -top-ports {ports} -json -silent"
+    input: ip
+    output: host_port
+    output_format: jsonl
+    requires_key: false
+    default_on: true
+    chains_to: [5, 12, 24]
+    notes: "Fast port discovery; feeds nmap for deep scan."
+
+  nmap:
+    category: 21
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: nmap
+    install: {method: apt, ref: "nmap"}
+    invocation: "nmap -sV -sC -p {ports} -oX {outfile} {host}"
+    input: host_port
+    output: service
+    output_format: xml
+    requires_key: false
+    default_on: false
+    chains_to: [12]
+    notes: "Deep service/version detection ONLY on naabu-found ports."
+
+  masscan:
+    category: 21
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: masscan
+    install: {method: apt, ref: "masscan"}
+    invocation: "masscan {cidr} -p{ports} --rate {rate} -oJ {outfile}"
+    input: cidr
+    output: host_port
+    output_format: json
+    requires_key: false
+    default_on: false
+    notes: "For huge ranges. Respect rate profile (very noisy)."
+
+  # ===========================================================================
+  # CATEGORY 22 — JavaScript Analysis & Secret Extraction   [PASSIVE/ACTIVE]  (NEW)
+  # ===========================================================================
+
+  katana:
+    category: 22
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: katana
+    install: {method: go, ref: "github.com/projectdiscovery/katana/cmd/katana@latest"}
+    invocation: "katana -list {infile} -jc -js-crawl -json -d 3"
+    input: url
+    output: url
+    output_format: jsonl
+    requires_key: false
+    default_on: false
+    chains_to: [22, 25]
+    notes: "JS-aware crawler; discovers js_file + endpoints. New hosts loop to httpx."
+
+  linkfinder:
+    category: 22
+    phase: p5_deep
+    type: passive
+    integration: python
+    install: {method: git, ref: "https://github.com/GerbenJavado/LinkFinder"}
+    invocation: "python linkfinder.py -i {js_file} -o cli"
+    input: js_file
+    output: url
+    output_format: text
+    requires_key: false
+    default_on: false
+
+  secretfinder:
+    category: 22
+    phase: p5_deep
+    type: passive
+    integration: python
+    install: {method: git, ref: "https://github.com/m4ll0k/SecretFinder"}
+    invocation: "python SecretFinder.py -i {js_file} -o cli"
+    input: js_file
+    output: finding
+    output_format: text
+    requires_key: false
+    default_on: false
+    notes: "API keys in JS. Store redacted only."
+
+  jsluice:
+    category: 22
+    phase: p5_deep
+    type: passive
+    integration: cli
+    binary: jsluice
+    install: {method: go, ref: "github.com/BishopFox/jsluice/cmd/jsluice@latest"}
+    invocation: "jsluice urls {js_file}"
+    input: js_file
+    output: url
+    output_format: jsonl
+    requires_key: false
+    default_on: false
+    notes: "Modern JS URL+secret extraction (better than LinkFinder)."
+
+  # ===========================================================================
+  # CATEGORY 23 — API & GraphQL Recon   [ACTIVE]   (NEW)
+  # ===========================================================================
+
+  graphw00f:
+    category: 23
+    phase: p5_deep
+    type: active
+    integration: python
+    install: {method: git, ref: "https://github.com/dolevf/graphw00f"}
+    invocation: "python main.py -d -f -t {url}"
+    input: url
+    output: finding
+    output_format: text
+    requires_key: false
+    default_on: false
+
+  kiterunner:
+    category: 23
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: kr
+    install: {method: binary, ref: "https://github.com/assetnote/kiterunner"}
+    invocation: "kr scan {infile} -w routes-large.kite -o json -O {outfile}"
+    input: url
+    output: url
+    output_format: json
+    requires_key: false
+    default_on: false
+
+  # ===========================================================================
+  # CATEGORY 24 — TLS/SSL & Certificate Analysis   [ACTIVE]   (NEW)
+  # (tlsx listed under Cat 2 region above; sslyze/cero here)
+  # ===========================================================================
+
+  sslyze:
+    category: 24
+    phase: p6_vuln
+    type: active
+    integration: cli
+    binary: sslyze
+    install: {method: pip, ref: "sslyze"}
+    invocation: "sslyze --json_out {outfile} {host}"
+    input: host_port
+    output: finding
+    output_format: json
+    requires_key: false
+    default_on: false
+    notes: "Weak cipher/expired/self-signed -> tls findings."
+
+  cero:
+    category: 24
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: cero
+    install: {method: go, ref: "github.com/glebarez/cero@latest"}
+    invocation: "cero {infile}"
+    input: ip
+    output: subdomain
+    output_format: text
+    requires_key: false
+    default_on: false
+    notes: "Scrape domains from TLS certs of IP ranges -> new subdomains."
+
+  # ===========================================================================
+  # CATEGORY 27 — Active Vulnerability Detection   [ACTIVE]
+  # ===========================================================================
+
+  nuclei:
+    category: 27
+    phase: p6_vuln
+    type: active
+    integration: cli
+    binary: nuclei
+    install: {method: go, ref: "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"}
+    invocation: "nuclei -l {infile} -jsonl -silent -severity {severities} -rl {rate}"
+    input: url
+    output: finding
+    output_format: jsonl
+    requires_key: false
+    default_on: true
+    chains_to: [12]
+    notes: "Templated DETECTION only (no exploitation). Tags scope what runs."
+
+  subjack:
+    category: 24
+    phase: p6_vuln
+    type: active
+    integration: cli
+    binary: subjack
+    install: {method: go, ref: "github.com/haccer/subjack@latest"}
+    invocation: "subjack -w {infile} -ssl -o {outfile} -ssl"
+    input: subdomain
+    output: finding
+    output_format: text
+    requires_key: false
+    default_on: false
+    notes: "Subdomain takeover detection (dangling CNAME)."
+
+  # ===========================================================================
+  # UTILITY / GLUE   (cross-cutting plumbing)
+  # ===========================================================================
+
+  anew:
+    category: 0
+    phase: p1_seed
+    type: passive
+    integration: cli
+    binary: anew
+    install: {method: go, ref: "github.com/tomnomnom/anew@latest"}
+    invocation: "cat {infile} | anew {outfile}"
+    input: any
+    output: any
+    output_format: text
+    requires_key: false
+    default_on: false
+    notes: "Append-only dedupe; glue for incremental/streaming pipelines."
+
+  interactsh:
+    category: 14
+    phase: p6_vuln
+    type: active
+    integration: cli
+    binary: interactsh-client
+    install: {method: go, ref: "github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest"}
+    invocation: "interactsh-client -json"
+    input: none
+    output: finding
+    output_format: jsonl
+    requires_key: false
+    default_on: false
+    notes: "OOB/OAST infra for blind interaction detection (used by nuclei)."
+
+  notify:
+    category: 14
+    phase: p1_seed
+    type: passive
+    integration: cli
+    binary: notify
+    install: {method: go, ref: "github.com/projectdiscovery/notify/cmd/notify@latest"}
+    invocation: "cat {infile} | notify -silent"
+    input: any
+    output: none
+    output_format: text
+    requires_key: false
+    default_on: false
+    notes: "Alerting sink (slack/discord/telegram) for new assets/findings."

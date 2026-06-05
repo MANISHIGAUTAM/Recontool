@@ -3,11 +3,14 @@
 Mirrors docs/D3-data-schema.md. SQLite-friendly (no PG-only types) but works on
 PostgreSQL unchanged. Every entity carries a deterministic `dedupe_key` so
 re-discovery upserts instead of duplicating.
+
+Note: uses ``Optional[...]`` (not ``X | None``) so SQLAlchemy can de-stringify the
+``Mapped[...]`` annotations on Python 3.9+ as well as 3.10+.
 """
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import (
     JSON,
@@ -19,7 +22,6 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
-    func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -43,8 +45,8 @@ class Scan(Base):
     status: Mapped[str] = mapped_column(String(16), default="queued")
     scope_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     active_authorized: Mapped[bool] = mapped_column(Boolean, default=False)
-    started_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
-    finished_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     assets: Mapped[list["Asset"]] = relationship(back_populates="scan")
@@ -63,7 +65,7 @@ class Asset(Base):
     tech: Mapped[list[Any]] = mapped_column(JSON, default=list)
     tags: Mapped[list[str]] = mapped_column(JSON, default=list)
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
-    is_live: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    is_live: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     in_scope: Mapped[bool] = mapped_column(Boolean, default=True)
     first_seen: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
     last_seen: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
@@ -84,7 +86,7 @@ class AssetSource(Base):
     asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"), index=True)
     tool: Mapped[str] = mapped_column(String(64))
     source_confidence: Mapped[float] = mapped_column(Float, default=0.5)
-    raw_ref: Mapped[str | None] = mapped_column(String(512))
+    raw_ref: Mapped[Optional[str]] = mapped_column(String(512))
     observed_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     asset: Mapped["Asset"] = relationship(back_populates="sources")
@@ -98,12 +100,13 @@ class Service(Base):
     asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"), index=True)
     port: Mapped[int] = mapped_column(Integer)
     protocol: Mapped[str] = mapped_column(String(8), default="tcp")
-    service_name: Mapped[str | None] = mapped_column(String(64))
-    product: Mapped[str | None] = mapped_column(String(128))
-    version: Mapped[str | None] = mapped_column(String(64))
-    banner: Mapped[str | None] = mapped_column(Text)
-    tls: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    service_name: Mapped[Optional[str]] = mapped_column(String(64))
+    product: Mapped[Optional[str]] = mapped_column(String(128))
+    version: Mapped[Optional[str]] = mapped_column(String(64))
+    banner: Mapped[Optional[str]] = mapped_column(Text)
+    tls: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
     first_seen: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    last_seen: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class Endpoint(Base):
@@ -114,14 +117,15 @@ class Endpoint(Base):
     asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"), index=True)
     url: Mapped[str] = mapped_column(String(2048))
     method: Mapped[str] = mapped_column(String(8), default="GET")
-    status_code: Mapped[int | None] = mapped_column(Integer)
-    content_hash: Mapped[str | None] = mapped_column(String(64))
-    title: Mapped[str | None] = mapped_column(String(512))
+    status_code: Mapped[Optional[int]] = mapped_column(Integer)
+    content_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    title: Mapped[Optional[str]] = mapped_column(String(512))
     params: Mapped[list[str]] = mapped_column(JSON, default=list)
-    risk_class: Mapped[str | None] = mapped_column(String(32))
-    source: Mapped[str | None] = mapped_column(String(64))
+    risk_class: Mapped[Optional[str]] = mapped_column(String(32))
+    source: Mapped[Optional[str]] = mapped_column(String(64))
     dedupe_key: Mapped[str] = mapped_column(String(64), index=True)
     first_seen: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    last_seen: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class Finding(Base):
@@ -130,19 +134,20 @@ class Finding(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     scan_id: Mapped[str] = mapped_column(ForeignKey("scan.id"), index=True)
-    asset_value: Mapped[str | None] = mapped_column(String(1024))
+    asset_value: Mapped[Optional[str]] = mapped_column(String(1024))
     kind: Mapped[str] = mapped_column(String(24))               # cve|takeover|exposure|misconfig|secret|tls|cloud
     title: Mapped[str] = mapped_column(String(512))
-    cve_id: Mapped[str | None] = mapped_column(String(32))
+    cve_id: Mapped[Optional[str]] = mapped_column(String(32))
     severity: Mapped[str] = mapped_column(String(12), default="info")
     confidence: Mapped[float] = mapped_column(Float, default=0.5)
-    priority_rank: Mapped[float | None] = mapped_column(Float)
+    priority_rank: Mapped[Optional[float]] = mapped_column(Float)
     detector: Mapped[str] = mapped_column(String(128))
-    evidence_ref: Mapped[str | None] = mapped_column(String(512))
-    evidence_redacted: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    evidence_ref: Mapped[Optional[str]] = mapped_column(String(512))
+    evidence_redacted: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(16), default="open")
     dedupe_key: Mapped[str] = mapped_column(String(64), index=True)
     first_seen: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    last_seen: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class Edge(Base):
@@ -164,12 +169,12 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    scan_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    scan_id: Mapped[Optional[str]] = mapped_column(String(36), index=True)
     actor: Mapped[str] = mapped_column(String(64), default="system")
     action: Mapped[str] = mapped_column(String(64))
-    tool: Mapped[str | None] = mapped_column(String(64))
-    target: Mapped[str | None] = mapped_column(String(1024))
-    egress_ip: Mapped[str | None] = mapped_column(String(64))
-    profile: Mapped[str | None] = mapped_column(String(32))
-    detail: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    tool: Mapped[Optional[str]] = mapped_column(String(64))
+    target: Mapped[Optional[str]] = mapped_column(String(1024))
+    egress_ip: Mapped[Optional[str]] = mapped_column(String(64))
+    profile: Mapped[Optional[str]] = mapped_column(String(32))
+    detail: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
     ts: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
