@@ -138,6 +138,51 @@ See the full design in [`docs/pipeline/`](docs/pipeline/):
 
 ---
 
+## Tool inventory (every spreadsheet tool, normalized)
+
+The complete `ReconTools` spreadsheet is captured **exhaustively** — every row is
+preserved and deduplicated into canonical records, with all category memberships and
+raw row references kept.
+
+```bash
+# regenerate the inventory + per-tool docs from the source-of-truth TSV
+python -m recontool.inventory.build_inventory
+```
+
+| Artifact | What it is |
+|----------|-----------|
+| [`data/recontools_raw.tsv`](data/recontools_raw.tsv) | **Source of truth** — every spreadsheet row, verbatim (614 rows, 19 sections). |
+| [`data/tool_rows_raw.json`](data/tool_rows_raw.json) | All raw rows with stable row ids (machine-readable). |
+| [`data/tool_inventory.json`](data/tool_inventory.json) | Canonical deduplicated tools (532) + derived tags + provenance. |
+| [`docs/inventory/TOOL-INVENTORY.md`](docs/inventory/TOOL-INVENTORY.md) | Human-readable inventory: summary, per-section index, master table, duplicates, aliases. |
+| [`docs/tools/`](docs/tools/) | One capability doc per canonical tool (purpose, classification, invocation, I/O, failure modes, confidence, pipeline position). |
+
+**Counts:** 614 raw rows → **532 canonical tools** (82 duplicate rows collapsed),
+across 19 sections; 68 tools span multiple categories; 82 are web/GUI-only.
+
+**Extracted vs suggested.** Everything in the inventory is `extracted_from_spreadsheet`
+and never altered. Genuinely missing categories/tools we *recommend adding* are kept
+separate in [`docs/pipeline/01-gap-analysis.md`](docs/pipeline/01-gap-analysis.md) and
+are never merged into the extracted inventory.
+
+### How the inventory maps to the rest of the system
+
+| Spec deliverable | Where it lives |
+|------------------|----------------|
+| Exhaustive tool inventory | `data/` + `docs/inventory/` + `docs/tools/` (this section) |
+| Category taxonomy & gaps | `docs/pipeline/01-gap-analysis.md` |
+| Orchestration architecture | `docs/00-architecture-overview.md`, `docs/D2-recon-flow.md`, `docs/D4-adr.md` |
+| Category-by-category pipelines | `docs/pipeline/03-category-pipelines.md`, `05-flow-architecture.md` |
+| Recursive passive→live→active flow | `docs/pipeline/06-recursive-flow.md` |
+| Normalized output contract | `docs/D3-data-schema.md`, `recontool/normalize/` |
+| Config system + `.env` | `config/recontool.example.yaml`, `.env.example`, `recontool/config.py` |
+| Setup / bootstrap (Docker) | `Dockerfile`, `docker/install_tools.sh`, `docker-compose.yml` |
+| First passive pipeline + atomic checks | `recontool/adapters/` (Cat-1) + `tests/atomic/` |
+| Rollout plan | `docs/D7-roadmap.md`, `docs/pipeline/02-plan-of-action.md` |
+| Advanced improvements | `docs/pipeline/08-feature-advancements.md` |
+
+---
+
 ## Setup: external tools & resources
 
 `docker/install_tools.sh` downloads and installs the recon CLIs (graceful — Recontool

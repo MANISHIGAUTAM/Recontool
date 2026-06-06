@@ -1,0 +1,648 @@
+# Recontool — RAW spreadsheet rows (source of truth, verbatim).
+# Format: tab-separated. Section markers begin with "# SECTION:".
+# Columns: tool	category	passive_active	free_paid	cli_api	difficulty	data_quality	scale	best_use	worth	notes
+# Rows are preserved EXACTLY as in ReconTools.xlsx, including duplicates and
+# cross-category repeats. The normalizer (recontool/inventory/build_inventory.py)
+# dedupes into canonical records while keeping every raw row reference.
+# Blank free_paid cells in the source are kept blank.
+# SECTION: 1. Internet-Wide Search Engines & Asset Discovery
+Shodan	Internet Asset Search	Passive	Freemium	Excellent	Easy	Excellent	Massive	Exposed services, IoT, banners	Very High	Industry standard internet search engine
+Censys	Internet Asset Search	Passive	Freemium	Excellent	Easy	Excellent	Massive	TLS certs, ASM, host intelligence	Very High	Strong certificate transparency analytics
+ZoomEye	Internet Asset Search	Passive	Freemium	Good	Medium	High	Massive	APAC infrastructure visibility	High	Strong China-region coverage
+FOFA	Cyberspace Search	Passive	Freemium	Good	Medium	High	Massive	Chinese and APAC assets	High	Great ASN and body search
+Netlas	Asset Discovery	Passive	Freemium	Excellent	Easy	High	Large	Fast automation and enrichment	Very High	Modern alternative to Shodan
+BinaryEdge	Exposure Intelligence	Passive	Paid	Excellent	Medium	High	Large	Enterprise attack surface analysis	High	Expensive but strong telemetry
+ONYPHE	Cyber Defense Search	Passive	Freemium	API	Medium	Medium-High	Medium	Threat intelligence pivots	Medium	Niche but useful enrichment
+GreyNoise	Threat Intelligence	Passive	Freemium	Excellent	Easy	Excellent	Large	Internet noise filtering	Very High	Essential SOC enrichment source
+Hunter Howler	Threat Hunting	Passive	Paid	API	Medium	Medium	Medium	Threat hunting enrichment	Medium	Less common in bug bounty workflows
+LeakIX	Exposure Search	Passive	Freemium	API	Easy	High	Large	Open services and leaks	Very High	Excellent ransomware leak visibility
+Criminal IP	ASM Search	Passive	Freemium	API	Easy	High	Large	Exposure intelligence	High	Strong UI and filtering
+FullHunt	ASM Platform	Passive	Freemium	API	Easy	High	Medium-Large	Attack surface monitoring	High	Popular among bug bounty hunters
+PublicWWW	Source Code Search	Passive	Freemium	Limited API	Easy	High	Large	JS, analytics, tracking IDs	Very High	Extremely underrated recon engine
+Netcraft	Infrastructure Intel	Passive	Freemium	Limited API	Easy	High	Large	Hosting and infrastructure research	High	Strong phishing intelligence
+IVRE	Recon Framework	Hybrid	Free	CLI/API	Hard	Medium	Medium	Self-hosted recon platform	Medium	Better for researchers
+Pulsedive	Threat Intelligence	Passive	Freemium	API	Easy	High	Medium	IOC enrichment and pivots	High	Great for IOC correlation
+Searchcode	Source Code Search	Passive	Web/API	Easy	Medium	Medium	Large	Code pattern searching	Medium	Less accurate than Sourcegraph
+IntelX	Deep Search Engine	Passive	Paid	API	Medium	Excellent	Massive	Leaks, archives, darknet intel	Very High	One of the broadest OSINT engines
+URLScan	Web Intelligence	Passive	Freemium	Excellent	Easy	Excellent	Large	JS analysis and phishing research	Very High	Essential web recon source
+Wigle	Wireless Mapping	Passive	Freemium	API	Easy	Excellent	Massive	WiFi/BSSID geolocation	Very High	Best wireless OSINT database
+Thingful	IoT Search	Passive	Freemium	API	Medium	Medium	Medium	IoT discovery	Medium	Smaller ecosystem
+Rapid7 Open Data	Research Dataset	Passive	Free	Download/API	Medium	Excellent	Massive	Research and ASM analytics	High	Sonar datasets are valuable
+Packet Storm Search	Security Search	Passive	Free	Web	Easy	Medium	Medium	Exploit and advisory lookup	Medium	Better historical reference
+Search Engine Map	Search Aggregator	Passive	Free	Web	Easy	Medium	Medium	Discover alternative search engines	Low	Mostly educational
+Pulsedive Threat Intelligence	Threat Intel	Passive	Freemium	API	Easy	High	Medium	IOC enrichment	High	Same Pulsedive ecosystem
+RiskIQ PassiveTotal	Passive DNS / ASM	Passive	Paid	Excellent	Medium	Excellent	Massive	Enterprise infrastructure mapping	Very High	Microsoft-owned enterprise-grade intel
+SOC Radar Search	Threat Intelligence	Passive	Freemium	API	Medium	Medium-High	Medium	Threat intel enrichment	Medium-High	Emerging CTI ecosystem
+Netlas Explorer	Asset Discovery	Passive		Excellent	Easy	High	Large	Fast internet search	High	UI-focused Netlas view
+Project Sonar	Internet Dataset	Passive	Free	Download	Hard	Excellent	Massive	Research-grade internet scans	Very High	Backbone of many recon tools
+Yandex Search	Search Engine	Passive	Free	Limited API	Easy	High	Massive	Indexed Russian/Eastern assets	Medium-High	Great for forgotten indexed files
+Google Search	Search Engine	Passive	Free	Limited API	Easy	Excellent	Massive	Dorking and indexed exposure	Very High	Still unmatched for discovery
+Bing Search	Search Engine	Passive	Free	API	Easy	High	Massive	Alternative indexed results	High	Often reveals unique assets
+Baidu Search	Search Engine	Passive	Free	Limited API	Medium	Medium	Massive	Chinese indexed assets	Medium	Useful for CN-focused recon
+Exalead	Search Engine	Passive	Free	Web	Easy	Medium	Medium	File discovery and dorks	Medium	Older but still useful
+Swisscows	Privacy Search	Passive	Free	Web	Easy	Medium	Medium	Privacy-focused indexing	Low	Minimal recon value
+Mojeek	Independent Search	Passive	Free	Web	Easy	Medium	Medium	Independent indexing	Low-Medium	Limited recon utility
+Searx	Meta Search	Passive	Free	Self-hosted	Medium	Medium	Medium	Aggregated search privacy	Medium	Good custom workflows
+Ahmia	Onion Search	Passive	Free	Web	Easy	Medium	Medium	Tor hidden services	Medium	Safer onion indexing
+OnionLand Search	Onion Search	Passive	Free	Web	Easy	Medium	Medium	Dark web search	Low-Medium	Limited indexing quality
+Torch Search	Onion Search	Passive	Free	Web	Easy	Medium	Medium	Onion service search	Medium	Large onion index historically
+Reconmap	Recon Management	Hybrid	Free	API	Hard	Medium	Medium	Team recon management	Medium	Better for coordinated ops
+Netlas Hosts	Asset Search	Passive		API	Easy	High	Large	Host-level intelligence	High	Strong filtering support
+PublicWWW Source Search	Source Code Search	Passive		Web	Easy	High	Large	Source snippets and IDs	High	Great for JS pivots
+Wappalyzer Lookup	Tech Fingerprinting	Passive		API/Web	Easy	High	Large	Detect web stacks	Very High	Extremely accurate tech detection
+BuiltWith Lookup	Tech Intelligence	Passive		API/Web	Easy	High	Large	Website stack profiling	Very High	Better historical business data
+BuiltWith Trends	Market Intelligence	Passive	Paid	API	Medium	High	Large	Technology adoption analytics	High	Great for large-scale profiling
+ZoomEye Cyberspace Search	Asset Search	Passive		API	Medium	High	Massive	Device exposure search	High	Same ZoomEye ecosystem
+Censys ASM	ASM Platform	Passive	Paid	Excellent	Medium	Excellent	Massive	Enterprise attack surface management	Very High	Premium enterprise tooling
+BinaryEdge Hunt	Exposure Search	Passive		API	Medium	High	Large	Threat hunting and exposure intel	High	Better for SOC use
+FOFA Hunt	Threat Hunting	Passive		API	Medium	High	Massive	Internet exposure analysis	High	Strong body/hash search
+CriminalIP ASM	Attack Surface Mgmt	Passive		API	Easy	High	Large	External exposure monitoring	High	User-friendly ASM tooling
+LeakIX Exposure Search	Exposure Search	Passive		API	Easy	High	Large	Exposed databases and panels	Very High	Excellent ransomware monitoring
+
+# SECTION: 2. Passive DNS & Subdomain Enumeration
+SecurityTrails	Passive DNS	Passive	Paid/Freemium	API	Easy	Enterprise	Massive	Enterprise asset discovery	High	One of the best passive DNS datasets
+VirusTotal	Threat Intel / DNS	Passive	Freemium	API	Easy	High	Massive	Pivoting infra & malware recon	High	Excellent enrichment source
+crt.sh	Certificate Transparency	Passive	Free	Web/API-ish	Easy	High	Large	Subdomain discovery via CT logs	High	Must-have passive recon source
+DNSDumpster	DNS Recon	Passive	Freemium	Limited	Easy	Medium	Medium	Quick DNS visualization	Medium	Better for manual recon
+DNSlytics	DNS Analytics	Passive	Freemium	API	Easy	High	Large	Reverse DNS / shared hosting	High	Strong pivoting capabilities
+WhoisXML API	WHOIS / DNS	Passive	Paid	API	Easy	Enterprise	Massive	WHOIS + passive DNS automation	High	Enterprise-grade APIs
+ViewDNS	DNS Lookup	Passive	Freemium	API	Easy	Medium	Medium	Reverse IP / DNS lookups	Medium	Useful supplementary source
+RiskIQ Passive DNS	Passive DNS	Passive	Paid	API	Medium	Enterprise	Massive	Attack surface intelligence	High	Now Microsoft Defender TI
+PassiveTotal	Threat Intel	Passive	Paid	API	Medium	Enterprise	Massive	Infra pivoting & enrichment	High	Excellent correlation engine
+DNSDB	Passive DNS	Passive	Paid	API	Medium	Enterprise	Massive	Historical DNS analysis	High	Farsight DNSDB is industry standard
+RapidDNS	CT / DNS Search	Passive	Free	Web	Easy	Medium	Medium	Fast CT recon	Medium	Lightweight but useful
+HackerTarget	Recon Toolkit	Passive	Freemium	API	Easy	Medium	Medium	Simple recon automation	Medium	Handy for scripts
+PTRArchive	Reverse DNS	Passive	Free	Web	Easy	Medium	Medium	PTR lookups	Niche	Specialized use only
+ThreatCrowd	Threat Intel	Passive	Free	API	Easy	Medium	Medium	IOC enrichment	Medium	Older dataset
+BufferOver	DNS Recon	Passive	Free	API	Easy	Medium	Large	Subdomain enumeration	High	Great free source
+Sonar OMNI	Internet Scan Dataset	Passive	Free	Dataset	Hard	High	Massive	Large-scale research	High	From Project Sonar
+Sonar FDNS	DNS Dataset	Passive	Free	Dataset	Hard	High	Massive	Forward DNS analytics	High	Requires big-data workflows
+Sonar RDNS	DNS Dataset	Passive	Free	Dataset	Hard	High	Massive	Reverse DNS analysis	High	Useful for internet-wide recon
+Sonar DNS	DNS Dataset	Passive	Free	Dataset	Hard	High	Massive	DNS research	High	Meant for large-scale ingestion
+DNSGrep	DNS Enumeration	Passive	Free	CLI	Medium	Medium	Medium	DNS searching	Medium	Limited adoption
+DNSRecon	DNS Enumeration	Active	Free	CLI	Easy	High	Medium	Zone transfers / brute force	High	Classic DNS recon tool
+DNSenum	DNS Enumeration	Active	Free	CLI	Easy	Medium	Medium	DNS brute forcing	Medium	Older but still usable
+Fierce	DNS Scanner	Active	Free	CLI	Easy	Medium	Medium	DNS footprinting	Medium	Lightweight classic tool
+subfinder	Subdomain Enumeration	Passive	Free	CLI/API	Easy	High	Massive	Automated passive enumeration	Very High	Industry standard for passive recon
+assetfinder	Subdomain Enumeration	Passive	Free	CLI	Easy	Medium	Large	Fast passive recon	High	Very lightweight
+sublist3r	Subdomain Enumeration	Passive	Free	CLI	Easy	Medium	Medium	Beginner recon workflows	Medium	Aging project
+Findomain	Subdomain Enumeration	Hybrid	Freemium	CLI/API	Easy	High	Large	Fast enumeration	High	Extremely fast
+Amass	Attack Surface Mapping	Hybrid	Free	CLI/API	Medium	Enterprise	Massive	Comprehensive asset discovery	Very High	Gold standard recon framework
+Knockpy	Subdomain Bruteforce	Active	Free	CLI	Medium	Medium	Medium	Wordlist brute forcing	Medium	Slow compared to newer tools
+Chaos	Asset Platform	Passive	Free	API	Easy	High	Large	Bug bounty recon	High	ProjectDiscovery dataset
+Chaos Dataset	Dataset	Passive	Free	API/Dataset	Medium	High	Large	Historical bug bounty assets	High	Strong coverage
+BBOT	Recon Framework	Hybrid	Free	CLI/API	Medium	High	Massive	Automated recon pipelines	Very High	Modern modular recon platform
+Photon	Web Recon	Active	Free	CLI	Easy	Medium	Medium	Crawling URLs/endpoints	High	Useful for content discovery
+theHarvester	OSINT Recon	Passive	Free	CLI	Easy	Medium	Medium	Email + subdomain collection	High	Great beginner OSINT tool
+OneForAll	Subdomain Enumeration	Hybrid	Free	CLI	Medium	High	Large	Chinese ecosystem recon	High	Excellent source aggregation
+Sudomy	Recon Automation	Hybrid	Free	CLI	Medium	High	Large	Automated recon orchestration	High	Good automation wrapper
+ReconFTW	Recon Framework	Hybrid	Free	CLI	Medium	High	Massive	Full recon automation	Very High	Popular bug bounty automation stack
+Subscraper	Subdomain Enumeration	Passive	Free	CLI	Easy	Medium	Medium	Scraping-based recon	Medium	Niche utility
+Subjack	Subdomain Takeover	Passive	Free	CLI	Easy	High	Large	Takeover detection	High	Classic takeover checker
+Aquatone	Screenshot Recon	Active	Free	CLI	Medium	High	Large	Visual recon & screenshots	High	Deprecated but still useful
+Gobuster	Enumeration	Active	Free	CLI	Easy	High	Large	DNS/dir brute force	Very High	Fast & reliable
+shuffledns	DNS Bruteforce	Active	Free	CLI	Medium	High	Massive	High-speed DNS resolution	Very High	Excellent with massdns
+puredns	DNS Validation	Active	Free	CLI	Medium	High	Massive	Wildcard filtering	Very High	Strong validation pipeline
+massdns	DNS Resolver	Active	Free	CLI	Hard	High	Internet-scale	High-speed DNS resolution	Very High	Extremely fast
+crobat	Subdomain Enumeration	Passive	Free	CLI	Easy	Medium	Medium	Rapid passive recon	Medium	Lightweight
+AltDNS	Permutation Generator	Active	Free	CLI	Medium	Medium	Large	Permutation-based brute force	High	Effective for hidden subdomains
+CTFR	CT Enumeration	Passive	Free	CLI	Easy	High	Large	CT-based subdomain discovery	High	Very efficient
+SubOver	Takeover Detection	Passive	Free	CLI	Easy	Medium	Medium	Subdomain takeover checks	Medium	Alternative to Subjack
+ASNLookup	ASN Recon	Passive	Free	CLI/Web	Easy	Medium	Medium	ASN mapping	Medium	Good supporting tool
+ASNmap	ASN Recon	Passive	Free	CLI	Easy	High	Large	ASN-based asset discovery	High	Excellent ProjectDiscovery tool
+ReverseIPLookup	Reverse Lookup	Passive	Freemium	Web/API	Easy	Medium	Medium	Shared hosting discovery	Medium	Generic category
+ReverseDNSLookup	Reverse DNS	Passive	Freemium	Web/API	Easy	Medium	Medium	PTR analysis	Medium	Generic capability
+ReverseNSLookup	DNS Recon	Passive	Freemium	Web/API	Easy	Medium	Medium	NS pivoting	Medium	Useful for infra mapping
+ReverseMXLookup	Email Infra Recon	Passive	Freemium	Web/API	Easy	Medium	Medium	Mail infra mapping	Medium	Useful in phishing assessments
+DNS History Lookup	Historical DNS	Passive	Paid/Freemium	API	Easy	High	Large	Historical infrastructure tracking	High	Valuable for attribution
+Certificate Transparency Search	CT Logs	Passive	Free	Web/API	Easy	High	Massive	Discovering subdomains	Very High	Essential recon technique
+Riddler.io	Search Engine	Passive	Freemium	Web/API	Easy	Medium	Medium	Infra correlation	Medium	Limited adoption now
+Spyse	Attack Surface	Passive	Paid/Freemium	API	Easy	High	Large	Infrastructure intelligence	High	Similar to Censys/Shodan
+CertSpotter	CT Monitoring	Passive	Freemium	API	Easy	High	Large	Certificate monitoring	High	Great CT API
+Facebook CT Search	CT Search	Passive	Free	Web	Easy	Medium	Medium	Quick CT lookup	Medium	Simple utility
+Entrust CT Search	CT Search	Passive	Free	Web	Easy	Medium	Medium	Certificate lookup	Medium	Supplemental CT source
+Digitorus CT Search	CT Search	Passive	Free	Web	Easy	Medium	Medium	CT searches	Medium	Lightweight
+CertDB	CT Search	Passive	Free	Web/API	Easy	Medium	Medium	Certificate discovery	Medium	Alternative CT source
+URLCrazy	Typosquatting	Passive	Free	CLI	Easy	Medium	Medium	Domain typo generation	High	Good phishing surface mapping
+dnstwist	Typosquatting	Passive	Free	CLI/API	Easy	High	Large	Brand impersonation detection	Very High	Industry standard typo recon
+tko-subs	Subdomain Takeover	Passive	Free	CLI	Medium	High	Large	Detect dangling services	High	Focused takeover tool
+HostHunter	Virtual Host Discovery	Passive	Free	CLI	Medium	Medium	Medium	Finding virtual hosts	Medium	Niche but useful
+haktrails	Recon Utility	Passive	Free	CLI/API	Easy	High	Large	SecurityTrails wrapper	High	Great automation helper
+ReconDog	Recon Automation	Hybrid	Free	CLI	Medium	Medium	Medium	Recon orchestration	Medium	Older workflow wrapper
+domain-analyzer	Domain Analysis	Passive	Free	CLI	Medium	Medium	Medium	Domain profiling	Medium	Lesser-known utility
+domain-profiler	Domain Profiling	Passive	Free	CLI	Medium	Medium	Medium	Asset enrichment	Medium	Limited adoption
+domain-sleuth	DNS / Domain Analysis	Passive	Free	CLI	Medium	Medium	Medium	Domain profiling & DNS intelligence	Medium	Older/legacy utility with limited modern adoption
+dnsvalidator	DNS Resolver Validation	Active	Free	CLI	Medium	High	Massive	Validating clean resolvers for massdns/shuffledns	High	Essential for reducing false positives and wildcard noise
+dnsx	DNS Toolkit / Validation	Active	Free	CLI/API	Easy	High	Massive	Fast DNS probing, resolution, validation	Very High	One of the best modern ProjectDiscovery tools
+hakcheckurl	URL Probing / Live Host Detection	Active	Free	CLI	Easy	Medium	Large	Checking live hosts and reachable URLs	High	Fast lightweight HTTP probing utility
+
+# SECTION: 3. WHOIS, ASN, BGP & Network Intelligence
+ARIN	WHOIS / ASN Registry	Passive	Free	Web/API	Easy	Enterprise	Massive	North America ASN & IP ownership	Very High	Official RIR source
+RIPE NCC	WHOIS / ASN Registry	Passive	Free	API	Easy	Enterprise	Massive	Europe ASN/BGP intelligence	Very High	RIPEstat & Atlas are industry standards
+APNIC	WHOIS / ASN Registry	Passive	Free	API	Easy	Enterprise	Massive	APAC IP ownership & routing	High	Official APAC registry
+AFRINIC	WHOIS / ASN Registry	Passive	Free	Web/API	Easy	High	Large	African ASN ownership	Medium	Regional utility
+LACNIC	WHOIS / ASN Registry	Passive	Free	API	Easy	High	Large	LATAM network intelligence	Medium	Official LATAM registry
+Team Cymru	ASN / Threat Intel	Passive	Free/Freemium	API	Medium	High	Massive	ASN mapping & malware correlation	Very High	Essential ASN enrichment source
+Hurricane Electric	BGP Intelligence	Passive	Free	Web	Easy	High	Massive	ASN/BGP visibility	Very High	bgp.he.net is legendary
+BGPView	BGP Intelligence	Passive	Free	API	Easy	High	Massive	ASN relationships & prefixes	High	Excellent free BGP API
+IPinfo	IP Intelligence	Passive	Paid/Freemium	API	Easy	High	Massive	IP geolocation & ASN enrichment	Very High	Excellent developer experience
+IP2Location	IP Geolocation	Passive	Paid/Freemium	API	Easy	High	Massive	GeoIP enrichment	High	Strong enterprise adoption
+IPVoid	IP Reputation	Passive	Freemium	Web/API	Easy	Medium	Medium	Quick IP reputation checks	Medium	Good quick-look utility
+AbuseIPDB	IP Reputation	Passive	Freemium	API	Easy	High	Massive	Malicious IP reporting	Very High	Excellent for threat scoring
+Spur	IP Intelligence	Passive	Paid	API	Medium	Enterprise	Massive	User/IP behavioral intelligence	High	Fraud & anti-abuse focused
+IPQualityScore	Fraud Intelligence	Passive	Paid/Freemium	API	Easy	High	Massive	VPN/proxy/fraud detection	High	Popular fraud scoring API
+Spur Context API	Context Intelligence	Passive	Paid	API	Medium	Enterprise	Massive	Device/IP context enrichment	High	Advanced behavioral telemetry
+IPGeolocation	GeoIP	Passive	Freemium	API	Easy	Medium	Massive	Simple IP geolocation	Medium	Budget-friendly GeoIP option
+MaxMind	GeoIP / ASN	Passive	Paid/Freemium	API	Easy	Enterprise	Massive	Professional GeoIP enrichment	Very High	Industry standard GeoIP
+ASNLookup	ASN Recon	Passive	Free	CLI/Web	Easy	Medium	Medium	Quick ASN mapping	Medium	Simple recon helper
+bgp.he.net	BGP Intelligence	Passive	Free	Web	Easy	Enterprise	Massive	Deep ASN analysis	Very High	Gold standard BGP visibility
+Cloudflare	Internet Telemetry	Passive	Free	Web/API	Easy	Enterprise	Massive	Global traffic & outage analysis	Very High	Amazing internet observability
+PeeringDB	Peering Intelligence	Passive	Free	API	Medium	High	Massive	IXP & peering analysis	High	Critical for infrastructure research
+Robtex	DNS / BGP Intel	Passive	Freemium	API	Easy	High	Massive	DNS + ASN pivoting	High	Strong infra correlation
+CIDR Report	BGP Reporting	Passive	Free	Web	Easy	High	Large	BGP routing analysis	Medium	Historical BGP visibility
+RADb	Routing Registry	Passive	Free/Freemium	API	Medium	High	Massive	Route object analysis	High	Useful for BGP research
+Cymru Hash Registry	Malware Intel	Passive	Free	API	Medium	High	Large	Malware hash reputation	High	Threat intel enrichment
+RIPEstat	Network Intelligence	Passive	Free	API	Easy	Enterprise	Massive	ASN/BGP/DNS analytics	Very High	One of the best free network intel APIs
+RIPE Atlas	Internet Measurement	Active	Free/Freemium	API	Hard	Enterprise	Massive	Distributed network measurements	Very High	Excellent latency/path research
+CAIDA Tools	Internet Research	Passive	Free	Dataset/API	Hard	Enterprise	Massive	Academic internet topology analysis	Very High	Internet measurement goldmine
+CIRCL Passive DNS	Passive DNS	Passive	Free/Freemium	API	Medium	High	Large	Historical DNS analysis	High	Great European intel source
+InternetDB	Internet Exposure Intel	Passive	Free	API	Easy	High	Massive	Open ports/CVE enrichment	Very High	Lightweight Shodan alternative
+ipapi	GeoIP / ASN	Passive	Freemium	API	Easy	Medium	Massive	Lightweight geolocation	Medium	Easy integration
+IPFingerprints	IP Intelligence	Passive	Free	Web/API	Easy	Medium	Medium	IP reputation checks	Medium	Supplemental enrichment
+GreyNoise IP Lookup	Threat Noise Intel	Passive	Paid/Freemium	API	Easy	Enterprise	Massive	Distinguish scanners vs targeted traffic	Very High	Extremely valuable for SOCs
+CriminalIP IP Search	Attack Surface Search	Passive	Paid/Freemium	API	Medium	High	Massive	IP exposure intelligence	High	Emerging competitor to Shodan
+Censys ASN Search	Attack Surface Search	Passive	Paid/Freemium	API	Easy	Enterprise	Massive	ASN-wide asset visibility	Very High	Excellent internet census
+Shodan ASN Search	Attack Surface Search	Passive	Paid/Freemium	API	Easy	Enterprise	Massive	Internet-facing exposure discovery	Very High	Recon staple
+FOFA IP Search	Attack Surface Search	Passive	Paid/Freemium	API	Medium	High	Massive	Chinese internet exposure recon	High	Strong APAC visibility
+Netlas ASN Search	Attack Surface Search	Passive	Freemium	API	Easy	High	Massive	Fast internet-wide recon	Very High	Modern Shodan/Censys alternative
+# SECTION: 4. Search Engine Dorking & Index Recon
+Google Dorks	Search Engine Recon	Passive	Free	Web	Easy	High	Massive	Finding exposed assets/files	Very High	Core OSINT recon technique
+Bing Dorks	Search Engine Recon	Passive	Free	Web	Easy	Medium	Massive	Alternative search engine recon	High	Useful when Google blocks queries
+GHDB	Google Hacking DB	Passive	Free	Web	Easy	High	Large	Prebuilt dork payloads	High	Maintained by Exploit-DB
+DorkSearch	Dork Automation	Passive	Free/Freemium	Web/API	Easy	Medium	Medium	Automated dork searches	Medium	Useful for quick searches
+SearchDiggity	Dorking Toolkit	Passive	Free	GUI	Medium	High	Large	Advanced search engine recon	High	Trusted by pentesters
+Goofuzz	Google Dork Fuzzer	Passive	Free	CLI	Medium	Medium	Medium	Automated Google fuzzing	Medium	Niche usage
+Pagodo	Google Dork Automation	Passive	Free	CLI	Easy	High	Large	Automated dork scanning	Very High	Excellent automation tool
+GooFuzz	Search Engine Fuzzing	Passive	Free	CLI	Medium	Medium	Medium	Query fuzzing	Medium	Lesser-known alternative
+Sitedorks	Search Recon	Passive	Free	Web	Easy	Medium	Medium	Website-specific dorking	Medium	Supplemental tool
+Pagodo Dorks	Dork Dataset	Passive	Free	Dataset	Easy	High	Large	Automated dork payloads	High	Strong payload collection
+GitHub Dorks	Code Recon	Passive	Free	Web/API	Easy	High	Massive	Secret discovery in repos	Very High	Extremely effective OSINT technique
+Gitrob	GitHub Recon	Passive	Free	CLI	Medium	High	Large	Sensitive file discovery	High	Legacy but still useful
+GitLeaks	Secret Scanning	Passive	Free	CLI/API	Easy	High	Massive	Detecting leaked secrets	Very High	Industry-standard secret scanner
+TruffleHog	Secret Scanning	Passive	Free	CLI/API	Easy	Enterprise	Massive	Credential & token hunting	Very High	One of the best modern scanners
+Trufflehog3	Secret Scanning	Passive	Free	CLI	Medium	High	Large	Git history secret hunting	High	Older fork/version
+Trivy Secret Scanner	Secret Scanning	Passive	Free	CLI/API	Easy	High	Massive	Secrets in repos/containers	Very High	Great DevSecOps integration
+Repo-supervisor	Repo Monitoring	Passive	Free	CLI/API	Medium	Medium	Medium	Monitoring repo leaks	Medium	Niche monitoring utility
+dorks_hunter	Dork Automation	Passive	Free	CLI	Medium	Medium	Medium	Automated dork execution	Medium	Limited adoption
+waybackurls	URL Collection	Passive	Free	CLI	Easy	High	Massive	Historical URL gathering	Very High	Essential recon utility
+gau	URL Aggregation	Passive	Free	CLI	Easy	High	Massive	Gathering archived URLs	Very High	Fast and widely used
+gauplus	URL Aggregation	Passive	Free	CLI	Easy	High	Massive	Enhanced gau workflows	High	Improved filtering/features
+hakrawler	Web Crawling	Active	Free	CLI	Easy	High	Large	Fast endpoint discovery	High	Lightweight crawler
+katana	Web Crawling	Hybrid	Free	CLI/API	Medium	Enterprise	Massive	Modern web crawling & JS parsing	Very High	Best modern crawler in recon
+ParamSpider	Parameter Discovery	Passive	Free	CLI	Easy	High	Large	Mining parameters from archives	Very High	Excellent for XSS/SSRF recon
+Arjun	Parameter Discovery	Active	Free	CLI	Medium	High	Large	Hidden parameter fuzzing	Very High	Very effective endpoint analysis
+LinkFinder	JavaScript Analysis	Passive	Free	CLI	Medium	High	Large	Extracting endpoints from JS	Very High	Recon staple
+JSFinder	JavaScript Recon	Passive	Free	CLI	Medium	Medium	Medium	JS endpoint extraction	Medium	Older alternative
+SecretFinder	Secret Discovery	Passive	Free	CLI	Medium	High	Large	Finding secrets in JS files	High	Useful JS-focused scanner
+xnLinkFinder	Endpoint Discovery	Passive	Free	CLI	Medium	High	Massive	Extracting URLs/endpoints	Very High	One of the best endpoint extractors
+Cariddi	Recon Crawler	Hybrid	Free	CLI	Medium	High	Large	Crawling + endpoint extraction	High	Good automation workflows
+JSLeak	JavaScript Secret Scanner	Passive	Free	CLI	Medium	Medium	Medium	Detecting exposed JS secrets	Medium	Smaller adoption
+getJS	JavaScript Collector	Passive	Free	CLI	Easy	Medium	Large	Collecting JS files	Medium	Simple helper utility
+URLFinder	URL Discovery	Passive	Free	CLI	Easy	Medium	Large	URL extraction	Medium	Generic utility
+Web Archive Search	Archive Recon	Passive	Free	Web/API	Easy	High	Massive	Historical recon	Very High	Essential OSINT source
+Common Crawl	Internet Dataset	Passive	Free	Dataset/API	Hard	High	Internet-scale	Large-scale web mining	High	Best for big-data recon
+AlienVault OTX Search	Threat Intel Search	Passive	Free/Freemium	API	Easy	High	Large	IOC & infrastructure intel	High	Strong threat intel source
+URLScan Search	Web Intelligence	Passive	Freemium	API/Web	Easy	Enterprise	Massive	Website fingerprinting & recon	Very High	Extremely valuable recon platform
+
+# SECTION: 5. Web Technology Fingerprinting
+BuiltWith	Web Technology Fingerprinting	Passive	Paid/Freemium	API/Web	Easy	Enterprise	Massive	Tech stack identification	High	Industry-leading commercial dataset
+Wappalyzer	Tech Fingerprinting	Passive	Freemium	Browser/API	Easy	High	Massive	Website technology detection	Very High	Extremely popular and accurate
+WhatWeb	Web Fingerprinting	Active	Free	CLI	Easy	High	Large	Deep web stack fingerprinting	Very High	Classic and highly extensible
+WebTech	Web Fingerprinting	Passive	Free	Web/API	Easy	Medium	Medium	Basic technology detection	Medium	Lightweight alternative
+CMSeeK	CMS Detection	Active	Free	CLI	Easy	High	Large	CMS identification	High	Great CMS-focused scanner
+BlindElephant	Version Fingerprinting	Active	Free	CLI	Medium	Medium	Medium	Static asset version detection	Niche	Older but useful in niche cases
+wafw00f	WAF Fingerprinting	Active	Free	CLI	Easy	High	Large	Detecting WAFs	Very High	Standard WAF detection tool
+wafninja	WAF Bypass Testing	Active	Free	CLI	Medium	Medium	Medium	WAF evasion testing	Medium	More offensive-focused
+Retire.js	JS Vulnerability Detection	Passive	Free	CLI/API	Easy	High	Large	Detect vulnerable JS libraries	High	Excellent for JS audits
+nuclei templates	Vulnerability Fingerprinting	Active	Free	CLI/API	Medium	High	Massive	Automated detection workflows	Very High	Core recon/vuln scanning ecosystem
+webanalyze	Tech Fingerprinting	Passive	Free	CLI	Easy	High	Large	Fast stack fingerprinting	High	Lightweight Wappalyzer alternative
+FingerprintJS	Browser Fingerprinting	Passive	Paid/Freemium	API/JS SDK	Medium	High	Massive	Browser/device identification	High	More anti-fraud than recon
+Appalyzer	Tech Fingerprinting	Passive	Freemium	Browser/API	Easy	Medium	Large	Website stack analysis	Medium	Less popular alternative
+WhatCMS	CMS Fingerprinting	Passive	Free	Web/API	Easy	Medium	Medium	CMS identification	Medium	Good quick lookup tool
+WPScan	WordPress Security	Active	Freemium	CLI/API	Easy	Enterprise	Massive	WordPress enumeration & vulns	Very High	Industry standard WP tool
+JoomScan	Joomla Security	Active	Free	CLI	Easy	Medium	Medium	Joomla enumeration	Medium	Joomla-focused utility
+droopescan	CMS Scanner	Active	Free	CLI	Medium	Medium	Medium	Drupal/Joomla/WordPress detection	Medium	Aging but still useful
+EyeWitness	Visual Recon	Active	Free	CLI	Medium	High	Large	Screenshots + service identification	Very High	Great reporting utility
+Aquatone	Visual Recon	Active	Free	CLI	Medium	High	Large	Screenshot reconnaissance	High	Deprecated but still widely used
+gowitness	Visual Recon	Active	Free	CLI/API	Easy	High	Massive	Modern screenshot automation	Very High	Better modern Aquatone replacement
+eyewitness-ng	Visual Recon	Active	Free	CLI	Medium	Medium	Medium	Updated EyeWitness fork	Medium	Smaller ecosystem
+Photon	Web Crawling	Active	Free	CLI	Easy	High	Large	Endpoint crawling/discovery	High	Useful content discovery tool
+Katana	Web Crawling	Active	Free	CLI/API	Easy	Very High	Massive	Fast modern crawling	Very High	One of the best modern crawlers
+httpx	HTTP Probing	Active	Free	CLI/API	Easy	Very High	Massive	Live host probing & enrichment	Very High	Essential ProjectDiscovery tool
+httprobe	HTTP Probing	Active	Free	CLI	Easy	Medium	Large	Quick HTTP service checks	Medium	Simpler predecessor to httpx
+Naabu	Port Scanning	Active	Free	CLI/API	Easy	High	Massive	Fast port discovery	Very High	Excellent recon scanner
+httping	HTTP Monitoring	Active	Free	CLI	Easy	Medium	Medium	HTTP latency testing	Niche	Operational utility
+RustScan	Port Scanning	Active	Free	CLI	Easy	High	Massive	Fast mass port scanning	Very High	Great Nmap companion
+httprint	HTTP Fingerprinting	Active	Free	CLI	Medium	Medium	Medium	Web server fingerprinting	Medium	Older legacy utility
+Nikto	Web Vulnerability Scanning	Active	Free	CLI	Easy	Medium	Large	Basic web vuln scans	Medium	Noisy but useful baseline scanner
+Arachni	Web App Scanner	Active	Free	CLI/Web	Hard	High	Large	Deep web application scanning	Medium	Powerful but heavy/aging
+OpenVAS Discovery	Vulnerability Discovery	Active	Free	CLI/API	Hard	Enterprise	Massive	Enterprise vulnerability discovery	High	Heavy infrastructure requirement
+CMSmap	CMS Security	Active	Free	CLI	Medium	Medium	Medium	CMS exploitation checks	Medium	Specialized CMS auditing
+WebSniffer	HTTP Analysis	Passive	Free	Web	Easy	Medium	Small	Header/server analysis	Low	Limited modern value
+WhatRuns	Browser Fingerprinting	Passive	Freemium	Browser Extension	Easy	High	Large	Client-side tech detection	High	Excellent browser plugin
+SimilarTech	Tech Intelligence	Passive	Paid/Freemium	API/Web	Easy	High	Massive	Market/technology intelligence	High	Strong commercial analytics
+Netcraft Toolbar	Security Intelligence	Passive	Free	Browser Extension	Easy	Medium	Large	Site reputation & hosting intel	Medium	More reputation-focused than recon
+# SECTION: 6. Historical & Archive Recon
+Wayback Machine	Web Archive	Passive	Free	API	Easy	High	Massive	Historical website snapshots	Very High	Essential recon source for deleted endpoints & JS
+Common Crawl	Web Dataset Archive	Passive	Free	Dataset/API	Hard	High	Internet-scale	Large-scale internet research	High	Massive raw crawl dataset requiring processing
+Archive.today	Web Archive	Passive	Free	Limited	Easy	Medium	Large	Preserved pages bypassing robots.txt	High	Useful when Wayback misses pages
+Arquivo.pt	National Web Archive	Passive	Free	API	Medium	High	Large	Historical Portuguese web assets	Medium	Valuable for regional investigations
+UK Web Archive	National Archive	Passive	Free	Web	Easy	Medium	Large	Historical UK domain research	Medium	Region-specific utility
+Memento Time Travel	Archive Aggregator	Passive	Free	API	Medium	Medium	Large	Aggregating multiple archive sources	Medium	Useful meta-archive capability
+CachedView	Cache Lookup	Passive	Free	Web	Easy	Low	Small	Quick cached page checks	Low	Lightweight convenience tool
+CachedPages	Cache Lookup	Passive	Free	Web	Easy	Low	Small	Accessing cached content	Low	Limited operational value
+Google Cache	Search Cache	Passive	Free	Web	Easy	Medium	Massive	Recovering recently indexed content	Medium	Less reliable since cache reductions
+URLScan History	Web Scan Archive	Passive	Freemium	API	Easy	High	Massive	Historical screenshots & requests	Very High	Excellent for infra and JS discovery
+Waymore	Archive URL Aggregation	Passive	Free	CLI	Easy	High	Large	Aggregating Wayback + OTX + Common Crawl URLs	Very High	One of the best archive recon tools
+gau	URL Collection	Passive	Free	CLI	Easy	High	Massive	Gathering historical URLs quickly	Very High	Extremely popular and fast
+waybackurls	Archive URL Extraction	Passive	Free	CLI	Easy	Medium	Large	Pulling URLs from Wayback Machine	High	Lightweight and effective
+ParamSpider	Parameter Discovery	Passive	Free	CLI	Easy	High	Large	Finding historical URL parameters	Very High	Excellent for XSS/SSRF testing prep
+Katana Archive Mode	Web Crawling / Archive Recon	Hybrid	Free	CLI/API	Medium	High	Massive	Combining crawling with historical URLs	Very High	Modern ProjectDiscovery crawler
+AlienVault OTX Pulse Archive	Threat Intel Archive	Passive	Free	API	Easy	Medium	Large	IOC and domain history enrichment	High	Useful threat intel correlation
+PublicWWW Historical Search	Source Code Search	Passive	Paid/Freemium	API	Easy	High	Massive	Discovering reused code, secrets, analytics IDs	Very High	Excellent for pivoting and asset correlation
+BuiltWith Historical Lookup	Tech Stack Intelligence	Passive	Paid/Freemium	API	Easy	High	Massive	Tracking historical technologies	High	Useful for fingerprinting old attack surfaces
+SecurityTrails Historical DNS	Historical DNS	Passive	Paid	API	Easy	Enterprise	Massive	Tracking DNS changes over time	Very High	Industry-standard historical DNS source
+
+# SECTION: 7. Email, Username & Identity Recon
+Hunter.io	Email Discovery	Passive	Freemium	API	Easy	High	Large	Corporate email enumeration	Very High	Industry standard email recon
+Phonebook.cz	Email Discovery	Passive	Free	Web	Easy	Medium	Medium	Quick email harvesting	High	Great free source
+DeHashed	Breach Intelligence	Passive	Paid	API	Easy	High	Massive	Credential leak investigation	Very High	Strong breach aggregation
+Have I Been Pwned	Breach Lookup	Passive	Freemium	API	Easy	High	Massive	Breach verification	Very High	Trusted breach source
+IntelX	Deep OSINT / Breaches	Passive	Paid/Freemium	API	Medium	Enterprise	Massive	Deep leak & darknet intelligence	Very High	Elite OSINT platform
+LeakCheck	Breach Intelligence	Passive	Paid/Freemium	API	Easy	High	Large	Credential leak lookup	High	Popular among OSINT analysts
+Snusbase	Breach Intelligence	Passive	Paid	API/Web	Easy	High	Large	Credential searching	High	Strong combo lists
+BreachDirectory	Breach Search	Passive	Free/Freemium	Web/API	Easy	Medium	Large	Fast breach lookups	Medium	Simpler alternative
+LeakPeek	Breach Intelligence	Passive	Paid	API/Web	Easy	Medium	Medium	Leak exploration	Medium	Less comprehensive
+Epieos	Email / Identity OSINT	Passive	Freemium	Web	Easy	High	Large	Google account recon	Very High	Excellent Gmail intelligence
+Holehe	Account Enumeration	Passive	Free	CLI	Easy	High	Large	Checking account registrations	Very High	Very useful for username/email recon
+Sherlock	Username Enumeration	Passive	Free	CLI	Easy	High	Massive	Username hunting across platforms	Very High	OSINT classic
+Maigret	Username Enumeration	Passive	Free	CLI	Medium	High	Massive	Deep username enumeration	Very High	More advanced than Sherlock
+WhatsMyName	Username Enumeration	Passive	Free	Web	Easy	High	Massive	Username discovery	High	Great curated dataset
+Namechk	Username Availability	Passive	Free	Web	Easy	Medium	Medium	Brand/account discovery	Medium	Focused on availability
+Namecheckup	Username Recon	Passive	Free	Web	Easy	Medium	Medium	Social handle checks	Medium	Basic utility
+UserSearch	Username Search	Passive	Free	Web	Easy	Medium	Medium	Username hunting	Medium	Generic OSINT utility
+UserRecon	Username Enumeration	Passive	Free	CLI	Easy	Medium	Medium	Social profile enumeration	Medium	Lightweight tool
+Blackbird	Username Enumeration	Passive	Free	CLI	Easy	High	Massive	High-speed username OSINT	Very High	Modern Sherlock alternative
+Social Analyzer	Social Media Recon	Passive	Free	CLI/API	Medium	High	Massive	Automated profile discovery	High	Extensive platform support
+Profil3r	Social Profiling	Passive	Free	CLI	Medium	Medium	Medium	Profile aggregation	Medium	Lesser-known tool
+Twint	Twitter/X OSINT	Passive	Free	CLI/API	Medium	High	Large	Twitter scraping without API	High	Breaks frequently due to X changes
+Ignorant	Phone OSINT	Passive	Free	CLI	Easy	Medium	Medium	Phone number intelligence	Medium	Niche utility
+CrossLinked	LinkedIn Recon	Passive	Free	CLI	Medium	High	Large	LinkedIn employee enumeration	Very High	Excellent for phishing/red teaming
+LinkedInt	LinkedIn Enumeration	Passive	Free	CLI	Medium	Medium	Medium	LinkedIn scraping	Medium	Older project
+LinkedIn2Username	Username Generation	Passive	Free	CLI	Easy	High	Large	Corporate username generation	High	Great for AD username lists
+linkedin2username	Username Generation	Passive	Free	CLI	Easy	High	Large	Active Directory username creation	High	Common pentest tool
+ghunt	Google OSINT	Passive	Free	CLI	Medium	High	Large	Google account intelligence	Very High	Extremely powerful OSINT tool
+GHunt v2	Google OSINT	Passive	Free	CLI	Medium	High	Large	Modernized Google recon	Very High	Better workflows & maintenance
+SpiderFoot	OSINT Automation	Hybrid	Freemium	CLI/API	Medium	High	Massive	Automated identity recon	Very High	One of best OSINT automation platforms
+Social Links	Social Media Intelligence	Passive	Paid	API	Medium	Enterprise	Massive	Enterprise social investigations	High	Law enforcement usage
+Maltego	Link Analysis / OSINT	Hybrid	Freemium/Paid	GUI/API	Medium	Enterprise	Massive	Relationship mapping	Very High	OSINT industry standard
+Lampyre	Link Analysis / OSINT	Hybrid	Paid	GUI/API	Medium	High	Large	Investigative analysis	High	Strong graphing workflows
+Creepy	Geolocation OSINT	Passive	Free	GUI	Medium	Medium	Medium	Geotag intelligence	Medium	Niche geolocation use
+Osintracker	OSINT Automation	Passive	Free	Web	Easy	Medium	Medium	Investigation tracking	Medium	Lightweight OSINT management
+Pipl	Identity Intelligence	Passive	Paid	API	Easy	Enterprise	Massive	Person identity correlation	Very High	Premium people intelligence
+PeekYou	People Search	Passive	Freemium	Web	Easy	Medium	Large	Public profile aggregation	Medium	Consumer-focused
+ThatsThem	People Search	Passive	Free	Web	Easy	Medium	Large	Address/phone lookups	Medium	US-centric
+Spokeo	People Intelligence	Passive	Paid	API/Web	Easy	High	Large	Person correlation	High	Commercial people search
+TruePeopleSearch	People Search	Passive	Free	Web	Easy	Medium	Large	US people search	Medium	Free but noisy
+Whitepages	People Search	Passive	Paid	API/Web	Easy	High	Massive	Identity enrichment	High	Enterprise-grade data
+BeenVerified	People Search	Passive	Paid	Web/API	Easy	High	Large	Background investigations	High	Consumer investigation platform
+FastPeopleSearch	People Search	Passive	Free	Web	Easy	Medium	Large	Quick people lookup	Medium	US-heavy data
+RocketReach	Contact Intelligence	Passive	Paid/Freemium	API	Easy	High	Massive	Finding business contacts	Very High	Excellent B2B recon
+Clearbit	Contact Intelligence	Passive	Paid	API	Easy	Enterprise	Massive	Company/person enrichment	Very High	Strong integrations
+Apollo.io	Sales / Contact Intel	Passive	Freemium	API	Easy	High	Massive	Lead generation & employee discovery	Very High	Huge contact database
+FullContact	Identity Resolution	Passive	Paid	API	Medium	Enterprise	Massive	Identity enrichment	High	Enterprise integrations
+Hunter Domain Search	Email Discovery	Passive	Freemium	API	Easy	High	Large	Domain email enumeration	Very High	Excellent automation support
+VerifyEmailAddress	Email Verification	Passive	Free	Web/API	Easy	Medium	Medium	Email validation	Medium	Simple verification utility
+EmailHippo	Email Verification	Passive	Freemium	API	Easy	High	Large	Bulk email validation	High	Popular email hygiene service
+MailTester	Email Validation	Passive	Free	Web	Easy	Medium	Medium	Verifying mailboxes	Medium	Lightweight checker
+Hibp API	Breach Intelligence API	Passive	Paid/Freemium	API	Easy	High	Massive	Automated breach checks	Very High	Excellent automation capability
+LeakCheck API	Breach Intelligence API	Passive	Paid	API	Easy	High	Massive	Credential exposure automation	High	Useful for continuous monitoring
+# SECTION: 8. Social Media Recon
+Twint	Twitter/X OSINT	Passive	Free	CLI	Easy	High	Large	Scraping tweets without API	High	Popular but partially broken after X changes
+Instaloader	Instagram Recon	Passive	Free	CLI/API	Easy	High	Large	Downloading Instagram profiles/posts/stories	Very High	One of the best Instagram OSINT tools
+Toutatis	Instagram Enumeration	Passive	Free	CLI	Medium	Medium	Medium	Instagram account intelligence	Medium	Limited by platform protections
+Telegram OSINT	Telegram Recon	Passive	Free	CLI/Web	Medium	Medium	Large	Telegram username/group analysis	High	Broad category of Telegram recon tools
+Telepathy	Telegram Analysis	Passive	Free	CLI	Medium	Medium	Medium	Telegram metadata investigation	Medium	Niche utility
+Telescan	Telegram Recon	Passive	Free	CLI	Medium	Medium	Medium	Telegram group enumeration	Medium	Useful in niche investigations
+WhatsApp Web Enumeration	Messaging Recon	Active	Free	Web	Medium	Low	Small	Verifying WhatsApp numbers	Niche	Limited reliability & automation
+TikTokScraper	TikTok OSINT	Passive	Free	CLI/API	Easy	Medium	Large	TikTok profile/video scraping	High	Useful for influencer/social investigations
+YouTube Data Viewer	Video Verification	Passive	Free	Web	Easy	Medium	Medium	Extracting YouTube upload metadata	High	Great for OSINT verification
+YouTube Metadata	Video OSINT	Passive	Free/Freemium	Web/API	Easy	Medium	Large	Metadata extraction & timeline analysis	Medium	Useful for media investigations
+Social Blade	Social Analytics	Passive	Freemium	Web/API	Easy	High	Massive	Influencer/account growth tracking	High	Industry-standard social metrics
+FollowerWonk	Twitter/X Analytics	Passive	Freemium	Web/API	Easy	Medium	Large	Twitter bio/account analysis	Medium	Less useful after Twitter API restrictions
+Mentionmapp	Social Network Mapping	Passive	Free	Web	Easy	Medium	Medium	Relationship mapping on Twitter/X	Medium	Visual exploration tool
+Snap Map	Geolocation OSINT	Passive	Free	Mobile/Web	Easy	Medium	Large	Finding public Snapchat activity	Medium	Useful for geo-social investigations
+Creepy	Geolocation OSINT	Passive	Free	CLI/GUI	Medium	High	Medium	Aggregating geotagged social posts	High	Excellent geo-OSINT utility
+GeoSocial Footprint	Geo OSINT	Passive	Free	Web	Easy	Medium	Medium	Location-based social footprinting	Medium	Generic category/toolset
+GeoSpy	Image Geolocation AI	Passive	Paid/Freemium	Web/API	Easy	High	Large	AI-assisted image geolocation	Very High	Extremely powerful modern GEOINT tool
+Socid Extractor	Social Identity Extraction	Passive	Free	CLI	Medium	Medium	Medium	Correlating usernames/profiles	Medium	Lightweight utility
+Facebook Graph Search	Facebook Recon	Passive	Free	Web	Medium	Medium	Large	Historical Facebook relationship search	Medium	Mostly deprecated/limited now
+Instagram Location Search	Instagram GEOINT	Passive	Free	Web/Mobile	Easy	Medium	Large	Finding location-tagged posts	High	Strong GEOINT source
+LinkedIn Recon	Professional OSINT	Passive	Freemium	Web/API	Medium	High	Massive	Employee enumeration & org mapping	Very High	Essential for corporate recon
+Reddit Search	Forum OSINT	Passive	Free	Web/API	Easy	Medium	Massive	Community/user investigations	High	Strong for behavioral intelligence
+Pushshift	Reddit Archive	Passive	Free	API	Medium	High	Massive	Historical Reddit analysis	Very High	Essential for archived Reddit OSINT
+RedditMetis	Reddit User Analysis	Passive	Free	Web	Easy	Medium	Medium	Profiling Reddit accounts	Medium	Good supplemental analysis
+Social Searcher	Multi-Platform Search	Passive	Freemium	Web/API	Easy	Medium	Large	Cross-platform keyword monitoring	High	Useful broad social monitoring
+Social Bearing	Twitter/X Analytics	Passive	Freemium	Web/API	Easy	Medium	Large	Twitter account analytics	Medium	Better for marketing than OSINT
+TweetDeck	Twitter Monitoring	Passive	Freemium	Web	Easy	High	Massive	Real-time Twitter monitoring	High	Still useful for live event tracking
+TruthNest	Twitter/X Analysis	Passive	Free	Web	Easy	Medium	Medium	Political/social influence analysis	Medium	Niche analytical platform
+Hoaxy	Disinformation Tracking	Passive	Free	Web/API	Medium	High	Large	Tracking misinformation propagation	High	Excellent research/OSINT tool
+Botometer	Bot Detection	Passive	Freemium	API/Web	Easy	High	Large	Detecting automated Twitter/X accounts	Very High	Widely used bot-analysis platform
+
+# SECTION: 9. GitHub, GitLab & Source-Code Recon
+GitHub	Source Code Hosting	Passive	Freemium	CLI/API	Easy	Enterprise	Massive	Repo recon, secrets hunting, OSINT	Very High	Primary recon target for source-code intelligence
+GitLab	Source Code Hosting	Passive	Freemium	CLI/API	Easy	High	Massive	Internal/self-hosted repo discovery	High	Strong enterprise/self-hosted presence
+Bitbucket	Source Code Hosting	Passive	Freemium	CLI/API	Easy	Medium	Large	Enterprise repo recon	Medium	Common in older enterprise environments
+Sourcegraph	Code Search Engine	Passive	Freemium	API	Medium	High	Massive	Cross-repository code intelligence	Very High	Extremely powerful for large-scale code search
+Searchcode	Code Search Engine	Passive	Free	Web/API	Easy	Medium	Large	Public code indexing	Medium	Less comprehensive than modern alternatives
+grep.app	Code Search Engine	Passive	Free	Web/API	Easy	High	Massive	Fast code pattern searching	Very High	Excellent for dorks & secret patterns
+PublicWWW	Source / Web Fingerprinting	Passive	Freemium	Web/API	Easy	High	Massive	JS keys, analytics IDs, reused code	High	Very effective for web asset correlation
+GitLeaks	Secret Scanning	Passive	Free	CLI/API	Easy	High	Massive	Credential & token detection	Very High	Industry-standard secrets scanner
+TruffleHog	Secret Scanning	Passive	Free	CLI/API	Easy	High	Massive	Deep git history secret hunting	Very High	Excellent entropy + regex detection
+Repo-supervisor	Repo Monitoring	Passive	Free	CLI/API	Medium	Medium	Large	Repo policy monitoring	Medium	More DevSecOps than recon
+Semgrep Secrets	Secret Detection	Passive	Freemium	CLI/API	Medium	High	Massive	Rule-based secret scanning	High	Integrates well with Semgrep ecosystem
+GitDorker	GitHub Dorking	Passive	Free	CLI	Easy	High	Massive	Automated GitHub dorks	Very High	Excellent bug bounty recon tool
+Gitrob	GitHub Recon	Passive	Free	CLI	Medium	Medium	Large	Sensitive file discovery	Medium	Older but historically important
+GitMiner	GitHub Mining	Passive	Free	CLI	Medium	Medium	Large	Mining repositories for intel	Medium	Niche usage today
+GitHound	GitHub Secret Hunting	Passive	Free	CLI	Medium	High	Large	Organization-wide secret discovery	High	Good for targeted recon
+GitHarvester	Git Recon	Passive	Free	CLI	Medium	Medium	Medium	Harvesting GitHub intel	Medium	Limited adoption
+GitAllSecrets	Secret Discovery	Passive	Free	CLI	Medium	High	Large	Organization secret collection	High	Useful during red team recon
+DumpsterDiver	Data Leakage Recon	Passive	Free	CLI	Medium	Medium	Medium	Scraping exposed documents/files	High	Useful for exposed corporate data
+RepoHunt	Repo Discovery	Passive	Free	CLI/Web	Easy	Medium	Medium	Discovering interesting repos	Medium	More OSINT-focused
+RepoSuperScanner	Secret Scanning	Passive	Free	CLI	Medium	Medium	Large	Bulk repo scanning	Medium	Lesser-known scanner
+SecretFinder	JS Secret Discovery	Passive	Free	CLI	Easy	High	Large	API keys in JavaScript files	Very High	Extremely useful web recon utility
+RepoRadar	Repo Monitoring	Passive	Free	CLI	Medium	Medium	Medium	Tracking repo changes	Medium	Niche monitoring tool
+ripgrep	Local Code Search	Passive	Free	CLI	Easy	High	Massive	High-speed regex/code searching	Very High	Essential local analysis tool
+Semgrep	Static Analysis / Secrets	Passive	Freemium	CLI/API	Medium	Enterprise	Massive	SAST + secret scanning	Very High	Excellent automation platform
+Trivy	Vulnerability / Secret Scanner	Passive	Free	CLI/API	Easy	High	Massive	Secrets, IaC, containers, repos	Very High	One of the best modern scanners
+shhgit	Secret Monitoring	Passive	Free	CLI	Medium	High	Large	Monitoring GitHub leaks in realtime	High	Strong offensive monitoring utility
+git-secrets	Secret Prevention	Passive	Free	CLI	Easy	High	Large	Preventing credential commits	High	More defensive than offensive
+detect-secrets	Secret Detection	Passive	Free	CLI/API	Easy	High	Large	Lightweight secret scanning	High	Popular DevSecOps utility
+Gitxray	GitHub Recon / Attribution	Passive	Free	CLI	Medium	High	Large	Contributor and org intelligence	High	Great for OSINT attribution
+repo-security-scanner	Repo Security Analysis	Passive	Free	CLI	Medium	Medium	Medium	Repository auditing	Medium	Generic scanner category
+repo-analyzer	Repository Analysis	Passive	Free	CLI	Medium	Medium	Medium	Repo metadata analysis	Medium	More analytical than offensive
+# SECTION: 10. Cloud & Storage Recon
+GrayHatWarfare	Public Bucket Search	Passive	Freemium	Web/API	Easy	High	Massive	Finding exposed S3/GCS buckets	Very High	Excellent search engine for public cloud storage
+S3Scanner	AWS S3 Recon	Active	Free	CLI	Easy	High	Large	Enumerating open S3 buckets	High	Fast and reliable
+lazys3	S3 Bruteforce	Active	Free	CLI	Easy	Medium	Medium	Bucket name brute forcing	Medium	Older tool but still useful
+S3recon	AWS Recon	Hybrid	Free	CLI	Medium	High	Large	Automated S3 discovery workflows	High	Good recon automation
+AWSBucketDump	AWS S3 Enumeration	Active	Free	CLI	Medium	Medium	Medium	Dumping accessible S3 buckets	Medium	Useful in assessments
+GCPBucketBrute	GCP Storage Recon	Active	Free	CLI	Medium	High	Large	Google Cloud bucket enumeration	High	One of the better GCP-focused tools
+cloud_enum	Multi-Cloud Recon	Hybrid	Free	CLI	Easy	High	Large	AWS/Azure/GCP asset discovery	Very High	Strong general-purpose cloud recon tool
+MicroBurst	Azure Recon	Active	Free	PowerShell	Medium	High	Enterprise	Azure enumeration & privilege checks	High	Popular Azure offensive toolkit
+DumpsterDiver	Secret Discovery	Passive	Free	CLI	Easy	Medium	Large	Extracting secrets from repos/files	High	Good for exposed credential hunting
+BlobHunter	Azure Blob Recon	Active	Free	CLI	Medium	High	Large	Azure blob storage discovery	High	Specialized Azure blob hunting
+AzureHound	Azure AD Recon	Active	Free	CLI	Hard	Enterprise	Enterprise	Azure AD relationship mapping	Very High	Azure equivalent of BloodHound
+CloudBrute	Cloud Asset Discovery	Active	Free	CLI	Medium	High	Massive	Bucket/app/domain brute forcing	Very High	Extremely effective for cloud enumeration
+CloudFail	Cloudflare Origin Discovery	Passive	Free	CLI	Easy	Medium	Medium	Discovering origin IPs behind Cloudflare	High	Useful for bypass testing
+bucket_finder	Bucket Enumeration	Active	Free	CLI	Easy	Medium	Medium	Simple bucket brute force	Medium	Lightweight utility
+BucketLoot	Bucket Recon	Active	Free	CLI	Medium	Medium	Medium	S3 bucket inspection	Medium	Smaller adoption
+bucket-stream	CT/Bucket Discovery	Passive	Free	CLI/API	Easy	High	Massive	Streaming bucket-related CT discoveries	High	Great passive recon feed
+Kubernetes Exposure Search	Kubernetes Recon	Passive	Freemium	Web/API	Easy	High	Massive	Finding exposed Kubernetes endpoints	Very High	High-value internet exposure discovery
+Kubernetes API Search	Kubernetes Recon	Passive	Freemium	Web/API	Easy	High	Massive	Discovering open kube-apiservers	Very High	Valuable for cloud attack surface mapping
+Public Bucket Search	Bucket Discovery	Passive	Freemium	Web/API	Easy	High	Massive	Finding exposed public buckets	High	Generic capability category
+LeakIX Buckets	Exposure Intelligence	Passive	Freemium	API/Web	Easy	High	Large	Identifying exposed storage/services	Very High	Excellent internet exposure intelligence
+BuckHacker	Bucket Enumeration	Active	Free	CLI	Medium	Medium	Medium	Automated S3 bucket attacks	Medium	Niche offensive utility
+cloudlist	Cloud Asset Enumeration	Passive	Free	CLI/API	Easy	High	Massive	Enumerating cloud assets from providers	Very High	Excellent ProjectDiscovery tool
+cloudfox	AWS/Azure Recon	Hybrid	Free	CLI	Medium	Enterprise	Enterprise	Cloud privilege escalation & recon	Very High	One of the best modern cloud offensive tools
+enumerator	Cloud Enumeration	Hybrid	Free	CLI	Medium	Medium	Medium	Generic cloud asset enumeration	Medium	Broad but less specialized
+cloudsplaining	AWS IAM Analysis	Passive	Free	CLI/API	Medium	Enterprise	Enterprise	IAM privilege risk analysis	Very High	Excellent for cloud privilege auditing
+prowler	Cloud Security Auditing	Passive	Free/Freemium	CLI/API	Medium	Enterprise	Enterprise	AWS/Azure/GCP security auditing	Very High	Industry-standard cloud assessment tool
+ScoutSuite	Cloud Security Auditing	Passive	Free	CLI	Medium	Enterprise	Enterprise	Multi-cloud posture assessment	Very High	Excellent reporting and visualization
+
+# SECTION: 11. Metadata & Document Recon
+ExifTool	Metadata Extraction	Passive	Free	CLI/API	Easy	Very High	Massive	Extracting metadata from files/images/docs	Very High	Industry standard metadata analysis tool
+Exif.tools	Metadata Viewer	Passive	Free	Web	Easy	Medium	Small	Quick online EXIF inspection	Medium	Better for ad-hoc manual checks
+FOCA	Metadata Recon / OSINT	Passive	Free	GUI	Medium	High	Large	Discovering usernames, paths, software from docs	High	Classic red-team metadata recon tool
+Metagoofil	Metadata Recon	Passive	Free	CLI	Medium	Medium	Large	Harvesting public docs & metadata	High	Good for OSINT automation
+hachoir-metadata	Metadata Extraction	Passive	Free	CLI/API	Medium	Medium	Medium	Parsing metadata from many file formats	Medium	Lightweight parser library
+pdfinfo	PDF Analysis	Passive	Free	CLI	Easy	High	Large	Extracting PDF metadata	High	Useful in automation pipelines
+oletools	Office Malware / Metadata Analysis	Passive	Free	CLI/API	Medium	High	Large	Analyzing Office macros & metadata	Very High	Essential for phishing/malware analysis
+strings	Binary Analysis	Passive	Free	CLI	Easy	Medium	Massive	Extracting readable strings from binaries	High	Core DFIR/reversing utility
+peepdf	PDF Security Analysis	Passive	Free	CLI	Medium	High	Medium	PDF malware & stream analysis	High	Strong PDF forensic tool
+PDF Stream Dumper	PDF Malware Analysis	Passive	Free	GUI	Medium	High	Medium	Interactive PDF stream inspection	Medium	Windows-focused legacy utility
+mat2	Metadata Sanitization	Passive	Free	CLI	Easy	High	Large	Removing metadata from files	Very High	Excellent privacy-cleaning tool
+Metadata2Go	Metadata Viewer	Passive	Freemium	Web	Easy	Medium	Small	Online metadata inspection	Medium	Convenient but not enterprise-grade
+PhotoME	Image Metadata Analysis	Passive	Free	GUI	Easy	Medium	Medium	Camera/image metadata analysis	Medium	Mostly photography-focused
+JPEGsnoop	Image Forensics	Passive	Free	GUI	Medium	High	Medium	Detecting edited/manipulated JPEGs	High	Useful forensic capability
+MediaInfo	Media Metadata Analysis	Passive	Free	CLI/API/GUI	Easy	High	Large	Audio/video metadata extraction	Very High	Industry standard for media inspection
+DocFetcher	Document Search / Indexing	Passive	Free	GUI	Easy	Medium	Large	Searching document corpora	Medium	Better for local investigations
+OCRmyPDF	OCR / Document Processing	Passive	Free	CLI/API	Medium	High	Large	OCR searchable PDFs	Very High	Excellent automation support
+Tika	Document Parsing	Passive	Free	API/CLI	Medium	Very High	Massive	Enterprise document parsing & metadata extraction	Very High	Apache Tika is enterprise-grade
+Binwalk	Firmware / Binary Analysis	Passive	Free	CLI	Medium	High	Large	Firmware extraction & analysis	Very High	Essential embedded/IoT recon tool
+foremost	File Carving / Recovery	Passive	Free	CLI	Medium	Medium	Large	Recovering deleted/extracted files	High	Classic forensic recovery utility
+bulk_extractor	Digital Forensics	Passive	Free	CLI	Hard	Very High	Massive	Large-scale forensic artifact extraction	Very High	Extremely powerful DFIR tool
+# SECTION: 12. Malware, IOC & Threat Intel Platforms
+VirusTotal	Malware / IOC Intel	Passive	Freemium	API	Easy	Enterprise	Massive	IOC enrichment & malware pivoting	Very High	Industry-standard enrichment platform
+MalwareBazaar	Malware Samples	Passive	Free	API	Easy	High	Large	Malware hash/sample collection	High	Great for malware hunting
+URLHaus	Malicious URLs	Passive	Free	API	Easy	High	Large	Tracking malicious URLs	High	Excellent phishing/malware feed
+Abuse.ch	Threat Intelligence	Passive	Free	API	Easy	High	Large	IOC feeds & malware infra	Very High	Core CTI ecosystem
+ThreatFox	IOC Platform	Passive	Free	API	Easy	High	Large	IOC sharing & enrichment	High	Abuse.ch ecosystem
+AlienVault OTX	Threat Intel Sharing	Passive	Freemium	API	Easy	High	Massive	IOC correlation & pulse tracking	Very High	Strong community intelligence
+MISP	Threat Intel Platform	Passive	Free/Open Source	API	Hard	Enterprise	Massive	Enterprise IOC sharing	Very High	CTI standard platform
+OpenCTI	Threat Intel Platform	Passive	Free/Open Source	API	Hard	Enterprise	Massive	Threat intelligence graphing	Very High	Excellent modern CTI platform
+ThreatMiner	Threat Intel Search	Passive	Free	API	Easy	Medium	Large	IOC enrichment	High	Great free enrichment source
+MalShare	Malware Repository	Passive	Free	API	Easy	Medium	Large	Malware sample retrieval	Medium	Useful for researchers
+MalwareTrafficAnalysis	Malware Traffic Research	Passive	Free	Web	Easy	High	Medium	Learning malware traffic patterns	High	Educational/research-focused
+Joe Sandbox	Malware Sandbox	Active	Paid/Freemium	API	Medium	Enterprise	Massive	Dynamic malware analysis	Very High	Premium malware detonation
+ANY.RUN	Interactive Sandbox	Active	Freemium	API	Easy	High	Large	Interactive malware analysis	Very High	Extremely analyst-friendly
+Hybrid Analysis	Malware Sandbox	Active	Freemium	API	Easy	High	Massive	Automated malware detonation	Very High	CrowdStrike-backed
+Intezer	Malware Analysis	Passive	Paid/Freemium	API	Medium	Enterprise	Large	Code reuse/genetic malware analysis	High	Excellent attribution features
+Pulsedive	Threat Intel Platform	Passive	Freemium	API	Easy	High	Large	IOC enrichment & automation	High	Great UI and API
+YARAify	YARA Intelligence	Passive	Free	API	Medium	High	Large	YARA-based malware hunting	High	Great for malware analysts
+IOC Parser	IOC Processing	Passive	Free	CLI/API	Easy	Medium	Medium	IOC extraction/parsing	Medium	Utility tool
+IOC Finder	IOC Extraction	Passive	Free	CLI	Easy	Medium	Medium	Extracting indicators from text	Medium	Lightweight utility
+IOC Bucket	IOC Aggregation	Passive	Freemium	API	Medium	Medium	Large	IOC collection & management	Medium	Niche adoption
+CIRCL CVE Search	Vulnerability Intel	Passive	Free	API	Easy	High	Large	CVE enrichment/search	High	Excellent API
+Vulners	Vulnerability Database	Passive	Freemium	API	Easy	High	Massive	CVE + exploit intelligence	Very High	Strong offensive security relevance
+CVE Details	CVE Database	Passive	Free	Web/API	Easy	Medium	Large	CVE browsing	Medium	Aging but useful
+NVD	Vulnerability Database	Passive	Free	API	Easy	Enterprise	Massive	Official CVE tracking	Very High	Canonical CVE source
+FIRST EPSS	Exploit Prediction	Passive	Free	API	Medium	High	Massive	Prioritizing exploitable vulns	Very High	Essential vuln prioritization metric
+OpenPhish	Phishing Intel	Passive	Freemium	API	Easy	High	Large	Phishing IOC feeds	High	Excellent phishing feed
+PhishTank	Phishing Database	Passive	Free	API	Easy	Medium	Large	Community phishing tracking	Medium	Older but still useful
+urlscan.io	URL Intelligence	Passive	Freemium	API	Easy	High	Massive	Webpage scanning & screenshots	Very High	Excellent recon + phishing analysis
+ThreatBook	Threat Intel	Passive	Paid	API	Medium	Enterprise	Large	Chinese threat intelligence	High	Strong APAC focus
+ThreatConnect	CTI Platform	Passive	Paid	API	Hard	Enterprise	Massive	Enterprise CTI orchestration	Very High	Enterprise-heavy platform
+Anomali	Threat Intel Platform	Passive	Paid	API	Hard	Enterprise	Massive	Threat intel aggregation	Very High	SOC integration powerhouse
+Recorded Future	Threat Intelligence	Passive	Paid	API	Medium	Enterprise	Massive	Predictive threat intelligence	Very High	One of the best commercial CTI platforms
+Intel471	Cybercrime Intelligence	Passive	Paid	API	Medium	Enterprise	Large	Underground/crime intel	Very High	Elite cybercrime intelligence
+Flashpoint	Threat Intelligence	Passive	Paid	API	Medium	Enterprise	Massive	Dark web & threat monitoring	Very High	Premium intelligence provider
+# SECTION: 13. Visual Recon & Screenshotting
+EyeWitness	Visual Recon	Active	Free	CLI	Medium	High	Large	Automated screenshots & tech detection	Very High	Classic red team recon tool
+Aquatone	Visual Recon	Active	Free	CLI	Medium	High	Large	Screenshot clustering & recon	High	Deprecated but still popular
+gowitness	Visual Recon	Active	Free	CLI/API	Easy	High	Massive	Fast scalable screenshots	Very High	Modern replacement for Aquatone
+eyewitness-ng	Visual Recon	Active	Free	CLI	Medium	High	Large	Improved EyeWitness workflows	High	Community-maintained evolution
+pageres	Screenshot Utility	Active	Free	CLI/API	Easy	Medium	Medium	Simple webpage screenshots	Medium	Generic screenshot utility
+webscreenshot	Screenshot Utility	Active	Free	CLI	Easy	Medium	Medium	Lightweight screenshot capture	Medium	Basic utility
+urlscan screenshots	Web Recon	Passive	Freemium	API	Easy	High	Massive	Historical screenshot analysis	Very High	Excellent phishing/recon source
+Shodan screenshots	Internet Recon	Passive	Paid/Freemium	API	Easy	High	Massive	Internet-facing service screenshots	High	Useful for exposed panels
+Censys screenshots	Internet Recon	Passive	Paid/Freemium	API	Easy	High	Massive	Infrastructure screenshots	High	Strong asset intelligence
+Katana screenshots	Web Crawling	Active	Free	CLI	Medium	High	Large	Screenshotting during crawling	High	Integrates well with recon stacks
+WitnessMe	Screenshot Automation	Active	Free	CLI	Medium	Medium	Large	Web visual enumeration	Medium	Less common now
+ScreenshotOne	Screenshot API	Active	Paid/Freemium	API	Easy	High	Massive	SaaS screenshot automation	High	Great developer integration
+Puppeteer	Browser Automation	Active	Free	API	Medium	Very High	Massive	Custom browser automation	Very High	Industry-standard browser automation
+Playwright	Browser Automation	Active	Free	API	Medium	Very High	Massive	Modern browser automation/testing	Very High	Faster & more reliable than Puppeteer for many workflows
+
+# SECTION: 14. Frameworks & Automation Suites
+Recon-ng	Recon Framework	Passive	Free	CLI/API	Medium	Medium	Medium	Modular OSINT workflows	High	Metasploit-style recon framework
+SpiderFoot	OSINT Automation	Passive	Freemium	CLI/API/Web	Easy	High	Large	Automated OSINT investigations	Very High	One of the best OSINT automation platforms
+Maltego	Link Analysis / OSINT	Passive	Freemium/Paid	GUI/API	Medium	Enterprise	Massive	Relationship mapping & investigations	Very High	Industry standard visual OSINT tool
+Lampyre	OSINT Platform	Passive	Freemium	GUI/API	Medium	High	Large	Threat intel & entity correlation	High	Strong visual analytics
+BBOT	Recon Framework	Hybrid	Free	CLI/API	Medium	High	Massive	Full automated recon pipelines	Very High	Modern modular recon framework
+ReconFTW	Recon Automation	Hybrid	Free	CLI	Medium	High	Massive	Bug bounty automation	Very High	Extremely popular automation stack
+Osmedeus	Offensive Automation	Hybrid	Free	CLI/API	Hard	High	Massive	Enterprise recon automation	High	Powerful but setup-heavy
+Sn1per	Pentest Framework	Active	Freemium/Paid	CLI/Web	Medium	High	Large	Automated pentesting	High	Strong reporting features
+Dradis	Collaboration Platform	Passive	Paid	Web/API	Medium	High	Enterprise	Pentest reporting/collaboration	Medium	More reporting than recon
+Datasploit	OSINT Framework	Passive	Free	CLI/API	Medium	Medium	Medium	Username/email/domain intel	Medium	Semi-maintained
+Datasploit Framework	OSINT Framework	Passive	Free	CLI/API	Medium	Medium	Medium	Entity enrichment	Medium	Duplicate naming ecosystem
+Photon	Web Recon	Active	Free	CLI	Easy	Medium	Large	Web crawling & endpoint discovery	High	Great content discovery tool
+Amass	Attack Surface Mapping	Hybrid	Free	CLI/API	Medium	Enterprise	Massive	Deep asset enumeration	Very High	Recon gold standard
+theHarvester	OSINT Collection	Passive	Free	CLI	Easy	Medium	Medium	Email/domain collection	High	Excellent beginner OSINT tool
+OneForAll	Subdomain Enumeration	Hybrid	Free	CLI	Medium	High	Large	Chinese source aggregation	High	Excellent source coverage
+Sudomy	Recon Automation	Hybrid	Free	CLI	Medium	High	Large	Automated recon orchestration	High	Useful workflow wrapper
+OWASP Amass	Attack Surface Mapping	Hybrid	Free	CLI/API	Medium	Enterprise	Massive	Full attack surface discovery	Very High	Same as Amass branding
+AttackSurfaceMapper	ASM Framework	Hybrid	Free	CLI	Medium	Medium	Large	External attack surface mapping	High	Good enterprise recon helper
+ASM tools	Attack Surface Mgmt	Hybrid	Mixed	CLI/API	Medium	High	Enterprise	Enterprise asset discovery	High	Refers to broad ASM category
+ProjectDiscovery stack	Recon Ecosystem	Hybrid	Free	CLI/API	Easy	Very High	Massive	Full recon automation	Very High	Best modern OSS recon ecosystem
+Nuclei	Vulnerability Scanner	Active	Free	CLI/API	Easy	Very High	Massive	Template-based vulnerability scanning	Very High	Industry-leading scanner
+httpx	HTTP Probing	Active	Free	CLI/API	Easy	High	Massive	Live web probing	Very High	Essential recon utility
+subfinder	Passive Enumeration	Passive	Free	CLI/API	Easy	High	Massive	Passive subdomain enum	Very High	Must-have recon tool
+dnsx	DNS Toolkit	Active	Free	CLI/API	Easy	High	Massive	DNS probing & validation	Very High	Fast and reliable
+naabu	Port Scanner	Active	Free	CLI/API	Easy	High	Massive	Fast port scanning	Very High	Excellent ProjectDiscovery scanner
+uncover	Search Engine Recon	Passive	Free	CLI/API	Easy	High	Massive	Query Shodan/Censys/FOFA	Very High	Great internet search wrapper
+notify	Alerting Utility	Passive	Free	CLI/API	Easy	High	Massive	Recon notifications	High	Useful in pipelines
+interactsh	OOB Interaction	Active	Free	CLI/API	Medium	Very High	Massive	Blind interaction detection	Very High	Excellent OAST infrastructure
+uncover-engine	Search Aggregator	Passive	Free	CLI/API	Medium	High	Large	Multi-engine recon	High	Advanced uncover workflows
+nuclei-templates	Scanner Templates	Passive	Free	Git/API	Easy	Very High	Massive	Nuclei vulnerability checks	Very High	Core of nuclei ecosystem
+reconspider	Recon Automation	Hybrid	Free	CLI	Medium	Medium	Medium	Automated crawling/recon	Medium	Lesser-used project
+reconmap	Recon Management	Passive	Free	Web/API	Medium	Medium	Medium	Recon collaboration	Medium	More management-focused
+Osintgram	Instagram OSINT	Passive	Free	CLI	Easy	Medium	Medium	Instagram investigations	High	Popular social OSINT tool
+Sherlock	Username Enumeration	Passive	Free	CLI	Easy	High	Large	Username hunting	Very High	Extremely useful for OSINT
+Maigret	Username Enumeration	Passive	Free	CLI/API	Easy	High	Large	Deep username correlation	Very High	Better modern Sherlock alternative
+SpiderSuite	OSINT Platform	Passive	Freemium	Web/API	Medium	High	Large	Integrated OSINT workflows	High	Modern SpiderFoot-style platform
+Datasploit	OSINT Framework	Passive	Free	CLI/API	Medium	Medium	Medium	Domain/email/social recon	Medium	Aging but useful
+
+# SECTION: 15. Physical, Geo & Wireless Recon
+Wigle	Wireless Recon	Passive	Free/Freemium	API/Web	Easy	Very High	Massive	WiFi/BSSID geolocation	Very High	Best public WiFi mapping DB
+Google Earth	Satellite Imaging	Passive	Free	GUI/API	Easy	Very High	Massive	Geospatial investigations	Very High	Essential GEOINT tool
+Google Maps	Mapping / GEOINT	Passive	Freemium	API/Web	Easy	Very High	Massive	Address/location intelligence	Very High	Strong commercial mapping
+OpenStreetMap	Open Mapping	Passive	Free	API	Easy	High	Massive	Open-source geospatial data	Very High	Excellent for automation
+GeoSpy	Image Geolocation	Passive	Paid/Freemium	API/Web	Medium	High	Large	AI image geolocation	High	Emerging GEOINT platform
+Creepy	Geolocation OSINT	Passive	Free	GUI	Medium	Medium	Medium	Social media geolocation	Medium	Older OSINT utility
+GeoSocial Footprint	GEOINT	Passive	Mixed	Web/API	Medium	Medium	Large	Social geo profiling	Medium	Category/toolset concept
+FlightRadar24	Aviation Tracking	Passive	Freemium	API/Web	Easy	Very High	Massive	Aircraft tracking	Very High	Industry-standard flight intel
+ADSBExchange	Aviation Tracking	Passive	Free	API/Web	Easy	Very High	Massive	Unfiltered ADS-B tracking	Very High	Preferred by investigators
+MarineTraffic	Maritime Tracking	Passive	Freemium	API/Web	Easy	Very High	Massive	Ship/vessel intelligence	Very High	Industry-leading maritime tracking
+VesselFinder	Maritime Tracking	Passive	Freemium	API/Web	Easy	High	Massive	Vessel monitoring	High	Alternative to MarineTraffic
+Sentinel Hub	Satellite Imagery	Passive	Freemium	API	Medium	Enterprise	Massive	Satellite analytics	Very High	Professional EO workflows
+EO Browser	Earth Observation	Passive	Freemium	Web/API	Easy	High	Massive	Satellite imagery exploration	High	Great Sentinel interface
+Zoom Earth	Weather/Satellite	Passive	Free	Web	Easy	High	Massive	Live weather & satellite views	High	Fast visualization platform
+OpenCellID	Cellular GEOINT	Passive	Free	API	Easy	High	Massive	Cell tower mapping	Very High	Excellent telecom GEOINT source
+CellMapper	Cellular Mapping	Passive	Free	API/Web	Easy	High	Massive	Mobile tower intelligence	Very High	Strong crowdsourced data
+BSSID Search	Wireless Recon	Passive	Freemium	Web/API	Easy	Medium	Large	WiFi AP geolocation	High	Useful wireless pivoting
+WiGLE WiFi Search	Wireless GEOINT	Passive	Free	API/Web	Easy	Very High	Massive	WiFi geolocation lookups	Very High	Core wireless recon platform
+Kismet Logs	Wireless Capture	Active	Free	CLI	Hard	High	Large	Wireless packet analysis	High	Requires capture infrastructure
+GPS Visualizer	GEOINT Visualization	Passive	Free	Web	Easy	Medium	Medium	GPS plotting & analysis	Medium	Visualization-focused utility
+# SECTION: 16. Dark Web & Onion Recon
+Ahmia	Tor Search Engine	Passive	Free	API/Web	Easy	High	Large	Searching indexed onion sites	High	Safest and most reliable Tor search engine
+OnionLand	Onion Search Engine	Passive	Free	Web	Easy	Medium	Medium	Onion indexing	Medium	Smaller index than Ahmia
+Torch	Dark Web Search	Passive	Free	Web	Easy	Medium	Large	General Tor searching	Medium	One of the oldest onion search engines
+DarkSearch	Dark Web Search API	Passive	Freemium	API/Web	Easy	High	Large	Automated onion intelligence	High	Useful for automation pipelines
+DeepSearch	Deep Web Search	Passive	Freemium	Web/API	Medium	Medium	Medium	Deep web exploration	Medium	Generic branding/tooling
+Recon Dark Web Search	Dark Web Intel	Passive	Paid	API	Medium	High	Large	Threat intelligence investigations	High	Commercial-grade intel
+IntelX Tor Search	Dark Web Intelligence	Passive	Paid/Freemium	API	Easy	Enterprise	Massive	Leaks, onion indexing, pivots	Very High	One of the best intelligence platforms
+Haystak	Onion Search Engine	Passive	Freemium	API/Web	Easy	High	Large	Large onion index searching	High	Strong coverage
+Dark.fail	Onion Directory	Passive	Free	Web	Easy	High	Medium	Verifying trusted onion mirrors	High	Excellent operational utility
+OnionScan	Onion Security Analysis	Active	Free	CLI	Medium	High	Medium	Auditing onion services	High	Finds OPSEC leaks
+TorBot	Onion Recon	Passive	Free	CLI	Easy	Medium	Medium	Scraping onion services	Medium	Lightweight automation
+OnionSearch	Onion Search Automation	Passive	Free	CLI	Easy	High	Large	Multi-engine onion searching	High	Good recon automation
+ExoneraTor	Tor Relay Lookup	Passive	Free	Web/API	Easy	High	Medium	Checking Tor relay usage	High	Useful for investigations
+Darkweb Link Lists	Onion Directories	Passive	Free	Web	Easy	Low	Medium	Finding onion entry points	Medium	High noise ratio
+Deep Web Search Engines	Search Aggregators	Passive	Free/Freemium	Web	Easy	Medium	Large	Broad deep web searching	Medium	Mostly aggregation portals
+# SECTION: 17. APIs & Intelligence Feeds
+Shodan API	Internet Intelligence	Passive	Paid/Freemium	API	Easy	Enterprise	Massive	Exposed services & attack surface	Very High	Industry-standard internet scanner
+Censys API	Internet Intelligence	Passive	Paid/Freemium	API	Easy	Enterprise	Massive	TLS/cert/service enumeration	Very High	Stronger academic-quality data
+SecurityTrails API	Passive DNS	Passive	Paid	API	Easy	Enterprise	Massive	DNS & subdomain intelligence	Very High	Best passive DNS APIs
+WhoisXML API	WHOIS / DNS	Passive	Paid	API	Easy	Enterprise	Massive	WHOIS & DNS automation	High	Excellent enrichment
+GreyNoise API	Threat Noise Analysis	Passive	Paid/Freemium	API	Easy	Enterprise	Massive	Filtering internet background noise	Very High	Great for SOC workflows
+VirusTotal API	Malware / Infra Intel	Passive	Freemium	API	Easy	High	Massive	IOC enrichment & pivots	Very High	Essential enrichment source
+URLScan API	Web Intelligence	Passive	Freemium	API	Easy	High	Large	Website fingerprinting	High	Excellent for phishing analysis
+HaveIBeenPwned API	Breach Intelligence	Passive	Paid	API	Easy	High	Massive	Credential breach checks	Very High	Must-have breach source
+LeakCheck API	Breach Intelligence	Passive	Paid/Freemium	API	Easy	High	Large	Credential leak searching	High	Popular alternative to HIBP
+Pulsedive API	Threat Intel	Passive	Freemium	API	Easy	Medium	Large	IOC enrichment	Medium	Useful supplemental feed
+AlienVault OTX API	Threat Intelligence	Passive	Free	API	Easy	High	Massive	Community IOC sharing	High	Great free intel source
+IntelX API	Deep/Dark Web Intel	Passive	Paid	API	Medium	Enterprise	Massive	Leak & dark web intelligence	Very High	Premium intelligence platform
+BuiltWith API	Technology Fingerprinting	Passive	Paid	API	Easy	High	Massive	Tech stack discovery	High	Excellent web stack intel
+Wappalyzer API	Technology Fingerprinting	Passive	Paid/Freemium	API	Easy	High	Large	Website tech detection	High	Great lightweight option
+IPinfo API	IP Intelligence	Passive	Freemium	API	Easy	High	Massive	ASN/geolocation enrichment	Very High	Common recon dependency
+IP2Location API	GeoIP Intelligence	Passive	Paid/Freemium	API	Easy	High	Massive	Geolocation mapping	High	Enterprise-grade GeoIP
+FullContact API	Identity Intelligence	Passive	Paid	API	Medium	High	Large	Person/company enrichment	High	Commercial OSINT platform
+Clearbit API	Company Intelligence	Passive	Paid	API	Easy	High	Large	Corporate enrichment	High	Excellent B2B intelligence
+Hunter API	Email Intelligence	Passive	Freemium	API	Easy	High	Large	Email enumeration	Very High	Standard for email recon
+ZoomEye API	Internet Intelligence	Passive	Paid/Freemium	API	Easy	High	Massive	Chinese Shodan equivalent	High	Strong APAC visibility
+FOFA API	Internet Intelligence	Passive	Paid/Freemium	API	Medium	High	Massive	Chinese cyber asset search	High	Excellent Asia coverage
+CriminalIP API	Internet Intelligence	Passive	Paid/Freemium	API	Easy	High	Large	Exposure & reputation analysis	High	Rapidly growing platform
+Netlas API	Internet Intelligence	Passive	Freemium	API	Easy	High	Massive	Asset intelligence & banners	High	Modern Censys competitor
+BinaryEdge API	Internet Intelligence	Passive	Paid/Freemium	API	Easy	High	Massive	Attack surface discovery	High	Great historical scans
+# SECTION: 18. Massive Living Indexes (Best for 1000+ Tool Discovery)
+OSINT Framework	OSINT Index	Passive	Free	Web	Easy	Very High	Massive	Finding specialized OSINT tools	Very High	Best starting point for OSINT
+awesome-osint	GitHub Curated List	Passive	Free	GitHub	Easy	High	Massive	General OSINT discovery	Very High	Continuously updated
+Awesome OSINT For Everything	OSINT Collection	Passive	Free	GitHub	Easy	Medium	Large	Broad OSINT references	High	Large aggregation
+Cyber Detective OSINT Tools Collection	OSINT Toolkit	Passive	Free	GitHub	Easy	High	Massive	Investigative tooling discovery	High	Strong investigative focus
+BlackArch Recon Category	Pentest Distribution	Active/Passive	Free	CLI	Medium	High	Massive	Recon tool packages	High	Huge Linux tool ecosystem
+Kali Linux Information Gathering Tools	Recon Toolkit	Active/Passive	Free	CLI	Easy	High	Massive	Standard pentest recon	Very High	Industry standard toolkit
+Pentest-Tools Collections	Tool Aggregation	Active/Passive	Free/Freemium	Web	Easy	Medium	Large	Discovering recon utilities	Medium	Mixed quality
+HackTricks Recon Lists	Recon Knowledge Base	Passive	Free	Web/GitHub	Easy	Very High	Massive	Modern recon techniques	Very High	Essential hacker reference
+PayloadsAllTheThings Recon Section	Recon Payloads	Passive	Free	GitHub	Easy	Very High	Massive	Payloads & recon workflows	Very High	Must-have cheat sheet
+Bug Bounty Recon Collection	Bug Bounty Tools	Passive	Free	GitHub	Easy	High	Large	Bug bounty recon setup	High	Practical workflows
+Awesome Bug Bounty	Bug Bounty Index	Passive	Free	GitHub	Easy	High	Massive	BB learning/resources	High	Great starter collection
+Awesome Pentest	Pentest Resources	Passive	Free	GitHub	Easy	High	Massive	General pentest references	High	Broad coverage
+Red Teaming Toolkit Lists	Red Team Resources	Active/Passive	Free	GitHub	Medium	High	Massive	Red team operations	High	Advanced operator focus
+Awesome Threat Intelligence	Threat Intel Resources	Passive	Free	GitHub	Easy	High	Massive	Threat intel feeds/tools	High	Great SOC reference
+Awesome Honeypots	Honeypot Resources	Passive	Free	GitHub	Medium	High	Large	Honeypot deployments	Medium	Defensive use mostly
+Awesome DFIR	DFIR Resources	Passive	Free	GitHub	Easy	Very High	Massive	Incident response tooling	Very High	Excellent DFIR index
+Awesome Malware Analysis	Malware Research	Passive	Free	GitHub	Medium	Very High	Massive	Malware analysis workflows	Very High	Strong analyst resource
+Awesome Incident Response	IR Resources	Passive	Free	GitHub	Easy	High	Massive	IR playbooks & tooling	High	Strong operational content
+Awesome Search Engines	Search Engine Index	Passive	Free	GitHub/Web	Easy	Medium	Large	Specialty search discovery	Medium	Supplemental OSINT resource
+# SECTION: 19. Common Recon Workflows
+crt.sh	Certificate Transparency	Passive	Free	Web/API-ish	Easy	High	Massive	Passive subdomain discovery	Very High	Essential CT enumeration source
+SecurityTrails	Passive DNS	Passive	Paid/Freemium	API	Easy	Enterprise	Massive	Historical DNS & attack surface mapping	Very High	One of the best passive DNS providers
+VirusTotal	Threat Intel / DNS	Passive	Freemium	API	Easy	High	Massive	Infra pivoting & enrichment	High	Great correlation and IOC enrichment
+Chaos Dataset	Asset Dataset	Passive	Free	API/Dataset	Medium	High	Large	Bug bounty asset discovery	High	Excellent ProjectDiscovery dataset
+Amass Passive Mode	Asset Discovery	Passive	Free	CLI/API	Medium	Enterprise	Massive	Deep passive enumeration	Very High	Gold standard recon framework
+subfinder	Subdomain Enumeration	Passive	Free	CLI/API	Easy	High	Massive	Fast passive subdomain discovery	Very High	Industry-standard passive recon tool
+DNSDumpster	DNS Recon	Passive	Freemium	Limited	Easy	Medium	Medium	Visual DNS mapping	Medium	Better for manual investigations
+RapidDNS	CT / DNS Search	Passive	Free	Web	Easy	Medium	Medium	Quick CT searches	Medium	Lightweight but useful
+BufferOver	Passive DNS	Passive	Free	API	Easy	Medium	Large	Additional subdomain enumeration	High	Strong free enrichment source
+CertSpotter	CT Monitoring	Passive	Freemium	API	Easy	High	Large	Certificate monitoring	High	Excellent CT API support
+Shodan	Internet Exposure Search	Passive	Freemium/Paid	API/CLI	Easy	Enterprise	Internet-scale	Discover exposed internet services	Very High	Recon industry standard
+Censys	Internet Exposure Search	Passive	Freemium/Paid	API/CLI	Medium	Enterprise	Internet-scale	TLS, certs, hosts, infra mapping	Very High	Excellent for attack surface analysis
+FOFA	Internet Exposure Search	Passive	Freemium/Paid	API/Web	Medium	High	Massive	Chinese/global asset exposure	High	Huge Asian internet visibility
+ZoomEye	Internet Exposure Search	Passive	Freemium/Paid	API/Web	Medium	High	Massive	Global exposed service discovery	High	Similar to Shodan/FOFA
+Netlas	Attack Surface Search	Passive	Freemium	API/Web	Easy	High	Large	SSL/DNS/service enumeration	High	Modern alternative to Shodan
+BinaryEdge	Internet Scanning	Passive	Paid/Freemium	API	Medium	High	Massive	Exposure intelligence	High	Great enterprise enrichment
+GreyNoise	Threat Intel	Passive	Paid/Freemium	API	Medium	Enterprise	Massive	Noise filtering & scanner attribution	Very High	Excellent for prioritization
+LeakIX	Exposure Monitoring	Passive	Freemium	API/Web	Easy	High	Large	Public leaks & exposed services	Very High	Very useful for cloud/storage leaks
+GitHub Dorks	Secret Discovery	Passive	Free	Web/API	Easy	Medium	Massive	Searching exposed secrets/code	Very High	Core OSINT technique
+GitLeaks	Secret Scanning	Active	Free	CLI/API	Easy	High	Large	Detecting secrets in repos	Very High	Excellent CI/CD integration
+TruffleHog	Secret Scanning	Active	Free	CLI/API	Medium	High	Massive	High-accuracy credential discovery	Very High	Strong entropy + regex detection
+Sourcegraph	Code Search	Passive	Freemium	API/Web	Medium	High	Massive	Cross-repo source analysis	High	Excellent for enterprise code recon
+grep.app	Code Search	Passive	Free	Web/API	Easy	Medium	Large	Public code searching	High	Great GitHub dork alternative
+Searchcode	Code Search	Passive	Free	Web/API	Easy	Medium	Medium	Source code intelligence	Medium	Smaller ecosystem coverage
+PublicWWW	Web Source Search	Passive	Paid/Freemium	Web/API	Easy	High	Massive	Tracking JS keys & web fingerprints	High	Excellent for frontend recon
+GrayHatWarfare	Cloud Bucket Search	Passive	Freemium/Paid	API/Web	Easy	High	Massive	Public cloud bucket discovery	Very High	Extremely valuable cloud recon source
+S3Scanner	Cloud Storage Recon	Active	Free	CLI	Easy	High	Large	Enumerating public S3 buckets	Very High	Fast and practical
+cloud_enum	Cloud Enumeration	Hybrid	Free	CLI	Medium	High	Large	Multi-cloud exposure discovery	Very High	Excellent for AWS/Azure/GCP recon
+BucketLoot	Cloud Bucket Recon	Active	Free	CLI	Medium	Medium	Medium	Bucket brute forcing	Medium	Less maintained than alternatives
+LeakIX	Exposure Monitoring	Passive	Freemium	API/Web	Easy	High	Large	Detecting exposed cloud services	Very High	Strong ransomware/exposure visibility
+PublicWWW	Web Source Search	Passive	Paid/Freemium	Web/API	Easy	High	Massive	Finding leaked cloud references	High	Useful for JS/API key hunting
