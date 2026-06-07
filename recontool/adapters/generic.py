@@ -221,8 +221,10 @@ class GenericApiAdapter(Adapter):
         key = settings.api_key(spec["requires_key"]) if spec.get("requires_key") else ""
         bucket = spec.get("bucket", spec["name"])
         seed = _seed_domain(ctx)
-        events: list[Event] = []
-        for v in _input_values(ctx, self.consumes, cap=spec.get("max_inputs", 100)):
+        inputs = _input_values(ctx, self.consumes, cap=spec.get("max_inputs", 100))
+        sem = asyncio.Semaphore(max(2, ctx.profile.per_host_concurrency * 4))
+
+        async def one(v: str) -> list[Event]:
             iv = re.sub(r"[^0-9]", "", v) if (self.consumes and self.consumes[0] == "asn") else v
             extra = {"value": iv, "domain": iv, "ip": iv, "asn": iv, "host": iv, "key": key}
             url = render_template(spec["endpoint"], {}, extra)
@@ -233,15 +235,19 @@ class GenericApiAdapter(Adapter):
                 if not rv or rv.lower() in ("bearer", "basic", "token", "apikey"):
                     continue
                 headers[k] = rv
-            try:
-                resp = await ctx.http.get(url, headers=headers or None, bucket=bucket)
-            except Exception:  # noqa: BLE001
-                continue
+            async with sem:
+                try:
+                    resp = await ctx.http.get(url, headers=headers or None, bucket=bucket)
+                except Exception:  # noqa: BLE001
+                    return []
             ctx.artifacts.save_raw(spec["name"], resp.json() if resp.json_ok else resp.text)
             recs = parse_records(spec["parse"],
                                  resp.text, json_obj=resp.json() if resp.json_ok else None)
-            events.extend(emit_events(spec["parse"], recs, spec["name"], seed))
-        return events
+            return emit_events(spec["parse"], recs, spec["name"], seed)
+
+        # PARALLEL fan-out across inputs (bounded by profile concurrency + rate limiter)
+        batches = await asyncio.gather(*(one(v) for v in inputs))
+        return [e for batch in batches for e in batch]
 
 
 class GenericCliAdapter(Adapter):
@@ -254,24 +260,30 @@ class GenericCliAdapter(Adapter):
     async def run(self, ctx: AdapterContext) -> list[Event]:
         spec = self.spec
         seed = _seed_domain(ctx)
-        events: list[Event] = []
-        for v in _input_values(ctx, self.consumes, cap=spec.get("max_inputs", 50)):
+        inputs = _input_values(ctx, self.consumes, cap=spec.get("max_inputs", 50))
+        sem = asyncio.Semaphore(max(2, ctx.profile.global_concurrency or 10))
+
+        async def one(v: str) -> list[Event]:
             cmd = render_template(spec["invocation"], {},
                                   {"value": v, "domain": v, "ip": v, "host": v})
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    *cmd.split(), stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.DEVNULL,
-                )
-                out, _ = await asyncio.wait_for(
-                    proc.communicate(), timeout=spec.get("timeout", 120))
-            except Exception:  # noqa: BLE001
-                continue
+            async with sem:
+                try:
+                    proc = await asyncio.create_subprocess_exec(
+                        *cmd.split(), stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.DEVNULL,
+                    )
+                    out, _ = await asyncio.wait_for(
+                        proc.communicate(), timeout=spec.get("timeout", 120))
+                except Exception:  # noqa: BLE001
+                    return []
             text = out.decode(errors="ignore")
             ctx.artifacts.save_text(spec["name"], f"{v}.out", text)
             recs = parse_records(spec["parse"], text)
-            events.extend(emit_events(spec["parse"], recs, spec["name"], seed))
-        return events
+            return emit_events(spec["parse"], recs, spec["name"], seed)
+
+        # PARALLEL fan-out across inputs (bounded by profile concurrency)
+        batches = await asyncio.gather(*(one(v) for v in inputs))
+        return [e for batch in batches for e in batch]
 
 
 def build_adapter_class(spec: dict) -> type[Adapter]:
