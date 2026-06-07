@@ -1,233 +1,233 @@
 # Recontool
 
-> Modular, AI-supervised **reconnaissance & attack-surface mapping** platform.
-> Give it a domain — it chains 200+-tool-class recon together, stores everything
-> in a database, harvests artifacts (JS, response bodies) to the filesystem,
-> rotates egress IPs to dodge rate-limit blacklisting, runs tasks in parallel,
-> and uses a tiered AI agent to make better decisions at runtime.
+> Modular, AI-supervised **authorized reconnaissance & attack-surface mapping**
+> platform. Give it a scope you own or are permitted to test — it chains a
+> 500+-tool-class recon catalog into one config-driven, frontier-driven pipeline,
+> stores everything in a canonical graph + artifact lake, runs tasks in parallel,
+> and uses a tiered AI supervisor to plan, triage, and recover at runtime.
 
-**Scope guardrail:** reconnaissance & attack-surface mapping only — no
-exploitation. Active phases that touch a target are disabled by default and
-require an explicit `--authorize-active` flag. See [`docs/D6-opsec.md`](docs/D6-opsec.md).
+**Authorized-only, no-exploitation, no-evasion.** Recon & attack-surface mapping
+only. No exploitation. No stealth, proxy rotation, rate-limit bypass, or detection
+evasion — reliability comes from provider quotas, backoff, caching, concurrency
+caps, and circuit breakers. Active phases that touch a target are off by default and
+require an explicit `--authorize-active`. See [`docs/D6-opsec.md`](docs/D6-opsec.md)
+and [`docs/blueprint/`](docs/blueprint/).
 
 ---
 
 ## What it does
 
 ```
-  www.xyz.com
+  seed: domain / ip / cidr / asn / url
+        │
+        ▼  PREFLIGHT (config · registries · storage · db · queue · creds · scope)
+        ▼  MODE GATE (demo | test | live)   →  SCOPE + AUTH GATE
         │
         ▼  PASSIVE (no target contact — safe, default)
-   P1 seed        crt.sh · HackerTarget · AlienVault OTX
-   P2 expansion   subfinder (if installed) · recursion
-   P3 enrichment  Wayback URLs  ──►  downloads .js files to ./artifacts
-        │
-        ▼  ◆ ACTIVE GATE (requires --authorize-active)
-   P4 verify      DNS resolve · HTTP probe · port scan (naabu or fallback)
-   P5 deep        JS analysis (endpoints + redacted secrets from harvested JS)
-   P6 vuln        nuclei (if installed) · CVE/exposure findings
+   p1 seed        crt.sh · HackerTarget · OTX · urlscan · certspotter · Shodan/Censys…
+   p2 expansion   subfinder/assetfinder (if installed) · recursion
+   p3 enrichment  Wayback/gau URLs · InternetDB · ASN/BGP · GreyNoise
+        │            ──►  corpus builder → normalize → dedupe → canonical store
+        │            ──►  FRONTIER (recurse only on NEW in-scope entities)
+        ▼  ◆ ACTIVE GATE (mode=live + active profile + --authorize-active)
+   p4 verify      DNS resolve · HTTP probe · port scan  →  LIVE validation
+   p5 deep        crawl + JS analysis (endpoints + redacted secrets) · dirs · params · TLS
+   p6 vuln        nuclei / takeover (detection only)
         │
         ▼
-   Deduplicated, confidence-scored asset inventory in the DB
-   + findings + relationship graph + JSON export + AI summary
+   Deduplicated, confidence-scored inventory + findings + relationship graph
+   + JSON export + AI summary + cross-scan diff
 ```
 
 Each tool's output becomes the next tool's input (subdomains → resolve → probe →
-crawl → analyse). Everything is **deduplicated** with deterministic keys and
-**confidence-scored** by how many independent sources corroborate it.
-
-The full architecture lives in [`docs/`](docs/) (D1–D10: tool matrix, flow, data
-schema, ADRs, API specs, OPSEC, roadmap, build-vs-buy, code structure, risks).
+crawl → analyse → re-feed). Everything is **deduplicated** with deterministic keys,
+**confidence-scored** by independent-source corroboration, and **provenance-tracked**.
 
 ---
 
 ## Quick start
 
-### Option A — Docker (recommended; ships with all recon tools)
+### Try it safely first (demo mode — zero network, zero keys)
 
 ```bash
-# build the all-in-one image (Python platform + subfinder/httpx/nuclei/naabu/...)
-docker compose build recontool
-
-# passive scan — just pass a scope domain
-docker compose run --rm recontool scan www.xyz.com
-
-# full pipeline against an AUTHORISED target
-docker compose run --rm recontool scan xyz.com --profile stealth --authorize-active
-```
-
-### Option B — local (Python 3.10+)
-
-```bash
-# 1. install the platform
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-pip install -e .                      # provides the `recontool` command
+pip install -e ".[dev]"
 
-# 2. (optional) install the external CLI tools (subfinder, httpx, nuclei, ...)
-bash docker/install_tools.sh core     # or `all` for the full set
-
-# 3. (optional) configure API keys / proxies / AI
-cp config/recontool.example.yaml config/recontool.yaml   # everything works WITHOUT this
-
-# 4. RUN — the platform is driven by a single scope domain
-recontool scan www.xyz.com                               # passive (safe, default)
-recontool scan xyz.com --authorize-active -o results.json # full pipeline (authorised)
+# Full pipeline against the built-in MOCK environment — never touches the network:
+python -m recontool.cli scan recontool.local --mode demo --profile normal --authorize-active --no-ai
 ```
 
-If you don't `pip install -e .`, run it as a module: `python -m recontool.cli scan www.xyz.com`.
+This runs all six phases against `recontool/testing/mock_env.py`, discovering a
+fictional attack surface (subdomains, IPs, live hosts, endpoints, and planted —
+redacted — secrets). It's the safest way to see the whole system work.
 
-### Inspect results
+### Real (authorized) targets — local
 
 ```bash
-recontool tools              # all adapters + which are available right now
-recontool scans              # past scans
-recontool report <scan_id>   # summary of a stored scan
-recontool export <scan_id> -o out.json
+pip install -e .                       # provides the `recontool` command
+bash docker/install_tools.sh core      # (optional) external CLIs: subfinder/httpx/nuclei/…
+cp config/recontool.example.yaml config/recontool.yaml   # (optional) keys/scope/AI
+
+recontool preflight acme.com --mode live          # validate setup
+recontool scan acme.com --mode live                # passive (safe, default)
+recontool scan acme.com --mode live --authorize-active -o results.json   # full pipeline
 ```
+
+### Docker (ships with the recon CLIs)
+
+```bash
+docker compose build recontool
+docker compose run --rm recontool scan acme.com --mode live
+```
+
+---
+
+## Run modes (the top-level safety switch)
+
+| Mode | Real egress | Use |
+|------|:-----------:|-----|
+| `demo` | ❌ never | Full pipeline vs in-process mock. Safe demo anywhere, no keys. |
+| `test` | ❌ never | Recorded fixtures / mock for CI & E2E. Hard-fails on egress leak. |
+| `live` | ✅ authorized | Real targets, still scope + active-auth gated. |
+
+In `demo`/`test`, the single HTTP egress chokepoint routes every request to the mock
+env or raises `LiveEgressBlocked` — a hard guarantee no real target is touched.
+
+---
+
+## CLI
+
+```bash
+recontool preflight <seed> --mode <mode>     # health checks (exit 2 on error)
+recontool scan <seed> [-p profile] [-m mode] [--authorize-active]
+                       [-c 1,2,3] [--resume <id>] [--skip-preflight] [-o out.json]
+recontool scans                              # list past scans
+recontool report <scan_id>                   # summary + findings
+recontool export <scan_id> -o out.json       # full JSON export
+recontool diff <seed>                        # diff the two latest scans (monitoring)
+recontool replay <scan_id>                   # inspect dead-lettered (failed) work units
+recontool tools                              # all adapters + current availability
+```
+
+Profiles: `passive_only` · `stealth` · `normal` · `aggressive` (one knob tunes
+concurrency, QPS, port breadth, jitter, nuclei severity for the whole pipeline).
 
 ---
 
 ## Configuration
 
-Two config files live in `config/`:
+Precedence: **environment variable → `config/recontool.yaml` → built-in default.**
+All API keys are **optional** — passive recon runs with zero keys.
 
 | File | Purpose |
 |------|---------|
-| `config/recontool.yaml` | Main config — API keys, profile, proxies, AI, enabled categories. Copy from `recontool.example.yaml`. **Gitignored.** |
-| `config/tools.yaml` | Machine-readable **tool registry** — every tool's invocation, input/output, install method. The integration backbone. |
-
-**Precedence:** environment variable → `config/recontool.yaml` → built-in default. So you
-can keep secrets in env vars (CI) or in the YAML file (local). All keys are **optional** —
-passive recon runs with zero keys; adding keys unlocks more sources and higher limits.
+| `config/recontool.yaml` | Main config — mode, profile, **scope allowlist**, API keys, AI, recovery, categories. Copy from `recontool.example.yaml`. **Gitignored.** |
+| `config/tools.yaml` | Machine-readable **tool registry** — invocation/IO/install per tool. |
+| `config/tools_generic.yaml` | **Declarative adapter specs** — wire tools with no Python. |
+| `config/categories.yaml` | The **28-category registry** (contracts, dedupe keys, chain_to, quotas). |
 
 ```yaml
 # config/recontool.yaml (excerpt)
-general: { profile: normal }
-network: { proxies: ["http://user:pass@proxy1:8080", "socks5://proxy2:1080"] }
-api_keys:
-  shodan: "..."
-  securitytrails: "..."
-  github_token: "..."
+general: { mode: live, profile: normal }
+scope:
+  allow_domains: ["acme.com"]
+  deny_domains: ["status.acme.com"]
+recovery: { checkpoint_enabled: true }
+api_keys: { shodan: "...", securitytrails: "...", github_token: "..." }
 ```
 
 ---
 
-## Running by category (pipeline model)
+## Architecture at a glance
 
-The platform is built as **per-category pipelines** that chain tools (A's output → B's
-input) through a shared DB. You drive everything with a scope domain:
+| Capability | Module |
+|------------|--------|
+| **Run mode + test-mode egress enforcement** | `core/mode.py`, `net/http_client.py` |
+| **Mock / demo environment** | `testing/mock_env.py` |
+| **Preflight health checks** | `preflight.py` |
+| **Source planner / 28-category registry** | `categories.py`, `config/categories.yaml` |
+| **Tool chaining + parallel phases** | `orchestrator/pipeline.py` |
+| **Frontier manager** (recurse only on new in-scope entities) | `orchestrator/frontier.py` |
+| **Generic adapter engine** (wire tools as YAML, no code) | `adapters/generic.py`, `adapters/autoload.py` |
+| **Pure-Python crawler / content discovery / param mining** | `adapters/{crawler,content_discovery,params}.py` |
+| **Normalize / dedupe / confidence** (sole DB writer) | `normalize/engine.py`, `core/{dedupe,confidence}.py` |
+| **Canonical store + raw artifact lake** | `core/models.py`, `core/artifacts.py` |
+| **Checkpoint / resume / dead-letter / replay** | `core/models.py` (Checkpoint, DeadLetter), pipeline, CLI `replay` |
+| **Continuous diffing** | `diff.py`, CLI `diff` |
+| **Rate limit · circuit breaker · budget ledger** | `net/{rate_limiter,circuit}.py` |
+| **Scope + active gate** | `core/scope.py`, `orchestrator/pipeline.py` |
+| **AI supervisor** (light/heavy routing, heuristic fallback) | `ai/{router,supervisor}.py` |
+| **Reporting / export** | `report.py`, `cli.py` |
 
-```bash
-recontool scan www.xyz.com                       # default preset (passive categories)
-recontool scan www.xyz.com --category 2          # run ONLY the Cat-2 subdomain pipeline
-recontool scan www.xyz.com --category 1,2,3      # run several categories
-recontool scan www.xyz.com --authorize-active    # unlock active categories
-```
-
-See the full design in [`docs/pipeline/`](docs/pipeline/):
-- `01-gap-analysis.md` — missing tools/categories we added (content discovery, port
-  scanning, JS analysis, API/GraphQL, TLS, param discovery).
-- `02-plan-of-action.md` — pipeline model, A→B→C chaining, atomic-check methodology.
-- `03-category-pipelines.md` — the tool flow for every category.
-- `04-tool-catalog.md` — capability / invocation / output per tool.
-- `05-flow-architecture.md` — tool-by-tool data handoffs + parallelization map.
-- `06-recursive-flow.md` — the convergence engine: passive → validate-live → active on
-  live hosts only → feed discoveries back → loop until convergence; console/UI display.
-- `07-tool-io-reference.md` — per-tool invocation, sample output, and DB/filesystem storage.
-- `08-feature-advancements.md` — ranked roadmap of enhancements beyond the current design.
-- `09-category-milestones.md` — per-category implementation status + rollout gate.
-- `10-gaps-and-advancements.md` — gaps found, advancements implemented + proposed.
-
-Full parallel/recursive architecture (all categories, one diagram):
-[`docs/flow/01-PARALLEL-RECURSIVE-ARCHITECTURE.md`](docs/flow/01-PARALLEL-RECURSIVE-ARCHITECTURE.md).
+Full design + flow diagram: [`docs/D14-architecture-review-and-gaps.md`](docs/D14-architecture-review-and-gaps.md)
+and [`docs/00-architecture-overview.md`](docs/00-architecture-overview.md).
 
 ---
 
-## Tool inventory (every spreadsheet tool, normalized)
-
-The complete `ReconTools` spreadsheet is captured **exhaustively** — every row is
-preserved and deduplicated into canonical records, with all category memberships and
-raw row references kept.
+## Tests
 
 ```bash
-# regenerate the inventory + per-tool docs from the source-of-truth TSV
-python -m recontool.inventory.build_inventory
+pip install -e ".[dev]"
+python -m pytest tests/ -q          # 85 tests, all network-free
+
+python -m pytest tests/atomic -q        # unit: parsers, scope, dedupe, circuit, mode
+python -m pytest tests/integration -q   # chains, preflight, frontier, diff
+python -m pytest tests/e2e -q           # full pipeline vs mock + fixture regression
+ruff check recontool
+```
+
+- **Atomic/unit** — every adapter parser, canonicalizer, planner rule, scope,
+  circuit/budget, run-mode + egress gating.
+- **Integration** — discovery→normalize→DB chains, preflight, frontier delta, diff.
+- **E2E** — the whole pipeline against the deterministic mock; resume/checkpoint;
+  fixture regression; **proof that demo/test mode cannot touch a real target**.
+
+See [`docs/D11-testing-strategy.md`](docs/D11-testing-strategy.md),
+[`docs/D12-demo-e2e-plan.md`](docs/D12-demo-e2e-plan.md), and
+[`docs/D13-operator-runbook.md`](docs/D13-operator-runbook.md).
+
+---
+
+## Tool inventory & execution flow (generated)
+
+The full `ReconTools` catalog is captured exhaustively (every row preserved,
+deduplicated to canonical records with provenance), and the end-to-end execution
+flow is generated from it.
+
+```bash
+python -m recontool.inventory.build_inventory     # data/ + docs/inventory/ + docs/tools/
+python -m recontool.inventory.build_flow          # docs/flow/ + data/flow_plan.json
+python -m recontool.inventory.build_categories     # docs/categories/ (28-category contracts)
 ```
 
 | Artifact | What it is |
 |----------|-----------|
-| [`data/recontools_raw.tsv`](data/recontools_raw.tsv) | **Source of truth** — every spreadsheet row, verbatim (614 rows, 19 sections). |
-| [`data/tool_rows_raw.json`](data/tool_rows_raw.json) | All raw rows with stable row ids (machine-readable). |
-| [`data/tool_inventory.json`](data/tool_inventory.json) | Canonical deduplicated tools (532) + derived tags + provenance. |
-| [`docs/inventory/TOOL-INVENTORY.md`](docs/inventory/TOOL-INVENTORY.md) | Human-readable inventory: summary, per-section index, master table, duplicates, aliases. |
-| [`docs/tools/`](docs/tools/) | One capability doc per canonical tool (purpose, classification, invocation, I/O, failure modes, confidence, pipeline position). |
-
-**Counts:** 614 raw rows → **532 canonical tools** (82 duplicate rows collapsed),
-across 19 sections; 68 tools span multiple categories; 82 are web/GUI-only.
+| [`data/recontools_raw.tsv`](data/recontools_raw.tsv) | Source of truth — 614 rows, 19 sections, verbatim. |
+| [`data/tool_inventory.json`](data/tool_inventory.json) | 532 canonical tools + derived tags + provenance. |
+| [`docs/inventory/TOOL-INVENTORY.md`](docs/inventory/TOOL-INVENTORY.md) | Human-readable inventory. |
+| [`docs/tools/`](docs/tools/) | One capability doc per canonical tool. |
+| [`docs/flow/00-MASTER-FLOW.md`](docs/flow/00-MASTER-FLOW.md) | Master execution diagram + per-category tables. |
+| [`docs/categories/`](docs/categories/) | 28-category build-ready contracts + checklist. |
 
 **Extracted vs suggested.** Everything in the inventory is `extracted_from_spreadsheet`
-and never altered. Genuinely missing categories/tools we *recommend adding* are kept
-separate in [`docs/pipeline/01-gap-analysis.md`](docs/pipeline/01-gap-analysis.md) and
-are never merged into the extracted inventory.
-
-### How the inventory maps to the rest of the system
-
-| Spec deliverable | Where it lives |
-|------------------|----------------|
-| Exhaustive tool inventory | `data/` + `docs/inventory/` + `docs/tools/` (this section) |
-| Category taxonomy & gaps | `docs/pipeline/01-gap-analysis.md` |
-| Orchestration architecture | `docs/00-architecture-overview.md`, `docs/D2-recon-flow.md`, `docs/D4-adr.md` |
-| Category-by-category pipelines | `docs/pipeline/03-category-pipelines.md`, `05-flow-architecture.md` |
-| Recursive passive→live→active flow | `docs/pipeline/06-recursive-flow.md` |
-| Normalized output contract | `docs/D3-data-schema.md`, `recontool/normalize/` |
-| Config system + `.env` | `config/recontool.example.yaml`, `.env.example`, `recontool/config.py` |
-| Setup / bootstrap (Docker) | `Dockerfile`, `docker/install_tools.sh`, `docker-compose.yml` |
-| First passive pipeline + atomic checks | `recontool/adapters/` (Cat-1) + `tests/atomic/` |
-| Rollout plan | `docs/D7-roadmap.md`, `docs/pipeline/02-plan-of-action.md` |
-| Advanced improvements | `docs/pipeline/08-feature-advancements.md` |
+and never altered; recommended additions live separately in
+[`docs/pipeline/01-gap-analysis.md`](docs/pipeline/01-gap-analysis.md).
 
 ---
 
-## Execution flow (root domain → every tool)
+## Adding a tool at scale (no Python)
 
-Want to see exactly how all 532 tools execute from a single root domain, with each
-tool's **invocation method (binary/API/web), flags/params, expected output, where it
-feeds next, and where it's stored**? That's generated too:
-
-```bash
-python -m recontool.inventory.build_flow      # regenerates the flow from inventory + tools.yaml
-```
-
-| Artifact | What it is |
-|----------|-----------|
-| [`docs/flow/00-MASTER-FLOW.md`](docs/flow/00-MASTER-FLOW.md) | Master execution diagram (ASCII + Mermaid), stage pipeline, category→stage map, and a worked `xyz.com` cardinality example. |
-| [`docs/flow/by-category/NN.md`](docs/flow/by-category/) | Per-category execution table: **every tool** → method, command/endpoint with flags, consumes, produces, feeds-next, storage (DB table + artifact path). |
-| [`data/flow_plan.json`](data/flow_plan.json) | Machine-readable execution plan for all 532 tools. |
-
-Invocations are **authoritative** where a contract exists in `config/tools.yaml` (e.g.
-`subfinder -d xyz.com -all -silent -oJ`, `crt.sh/?q=%25.xyz.com&output=json`), and
-**templated** (marked `(t)`) for tools not yet wired — clearly distinguished so you know
-what's ready vs. what needs a flag confirmed. The flow enforces the core rule: passive
-discovery runs on the root, then **active scans run only on live hosts** (see
-[`docs/pipeline/06-recursive-flow.md`](docs/pipeline/06-recursive-flow.md)).
-
----
-
-## Adding tools at scale (generic adapter engine)
-
-Most of the 500+ tools are wired **declaratively** — no Python. A tool is a YAML spec in
-[`config/tools_generic.yaml`](config/tools_generic.yaml) that a tested generic executor
-([`recontool/adapters/generic.py`](recontool/adapters/generic.py)) runs and parses into
-the normalized schema. Hand-written adapters exist only for the highest-value/complex
-tools and always win on a name collision.
+Most of the 500+ tools are wired **declaratively** in
+[`config/tools_generic.yaml`](config/tools_generic.yaml); a tested generic executor
+([`adapters/generic.py`](recontool/adapters/generic.py)) runs and parses them into the
+canonical schema. Hand-written adapters exist only for the highest-value tools and
+win on name collisions.
 
 ```yaml
-# add a tool in ~10 lines — it auto-registers into the pipeline on next run
 - name: certspotter
   phase: p1_seed
   category: 2
-  integration: api          # or cli
+  integration: api
   consumes: [domain]
   produces: [subdomain]
   endpoint: "https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names"
@@ -237,87 +237,6 @@ tools and always win on a name collision.
       - {entity: asset, value_each: dns_names, type: subdomain, scope_filter: subdomain}
 ```
 
-The parse engine (`parse_records` + `emit_events`) is pure and unit-tested against
-fixtures, so every spec's output mapping is validated without network/subprocess. See
-[`docs/pipeline/09-category-milestones.md`](docs/pipeline/09-category-milestones.md) for
-per-category status and [`docs/pipeline/10-gaps-and-advancements.md`](docs/pipeline/10-gaps-and-advancements.md)
-for gaps found + advancements.
-
----
-
-## Setup: external tools & resources
-
-`docker/install_tools.sh` downloads and installs the recon CLIs (graceful — Recontool
-works without any of them, adapters just report unavailable):
-
-```bash
-bash docker/install_tools.sh core        # default-on set: subfinder, httpx, dnsx, naabu,
-                                          #   nuclei, asnmap, uncover, gau (+ templates)
-bash docker/install_tools.sh all         # full set + SecLists wordlists + resolver list
-bash docker/install_tools.sh resources   # just wordlists + clean DNS resolvers
-```
-
----
-
-## Key capabilities (and where they live)
-
-| Capability | Module |
-|------------|--------|
-| **Tool chaining** (output → input across phases via the DB) | `orchestrator/pipeline.py` |
-| **Parallel execution** (L1 tools-per-phase + L2 inputs-per-tool) | `orchestrator/pipeline.py`, all adapters; see `docs/flow/01-PARALLEL-RECURSIVE-ARCHITECTURE.md` |
-| **Generic adapter engine** (wire tools as declarative YAML, no code) | `adapters/generic.py`, `adapters/autoload.py`, `config/tools_generic.yaml` |
-| **Pure-Python web crawler** (no binary; JS download + endpoint/secret mining) | `adapters/crawler.py` (`pycrawl`) |
-| **Content/directory discovery** (ffuf-style + 404 calibration) | `adapters/content_discovery.py` (`pydirb`) |
-| **Param/form extraction** (fuzz prep) | `adapters/params.py` (`param_miner`) |
-| **IP / proxy rotation** (avoid blacklisting) | `net/proxy_pool.py` |
-| **Rate limiting** (per-provider token buckets) | `net/rate_limiter.py` |
-| **DB storage** (subdomains, IPs, params, services, findings) | `core/models.py`, `normalize/engine.py` |
-| **Filesystem artifacts** (JS, response bodies, screenshots, raw output) | `core/artifacts.py` |
-| **Dedup + confidence scoring** | `core/dedupe.py`, `core/confidence.py` |
-| **Scope + passive→active safety gate** | `core/scope.py`, `orchestrator/pipeline.py` |
-| **AI agentic supervisor** (light/heavy model routing) | `ai/router.py`, `ai/supervisor.py` |
-| **Tool inventory + flow generators** | `recontool/inventory/` → `data/`, `docs/inventory/`, `docs/flow/` |
-| **Reporting / export** (JSON/summary) | `report.py`, `cli.py` |
-
-### IP rotation
-Set `RECON_PROXIES` in `.env` to a comma-separated list of proxy URLs
-(`http://user:pass@host:port`, `socks5://host:port`). The pool rotates across
-them (`round_robin` / `random` / `sticky`), quarantines failing proxies, and
-spreads load to avoid per-IP rate-limit bans. With no proxies set, egress is
-direct (fine for passive recon).
-
-### Rate-limit profiles
-`passive_only` · `stealth` (jitter, low concurrency) · `normal` · `aggressive`.
-One profile tunes concurrency, QPS, port breadth, jitter and nuclei severity for
-the whole pipeline. Default: `normal`. Active phases are blocked under
-`passive_only`.
-
-### AI supervisor (optional, token-frugal)
-Works out of the box with **deterministic heuristics and zero tokens**. Add an
-OpenAI-compatible endpoint (`RECON_AI_BASE_URL` + `RECON_AI_API_KEY`, including a
-**local** Ollama/vLLM server) to enable agentic decisioning: it uses a **light**
-model for routine triage/planning and a **heavy** model only for the final
-narrative, with a hard per-scan call budget (`RECON_AI_MAX_CALLS`).
-
----
-
-## Optional external tools
-
-Recontool runs fully on its built-in Python adapters (crt.sh, HackerTarget, OTX,
-Wayback, certspotter, DNS resolution, HTTP probing, **a pure-Python web crawler**, JS
-analysis). If the Go/CLI binaries are on `PATH`, the matching adapters light up
-automatically (graceful detection): `subfinder`, `httpx`, `dnsx`, `naabu`, `nuclei`,
-`katana`, `tlsx`, `gau`, `gowitness`, and more.
-
-> **Web crawling works with zero setup** — the built-in `pycrawl` adapter (active
-> phase) BFS-crawls in-scope live hosts, downloads JS to local storage, and mines
-> endpoints/secrets, without needing `katana`. `katana` is used automatically if
-> installed for faster JS-aware crawling.
-
-Install them with `bash docker/install_tools.sh all`, or use the Docker image which
-bundles everything. Full list + invocation details in
-[`config/tools.yaml`](config/tools.yaml) and [`docs/pipeline/04-tool-catalog.md`](docs/pipeline/04-tool-catalog.md).
-
 ---
 
 ## Storage layout
@@ -326,21 +245,27 @@ bundles everything. Full list + invocation details in
 recontool.db                 # SQLite (default) — switch to Postgres via RECON_DB_URL
 artifacts/<scan_id>/
   ├── raw/<tool>/*.json       # raw tool/API output (provenance)
-  ├── js/<host>/*.js          # JS files harvested from Wayback / crawler
+  ├── js/<host>/*.js          # JS harvested from Wayback / crawler
   ├── bodies/<host>/*         # response bodies
   ├── screenshots/*.png       # gowitness (if installed)
   └── nuclei_targets.txt
 ```
 
+Canonical entities (assets, services, endpoints, findings, edges), plus
+`checkpoint`, `dead_letter`, and `audit_log`, live in the DB. Schema:
+[`docs/D3-data-schema.md`](docs/D3-data-schema.md).
+
 ---
 
-## Tests
+## Docs index
 
-```bash
-pip install -r requirements.txt
-pytest -q          # 49 atomic tests: parsers, dedupe/confidence, scope, generic
-                   # engine, crawler, content discovery, params, JS storage
-```
-
-See [`docs/00-architecture-overview.md`](docs/00-architecture-overview.md) for the
-full design rationale.
+- Architecture: [`docs/00-architecture-overview.md`](docs/00-architecture-overview.md),
+  [`docs/D14-architecture-review-and-gaps.md`](docs/D14-architecture-review-and-gaps.md)
+- Flow: [`docs/D2-recon-flow.md`](docs/D2-recon-flow.md), [`docs/flow/`](docs/flow/)
+- Data schema: [`docs/D3-data-schema.md`](docs/D3-data-schema.md)
+- OPSEC & policy: [`docs/D6-opsec.md`](docs/D6-opsec.md), [`docs/blueprint/`](docs/blueprint/)
+- **Testing:** [`docs/D11-testing-strategy.md`](docs/D11-testing-strategy.md)
+- **Demo E2E:** [`docs/D12-demo-e2e-plan.md`](docs/D12-demo-e2e-plan.md)
+- **Operator runbook:** [`docs/D13-operator-runbook.md`](docs/D13-operator-runbook.md)
+- Pipelines & categories: [`docs/pipeline/`](docs/pipeline/), [`docs/categories/`](docs/categories/)
+- Roadmap & risks: [`docs/D7-roadmap.md`](docs/D7-roadmap.md), [`docs/D10-risk-register.md`](docs/D10-risk-register.md)

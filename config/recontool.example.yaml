@@ -11,6 +11,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 general:
+  # Run mode: demo | test | live
+  #   demo : full pipeline against the built-in MOCK environment; NO real egress.
+  #   test : recorded fixtures / mock; real egress BLOCKED (used by CI/E2E).
+  #   live : real authorized targets; egress permitted (still scope+auth gated).
+  mode: live
   # Default rate profile: passive_only | stealth | normal | aggressive
   profile: normal
   # Global cap on parallel tasks across the whole pipeline.
@@ -22,6 +27,25 @@ general:
   artifact_dir: ./artifacts
   # Optional Redis for distributed rate-limit buckets (else in-process).
   redis_url: ""
+
+# ── Scope allowlist (config-driven; augments the seed-derived scope) ──────────
+# Authorized targets ONLY. Deny rules always override allow rules.
+scope:
+  allow_domains: []      # e.g. ["acme.com", "acme.net"]
+  allow_cidrs: []        # e.g. ["203.0.113.0/24"]
+  allow_asns: []         # e.g. ["AS65000"]
+  deny_domains: []       # e.g. ["status.acme.com"]
+  deny_cidrs: []
+
+# ── Active-check allowlist (which active detectors may run) ───────────────────
+active_checks:
+  allow: []              # empty = all registered active checks permitted
+
+# ── Recovery / checkpoint / resume ───────────────────────────────────────────
+recovery:
+  checkpoint_enabled: true     # write a checkpoint after each phase (enables --resume)
+  max_deadletter_retries: 2    # how many times replay will re-attempt a parked unit
+  resume_default: false
 
 network:
   # IP ROTATION: list proxy URLs to rotate egress and dodge rate-limit bans.

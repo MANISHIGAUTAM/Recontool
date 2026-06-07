@@ -26,6 +26,22 @@ class State(str, Enum):
     HALF_OPEN = "half_open"  # probing: limited calls to test recovery
 
 
+class CircuitOpen(RuntimeError):
+    """Raised when a request is attempted while the provider's breaker is OPEN."""
+
+    def __init__(self, provider: str):
+        super().__init__(f"circuit OPEN for provider {provider!r}; failing fast")
+        self.provider = provider
+
+
+class BudgetExhausted(RuntimeError):
+    """Raised when a provider's per-run quota budget is exhausted."""
+
+    def __init__(self, provider: str):
+        super().__init__(f"budget exhausted for provider {provider!r}; deferring")
+        self.provider = provider
+
+
 @dataclass
 class CircuitBreaker:
     """Per-provider breaker.

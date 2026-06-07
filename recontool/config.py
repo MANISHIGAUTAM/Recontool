@@ -149,6 +149,9 @@ def _resolve(env_name: str, yaml_keys: tuple[str, ...], default: Any) -> Any:
 
 @dataclass
 class Settings:
+    # Run mode: demo | test | live  (the highest-level safety switch — see core/mode.py)
+    mode: str = field(default_factory=lambda: _resolve(
+        "RECON_MODE", ("general", "mode"), "live"))
     db_url: str = field(default_factory=lambda: _resolve(
         "RECON_DB_URL", ("general", "db_url"), "sqlite:///recontool.db"))
     artifact_dir: Path = field(default_factory=lambda: Path(_resolve(
@@ -200,6 +203,37 @@ class Settings:
 
     def resource(self, name: str, default: str) -> str:
         return _cfg("resources", name, default=default)
+
+    # ── scope allowlist (config-driven, augments seed-derived scope) ────────
+    def scope_allowlist(self) -> dict[str, list[str]]:
+        """Explicit scope from config: {allow_domains, allow_cidrs, allow_asns,
+        deny_domains, deny_cidrs}. Empty lists if unset."""
+        node = _cfg("scope", default={}) or {}
+        return {
+            "allow_domains": list(node.get("allow_domains", []) or []),
+            "allow_cidrs": list(node.get("allow_cidrs", []) or []),
+            "allow_asns": list(node.get("allow_asns", []) or []),
+            "deny_domains": list(node.get("deny_domains", []) or []),
+            "deny_cidrs": list(node.get("deny_cidrs", []) or []),
+        }
+
+    # ── active-check allowlist (which active detectors may run) ─────────────
+    def active_check_allowlist(self) -> list[str]:
+        return list(_cfg("active_checks", "allow", default=[]) or [])
+
+    # ── recovery / checkpoint settings ──────────────────────────────────────
+    def recovery(self) -> dict[str, Any]:
+        node = _cfg("recovery", default={}) or {}
+        return {
+            "checkpoint_enabled": bool(node.get("checkpoint_enabled", True)),
+            "max_deadletter_retries": int(node.get("max_deadletter_retries", 2)),
+            "resume_default": bool(node.get("resume_default", False)),
+        }
+
+    @property
+    def run_mode(self):
+        from recontool.core.mode import RunMode
+        return RunMode.parse(self.mode)
 
     @property
     def ai_enabled(self) -> bool:

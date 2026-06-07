@@ -53,6 +53,10 @@ class HttpClient:
         limiter: RateLimiter | None = None,
         timeout: float = 20.0,
         max_retries: int = 3,
+        mode=None,
+        mock_env=None,
+        circuits=None,
+        budget=None,
     ):
         self.profile = profile or settings.profile()
         self.proxies = proxy_pool or ProxyPool(
@@ -61,6 +65,18 @@ class HttpClient:
         self.limiter = limiter or RateLimiter(default_rate=self.profile.requests_per_second)
         self.timeout = timeout
         self.max_retries = max_retries
+        # Run-mode + optional mock environment (demo/test). In demo/test mode every
+        # request is served by the mock env; real egress is blocked entirely.
+        from recontool.core.mode import RunMode
+        self.mode = mode or settings.run_mode
+        self.mock_env = mock_env
+        if self.mode is None:
+            self.mode = RunMode.LIVE
+        # Provider-aware reliability: circuit breakers + per-run budget ledger.
+        # When a provider's breaker is OPEN, we fail fast (no real call) so the
+        # planner can substitute. Budget enforces per-provider quota for the run.
+        self.circuits = circuits
+        self.budget = budget
         # Track the egress IP actually used (for audit). Populated lazily.
         self.last_egress: str | None = None
 
@@ -78,6 +94,29 @@ class HttpClient:
         sticky_key: str | None = None,
         **kw,
     ) -> Response:
+        # ── PROVIDER-AWARE RELIABILITY (circuit breaker + budget) ───────────
+        # `bucket` is the provider key. Applied first (independent of transport):
+        # fail fast if the breaker is OPEN or the per-run budget is exhausted, so
+        # the planner can substitute a source.
+        if self.circuits is not None and not self.circuits.allow(bucket):
+            from recontool.net.circuit import CircuitOpen
+            raise CircuitOpen(bucket)
+        if self.budget is not None and not self.budget.try_spend(bucket, 1.0):
+            from recontool.net.circuit import BudgetExhausted
+            raise BudgetExhausted(bucket)
+
+        # ── MODE GATE (highest-level safety switch) ─────────────────────────
+        # In demo/test mode, NEVER touch the network. Serve from the mock env if
+        # present, else hard-fail so a misconfigured test can't leak egress.
+        if not self.mode.allows_real_egress:
+            if self.mock_env is not None:
+                self.last_egress = "mock"
+                status, body, hdrs = self.mock_env.handle(
+                    method, url, params=params).as_tuple()
+                return _wrap_mock(status, body, hdrs, url)
+            from recontool.core.mode import LiveEgressBlocked
+            raise LiveEgressBlocked(url, self.mode)
+
         await self.limiter.acquire(bucket)
         if self.profile.jitter_seconds:
             await asyncio.sleep(random.uniform(0, self.profile.jitter_seconds))
@@ -98,14 +137,20 @@ class HttpClient:
                 # 429 / 5xx => backoff + (implicitly) rotate proxy next loop
                 if resp.status_code == 429 or resp.status_code >= 500:
                     self.proxies.report(proxy, ok=False)
+                    if self.circuits is not None:
+                        self.circuits.record(bucket, ok=False)
                     raise httpx.HTTPStatusError(
                         f"retryable status {resp.status_code}", request=resp.request, response=resp
                     )
                 self.proxies.report(proxy, ok=True)
+                if self.circuits is not None:
+                    self.circuits.record(bucket, ok=True)
                 return _wrap(resp)
             except Exception as exc:  # noqa: BLE001 — retry on any transport/HTTP error
                 last_exc = exc
                 self.proxies.report(proxy, ok=False)
+                if self.circuits is not None:
+                    self.circuits.record(bucket, ok=False)
                 if attempt < self.max_retries:
                     backoff = (2 ** attempt) + random.uniform(0, 0.5)
                     await asyncio.sleep(backoff)
@@ -123,6 +168,25 @@ def _wrap(resp: httpx.Response) -> Response:
     )
     try:
         r._json = resp.json()
+        r.json_ok = True
+    except Exception:  # noqa: BLE001
+        r.json_ok = False
+    return r
+
+
+def _wrap_mock(status: int, body: str, headers: dict[str, str], url: str) -> Response:
+    """Wrap a mock-env response into the same Response shape as a real one."""
+    import json as _json
+
+    r = Response(
+        status=status,
+        text=body,
+        headers=headers,
+        url=url,
+        content=body.encode("utf-8", errors="ignore"),
+    )
+    try:
+        r._json = _json.loads(body)
         r.json_ok = True
     except Exception:  # noqa: BLE001
         r.json_ok = False

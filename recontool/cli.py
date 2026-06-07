@@ -35,10 +35,15 @@ def scan(
     seed: str = typer.Argument(..., help="domain / ip / cidr / asn (e.g. www.xyz.com)"),
     profile: str = typer.Option(settings.profile_name, "--profile", "-p",
                                 help="passive_only | stealth | normal | aggressive"),
+    mode: str = typer.Option(settings.mode, "--mode", "-m",
+                             help="demo | test | live  (demo/test never touch real targets)"),
     authorize_active: bool = typer.Option(
         False, "--authorize-active",
         help="REQUIRED to run active phases that touch the target."),
     no_ai: bool = typer.Option(False, "--no-ai", help="Disable the AI supervisor."),
+    resume: str = typer.Option(None, "--resume", help="Resume an existing scan_id."),
+    skip_preflight: bool = typer.Option(False, "--skip-preflight",
+                                        help="Skip preflight health checks (not recommended)."),
     category: str = typer.Option(None, "--category", "-c",
                                  help="Comma-separated category numbers to run ONLY (e.g. '2' or '1,2,3')."),
     export: Path = typer.Option(None, "--export", "-o", help="Write full JSON results here."),
@@ -48,11 +53,24 @@ def scan(
         console.print(f"[red]Unknown profile {profile!r}. Choose: {list(PROFILES)}[/red]")
         raise typer.Exit(1)
 
+    from recontool.core.mode import RunMode
+    run_mode = RunMode.parse(mode)
+
+    # ── preflight ───────────────────────────────────────────────────────────
+    if not skip_preflight:
+        from recontool.preflight import run_preflight
+        pf = run_preflight(seed, mode=run_mode, authorize_active=authorize_active)
+        _render_preflight(pf)
+        if not pf.ok:
+            console.print("[red]Preflight failed. Fix errors above or use --skip-preflight.[/red]")
+            raise typer.Exit(2)
+
     router = ModelRouter() if not no_ai else None
     supervisor = Supervisor(router) if router else None
 
     console.print(Panel.fit(
         f"[bold]Recontool[/bold]  seed=[cyan]{seed}[/cyan]  profile=[yellow]{profile}[/yellow]  "
+        f"mode=[magenta]{run_mode.value}[/magenta]  "
         f"active={'[green]yes[/green]' if authorize_active else '[red]no (passive)[/red]'}  "
         f"AI={'on' if (supervisor and router and router.enabled) else 'heuristic'}",
         title="scan", border_style="blue",
@@ -64,13 +82,13 @@ def scan(
             line += f"  | skipped: [dim]{', '.join(skipped)}[/dim]"
         console.print(line)
 
-    pipeline = ReconPipeline(supervisor=supervisor)
+    pipeline = ReconPipeline(supervisor=supervisor, mode=run_mode)
     cats = None
     if category:
         cats = {int(c) for c in category.replace(" ", "").split(",") if c.strip().isdigit()}
     result = asyncio.run(pipeline.run(
         seed, profile_name=profile, authorize_active=authorize_active,
-        categories=cats, progress=progress,
+        categories=cats, progress=progress, resume_scan_id=resume,
     ))
 
     _render_result(result, supervisor)
@@ -80,6 +98,65 @@ def scan(
         console.print(f"\n[green]Exported[/green] full results → {path}")
     console.print(f"\nScan id: [bold cyan]{result.scan_id}[/bold cyan] "
                   f"(artifacts in {settings.artifact_dir}/{result.scan_id})")
+
+
+@app.command()
+def preflight(
+    seed: str = typer.Argument(None, help="optional seed to validate scope for"),
+    mode: str = typer.Option(settings.mode, "--mode", "-m", help="demo | test | live"),
+):
+    """Run preflight health checks (config, credentials, storage, queues, scope)."""
+    from recontool.core.mode import RunMode
+    from recontool.preflight import run_preflight
+    pf = run_preflight(seed, mode=RunMode.parse(mode))
+    _render_preflight(pf)
+    raise typer.Exit(0 if pf.ok else 2)
+
+
+@app.command()
+def diff(
+    seed: str = typer.Argument(..., help="seed whose two latest scans to diff"),
+    old: str = typer.Option(None, "--old", help="explicit old scan_id"),
+    new: str = typer.Option(None, "--new", help="explicit new scan_id"),
+):
+    """Diff two scans of a seed (continuous-monitoring change report)."""
+    create_all()
+    from recontool.diff import diff_scans, latest_two_scans
+    if not (old and new):
+        old, new = latest_two_scans(seed)
+    if not (old and new):
+        console.print("[yellow]Need two scans of this seed to diff.[/yellow]")
+        raise typer.Exit(1)
+    d = diff_scans(old, new)
+    console.print(Panel.fit(f"diff {old} → {new}  changed={d.changed}", border_style="blue"))
+    for label, delta in (("assets", d.assets), ("endpoints", d.endpoints),
+                         ("services", d.services), ("findings", d.findings)):
+        if delta.changed:
+            console.print(f"[bold]{label}[/bold]: "
+                          f"[green]+{len(delta.added)}[/green] "
+                          f"[red]-{len(delta.removed)}[/red]")
+            for a in delta.added[:10]:
+                console.print(f"  [green]+ {a}[/green]")
+            for r in delta.removed[:10]:
+                console.print(f"  [red]- {r}[/red]")
+
+
+@app.command()
+def replay(scan_id: str = typer.Argument(..., help="scan_id whose dead-letters to inspect")):
+    """List dead-lettered units of work for a scan (failed after retries)."""
+    create_all()
+    from recontool.core.models import DeadLetter
+    with session_scope() as s:
+        rows = s.query(DeadLetter).filter(DeadLetter.scan_id == scan_id).all()
+        if not rows:
+            console.print("[green]No dead-letters — clean run.[/green]")
+            return
+        table = Table(title="Dead-letter queue", header_style="bold")
+        for c in ("tool", "phase", "attempts", "status", "error"):
+            table.add_column(c, overflow="fold")
+        for r in rows:
+            table.add_row(r.tool, r.phase or "-", str(r.attempts), r.status, r.error[:80])
+        console.print(table)
 
 
 @app.command()
@@ -135,6 +212,17 @@ def export(scan_id: str, out: Path = typer.Option("recon_export.json", "-o", "--
 
 
 # ── render helpers ───────────────────────────────────────────────────────────
+def _render_preflight(pf):
+    table = Table(title="Preflight", header_style="bold")
+    for c in ("check", "status", "level", "detail"):
+        table.add_column(c, overflow="fold")
+    for c in pf.checks:
+        icon = "[green]PASS[/green]" if c.ok else (
+            "[red]FAIL[/red]" if c.level == "error" else "[yellow]WARN[/yellow]")
+        table.add_row(c.name, icon, c.level, c.detail)
+    console.print(table)
+
+
 def _render_result(result, supervisor):
     table = Table(title="Phases", header_style="bold")
     for c in ("Phase", "Ran", "Skipped", "Assets", "Endpoints", "Findings", "Secs", "Note"):

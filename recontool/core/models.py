@@ -178,3 +178,44 @@ class AuditLog(Base):
     profile: Mapped[Optional[str]] = mapped_column(String(32))
     detail: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
     ts: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Checkpoint(Base):
+    """Per-scan, per-phase completion marker — the basis of resume.
+
+    The orchestrator records a checkpoint after each phase completes. On
+    ``--resume``, completed phases are skipped and the scan continues from the
+    first unfinished phase using assets already persisted in the canonical store.
+    """
+
+    __tablename__ = "checkpoint"
+    __table_args__ = (UniqueConstraint("scan_id", "phase", name="uq_checkpoint"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scan_id: Mapped[str] = mapped_column(ForeignKey("scan.id"), index=True)
+    phase: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(16), default="done")  # done|partial
+    counts: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    recursion: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class DeadLetter(Base):
+    """A unit of work that failed after retries — parked for replay/inspection.
+
+    The orchestrator writes a dead-letter row when an adapter raises despite the
+    retry policy. ``recontool replay <scan_id>`` can re-run dead-lettered units.
+    """
+
+    __tablename__ = "dead_letter"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scan_id: Mapped[str] = mapped_column(ForeignKey("scan.id"), index=True)
+    phase: Mapped[Optional[str]] = mapped_column(String(32))
+    tool: Mapped[str] = mapped_column(String(64))
+    error: Mapped[str] = mapped_column(Text)
+    attempts: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String(16), default="parked")  # parked|replayed|resolved
+    payload: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    last_attempt_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)

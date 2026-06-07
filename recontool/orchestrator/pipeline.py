@@ -25,12 +25,14 @@ from recontool.adapters.registry import adapters_for, load_builtin
 from recontool.config import settings
 from recontool.core.artifacts import ArtifactStore
 from recontool.core.db import create_all, session_scope
-from recontool.core.models import Asset, AuditLog, Scan
+from recontool.core.mode import RunMode
+from recontool.core.models import Asset, AuditLog, Checkpoint, DeadLetter, Scan
 from recontool.core.scope import Scope, apex_domain, classify_seed
 from recontool.net.http_client import HttpClient
 from recontool.net.proxy_pool import ProxyPool
 from recontool.net.rate_limiter import RateLimiter
 from recontool.normalize.engine import Normalizer
+from recontool.orchestrator.frontier import FrontierManager
 
 PASSIVE_PHASES = ["p1_seed", "p2_expansion", "p3_enrichment"]
 ACTIVE_PHASES = ["p4_verify", "p5_deep", "p6_vuln"]
@@ -58,15 +60,20 @@ class ScanResult:
     seed: str
     seed_type: str
     profile: str
+    mode: str = "live"
     phases: list[PhaseResult] = field(default_factory=list)
     active_ran: bool = False
     gate_reason: str = ""
+    resumed: bool = False
 
 
 class ReconPipeline:
-    def __init__(self, supervisor=None, max_recursion: int = 1):
+    def __init__(self, supervisor=None, max_recursion: int = 1,
+                 mode: RunMode | None = None, mock_env=None):
         self.supervisor = supervisor          # optional AI supervisor (duck-typed)
         self.max_recursion = max_recursion
+        self.mode = mode or settings.run_mode
+        self.mock_env = mock_env
 
     async def run(
         self,
@@ -76,6 +83,7 @@ class ReconPipeline:
         authorize_active: bool = False,
         categories: set[int] | None = None,
         progress=None,
+        resume_scan_id: str | None = None,
     ) -> ScanResult:
         self._categories = categories          # None = run all categories
         create_all()
@@ -84,14 +92,35 @@ class ReconPipeline:
         ).PROFILES.get(profile_name, settings.profile())
 
         seed_type = classify_seed(seed)
-        scope = Scope.from_seed(seed, seed_type)
-        scan_id = uuid.uuid4().hex[:16]
+        scope = self._build_scope(seed, seed_type)
+
+        # ── demo/test mode: stand up the in-process mock environment ────────
+        mock_env = self.mock_env
+        if self.mode.uses_mock and mock_env is None:
+            from recontool.testing.mock_env import MockEnv
+            apex = apex_domain(seed) if seed_type in ("domain", "subdomain", "url") else seed
+            mock_env = MockEnv(apex=apex)
+
+        # ── resume vs fresh scan ────────────────────────────────────────────
+        resumed = bool(resume_scan_id)
+        completed_phases: set[str] = set()
+        if resumed:
+            scan_id = resume_scan_id
+            completed_phases = self._completed_phases(scan_id)
+        else:
+            scan_id = uuid.uuid4().hex[:16]
 
         # shared infra for the whole scan
         proxies = ProxyPool(settings.proxies, strategy=settings.proxy_strategy)
         limiter = RateLimiter(default_rate=profile.requests_per_second)
-        http = HttpClient(profile=profile, proxy_pool=proxies, limiter=limiter)
+        from recontool.net.circuit import BudgetLedger, CircuitRegistry
+        circuits = CircuitRegistry(failure_threshold=5, cooldown=30.0)
+        budget = BudgetLedger()
+        http = HttpClient(profile=profile, proxy_pool=proxies, limiter=limiter,
+                          mode=self.mode, mock_env=mock_env,
+                          circuits=circuits, budget=budget)
         artifacts = ArtifactStore(scan_id)
+        frontier = FrontierManager(scan_id, scope)
 
         api_keys = {
             k: settings.api_key(k) for k in
@@ -102,20 +131,31 @@ class ReconPipeline:
         }
 
         with session_scope() as s:
-            s.add(Scan(
-                id=scan_id, seed=seed, seed_type=seed_type, profile=profile.name,
-                status="running", scope_json=scope.to_json(),
-                active_authorized=authorize_active,
-            ))
-            s.add(AuditLog(scan_id=scan_id, action="scan.start",
+            if not resumed:
+                s.add(Scan(
+                    id=scan_id, seed=seed, seed_type=seed_type, profile=profile.name,
+                    status="running", scope_json=scope.to_json(), mode=self.mode.value,
+                    active_authorized=authorize_active,
+                ))
+            else:
+                scan = s.get(Scan, scan_id)
+                if scan:
+                    scan.status = "running"
+            s.add(AuditLog(scan_id=scan_id, action="scan.resume" if resumed else "scan.start",
                            target=seed, profile=profile.name,
-                           detail={"scope": scope.to_json(), "authorize_active": authorize_active}))
+                           detail={"scope": scope.to_json(), "authorize_active": authorize_active,
+                                   "mode": self.mode.value,
+                                   "completed_phases": sorted(completed_phases)}))
 
         # Inject the SEED as the first canonical asset so it flows to adapters as
         # input (without this, the first phase has nothing to consume).
-        self._seed_asset(scan_id, seed, seed_type, scope)
+        if not resumed:
+            self._seed_asset(scan_id, seed, seed_type, scope)
+        else:
+            frontier.seed_from_store()  # don't re-expand everything already persisted
 
-        result = ScanResult(scan_id=scan_id, seed=seed, seed_type=seed_type, profile=profile.name)
+        result = ScanResult(scan_id=scan_id, seed=seed, seed_type=seed_type,
+                            profile=profile.name, mode=self.mode.value, resumed=resumed)
         load_builtin()
 
         def base_ctx(inputs: dict[str, list[str]]) -> AdapterContext:
@@ -128,20 +168,26 @@ class ReconPipeline:
         recursion = 0
         while True:
             for phase in PASSIVE_PHASES:
+                if phase in completed_phases:
+                    continue  # resume: skip already-checkpointed phases
                 inputs = self._gather_inputs(scan_id, scope, active=False)
                 pr = await self._run_phase(phase, base_ctx(inputs), scan_id, progress)
                 result.phases.append(pr)
-            # Without an AI supervisor, do a single deterministic pass.
-            # With one, recurse passive discovery only if it says new surface remains.
-            if not self.supervisor or recursion >= self.max_recursion:
+                self._checkpoint(scan_id, phase, pr.counts, recursion)
+            # Frontier-driven recursion: only recurse if NEW in-scope entities exist.
+            frontier.new_in_scope()  # advance frontier past what we've seen
+            if recursion >= self.max_recursion:
                 break
-            if not await self._ask_recurse(scan_id, result):
+            if not frontier.has_new():
                 break
-            if not self._has_unprobed_growth(scan_id):
+            # With a supervisor, let it veto further passes (cost control).
+            if self.supervisor and not await self._ask_recurse(scan_id, result):
                 break
             recursion += 1
 
-        # ── ACTIVE GATE (ADR-009) ───────────────────────────────────────────
+        # ── ACTIVE GATE (mode + profile + authorization) ────────────────────
+        if not self.mode.allows_real_egress and self.mock_env is None and not mock_env:
+            result.gate_reason = f"mode '{self.mode.value}' has no live egress"
         if not profile.active_enabled:
             result.gate_reason = f"profile '{profile.name}' is passive-only"
         elif not authorize_active:
@@ -149,9 +195,12 @@ class ReconPipeline:
         else:
             result.active_ran = True
             for phase in ACTIVE_PHASES:
+                if phase in completed_phases:
+                    continue
                 inputs = self._gather_inputs(scan_id, scope, active=True)
                 pr = await self._run_phase(phase, base_ctx(inputs), scan_id, progress)
                 result.phases.append(pr)
+                self._checkpoint(scan_id, phase, pr.counts, recursion)
 
         with session_scope() as s:
             scan = s.get(Scan, scan_id)
@@ -160,7 +209,8 @@ class ReconPipeline:
                 import datetime as _dt
                 scan.finished_at = _dt.datetime.now(_dt.timezone.utc)
             s.add(AuditLog(scan_id=scan_id, action="scan.finish",
-                           detail={"active_ran": result.active_ran, "gate": result.gate_reason}))
+                           detail={"active_ran": result.active_ran, "gate": result.gate_reason,
+                                   "frontier": frontier.stats()}))
         return result
 
     # ── phase execution ──────────────────────────────────────────────────
@@ -195,9 +245,13 @@ class ReconPipeline:
             try:
                 return inst.name, await inst.run(ctx)
             except Exception as exc:  # noqa: BLE001
+                # park failed unit in the dead-letter queue for replay/inspection
                 with session_scope() as s:
                     s.add(AuditLog(scan_id=scan_id, action="adapter.error",
                                    tool=inst.name, detail={"error": str(exc)[:500]}))
+                    s.add(DeadLetter(scan_id=scan_id, phase=phase, tool=inst.name,
+                                     error=str(exc)[:2000],
+                                     payload={"category": getattr(inst, "category", "")}))
                 return inst.name, []
 
         sem = asyncio.Semaphore(ctx.profile.global_concurrency or 10)
@@ -282,6 +336,43 @@ class ReconPipeline:
         with session_scope() as s:
             n = s.execute(select(Asset).where(Asset.scan_id == scan_id)).scalars().all()
             return len(n) > 0
+
+    # ── scope / checkpoint / resume helpers ─────────────────────────────────
+    def _build_scope(self, seed: str, seed_type: str) -> Scope:
+        """Seed-derived scope merged with the config-driven scope allowlist."""
+        scope = Scope.from_seed(seed, seed_type)
+        cfg = settings.scope_allowlist()
+        scope.allow_domains |= set(cfg["allow_domains"])
+        scope.allow_cidrs += [c for c in cfg["allow_cidrs"] if c not in scope.allow_cidrs]
+        scope.allow_asns |= {a.upper() for a in cfg["allow_asns"]}
+        scope.deny_domains |= set(cfg["deny_domains"])
+        scope.deny_cidrs += [c for c in cfg["deny_cidrs"] if c not in scope.deny_cidrs]
+        scope.__post_init__()
+        return scope
+
+    def _completed_phases(self, scan_id) -> set[str]:
+        with session_scope() as s:
+            rows = s.execute(
+                select(Checkpoint.phase).where(
+                    Checkpoint.scan_id == scan_id, Checkpoint.status == "done")
+            ).scalars().all()
+        return set(rows)
+
+    def _checkpoint(self, scan_id, phase, counts, recursion) -> None:
+        if not settings.recovery().get("checkpoint_enabled", True):
+            return
+        with session_scope() as s:
+            existing = s.execute(
+                select(Checkpoint).where(
+                    Checkpoint.scan_id == scan_id, Checkpoint.phase == phase)
+            ).scalar_one_or_none()
+            if existing:
+                existing.status = "done"
+                existing.counts = counts
+                existing.recursion = recursion
+            else:
+                s.add(Checkpoint(scan_id=scan_id, phase=phase, status="done",
+                                 counts=counts, recursion=recursion))
 
     # ── supervisor hooks (no-op if absent) ─────────────────────────────────
     async def _ask_plan(self, phase, names, scan_id):
