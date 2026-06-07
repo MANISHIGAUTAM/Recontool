@@ -1,0 +1,352 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Recontool — 28-category registry (build-ready contracts).
+#
+# Loaded by recontool/categories.py; rendered to docs/categories/* by
+# recontool.inventory.build_categories. Authorized-only, no-evasion policy
+# (see docs/blueprint/README.md). Every category declares input/output types,
+# canonical dedupe keys (via meta.dedupe_forms), provenance fields (meta), chain_to,
+# tool families, priority, recursion triggers, retry/quota profiles, failure modes,
+# storage mapping, and operator notes.
+# ─────────────────────────────────────────────────────────────────────────────
+meta:
+  version: 1
+  provenance_standard:
+    [source, provider, fetched_at, observed_at, request_url, response_sha256, quota_cost, source_confidence]
+  dedupe_forms:
+    domain:     "domain:{lower_fqdn}"
+    subdomain:  "domain:{lower_fqdn}"
+    live_host:  "livehost:{scheme}://{host}:{port}"
+    ip:         "ip:{normalized}"
+    cidr:       "cidr:{normalized}"
+    asn:        "asn:{number}"
+    cert:       "cert:{sha256_fingerprint}"
+    service:    "svc:{host}:{port}/{proto}"
+    url:        "url:{canonical_sorted_params_no_frag}"
+    js_file:    "js:{body_sha256}"
+    endpoint:   "ep:{host}:{method}:{path}"
+    param:      "param:{endpoint}:{name}"
+    finding:    "finding:{asset}:{detector}:{signature}"
+    tag:        "tag:{node}:{key}:{value}"
+    artifact:   "artifact:{sha256}"
+    repo:       "repo:{host}/{owner}/{name}"
+    tech:       "tech:{name}:{version}"
+    screenshot: "shot:{sha256}"
+    frame:      "frame:{parent_url}->{child_url}"
+    websocket:  "ws:{canonical}"
+    source_map: "smap:{sha256}"
+    favicon:    "favicon:{mmh3}"
+    email:      "email:{lower}"
+    username:   "user:{platform}:{handle}"
+    bucket:     "bucket:{provider}:{name}"
+    document:   "doc:{sha256}"
+    ioc:        "ioc:{type}:{value}"
+    onion:      "onion:{addr}"
+    wordlist:   "wl:{name}:{sha256}"
+    regex_pack: "rx:{name}:{sha256}"
+  retry_profiles:
+    api_standard: {max_attempts: 3, backoff: exp_jitter,      retry_on: [429, 500, 502, 503, 504, timeout]}
+    api_strict:   {max_attempts: 5, backoff: exp_jitter_long, retry_on: [403_secondary, 429, 5xx, timeout]}
+    crawl:        {max_attempts: 2, backoff: exp,             retry_on: [5xx, timeout]}
+    archive:      {max_attempts: 4, backoff: exp_jitter,      retry_on: [429, 5xx, timeout]}
+    active_scan:  {max_attempts: 2, backoff: exp,             retry_on: [timeout, conn_reset]}
+    none:         {max_attempts: 1, backoff: none,            retry_on: []}
+  quota_profiles:
+    free_polite: {unit: request, per_minute: 30,  concurrency: 4,  budget_per_run: 0}
+    metered_api: {unit: query,   per_minute: 20,  concurrency: 2,  budget_per_run: 100}
+    credit_api:  {unit: credit,  per_minute: 10,  concurrency: 2,  budget_per_run: 200}
+    code_strict: {unit: search,  per_minute: 10,  concurrency: 1,  budget_per_run: 60}
+    active_scan: {unit: request, per_minute: 600, concurrency: 20, budget_per_run: 0}
+    local:       {unit: none,    per_minute: 0,   concurrency: 8,  budget_per_run: 0}
+  seed_routing:
+    domain:    [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 13, 17, 22, 24, 28]
+    subdomain: [2, 5, 6, 13, 20, 21, 22, 23, 24, 25, 27]
+    ip:        [1, 3, 12, 21, 24, 27]
+    cidr:      [3, 21]
+    asn:       [1, 3]
+    email:     [7, 12]
+    username:  [7, 8]
+    org:       [1, 3, 7, 9, 10, 18]
+    url:       [5, 6, 13, 20, 22, 23, 25, 27]
+    repo:      [9, 22]
+    apk:       [26]
+
+categories:
+  - {id: 1, name: "Internet-Wide Search & Asset Discovery", stage: discover, active: false, priority: 14,
+     purpose: "Discover exposed assets from third-party internet indexes/search without touching the target.",
+     input_types: [domain, org, ip, asn], output_types: [subdomain, ip, service, cert, url, tech],
+     dedupe: [subdomain, ip, service, cert, url], chain_to: [2, 3, 5, 21, 24],
+     tool_families: [shodan, censys, netlas, leakix, fullhunt, criminalip, urlscan, uncover, fofa, zoomeye, binaryedge, onyphe],
+     recursion_triggers: [new_subdomain, new_ip, new_cert_san], retry: api_standard, quota: credit_api,
+     failure_modes: [auth_error, quota_exhausted, empty, schema_drift, timeout],
+     storage: {entities: "asset(ip/subdomain/cert/url)+service", raw: "raw/<tool>/"},
+     operator_notes: "Prefer free Shodan internetdb; gate paid credits via budget ledger; uncover wraps several engines."}
+
+  - {id: 2, name: "Passive DNS & Subdomain Enum", stage: discover, active: false, priority: 10,
+     purpose: "Build the subdomain universe (passive), then resolve+validate (active) to live hosts.",
+     input_types: [domain, subdomain], output_types: [subdomain, ip, cert],
+     dedupe: [subdomain, ip], chain_to: [5, 6, 20, 21, 22, 24],
+     tool_families: [subfinder, amass_passive, crtsh, certspotter, chaos, securitytrails, virustotal, hackertarget, alienvault_otx, assetfinder, findomain, dnsx, puredns, massdns, shuffledns],
+     recursion_triggers: [new_subdomain, new_cname, new_cert_san], retry: api_standard, quota: metered_api,
+     failure_modes: [provider_quota, flaky_ct, wildcard_dns, timeout, empty],
+     storage: {entities: "asset(subdomain/ip)+edge(resolves_to,cname_to,subdomain_of)", raw: "raw/<tool>/"},
+     operator_notes: "Discovery passive; resolution (dnsx/puredns) is ACTIVE -> auth gate. Wildcard-filter before persist."}
+
+  - {id: 3, name: "WHOIS / ASN / BGP / Network Intel", stage: network, active: false, priority: 16,
+     purpose: "Map ownership and network ranges; expand ASN->CIDR->IP and reverse-WHOIS to related domains.",
+     input_types: [domain, ip, asn, org], output_types: [asn, cidr, ip, org, domain],
+     dedupe: [asn, cidr, ip, domain], chain_to: [1, 2, 21],
+     tool_families: [asnmap, bgpview, ripestat, ipinfo, team_cymru, rir_whois, metabigor, mapcidr, peeringdb, robtex],
+     recursion_triggers: [new_cidr, new_related_domain, new_asn], retry: api_standard, quota: free_polite,
+     failure_modes: [empty, schema_drift, timeout, rate_limited],
+     storage: {entities: "asset(asn/cidr/ip)+edge(in_cidr,announced_by,owned_by)", raw: "raw/<tool>/"},
+     operator_notes: "CIDRs feed port scanning; related apex domains re-enter cat 2. metabigor needs no key."}
+
+  - {id: 4, name: "Search Engine Dorking & Index", stage: enrich, active: false, priority: 22,
+     purpose: "Mine indexed/dorked exposure (files, panels, secrets in code search).",
+     input_types: [domain, live_host], output_types: [url, repo, finding],
+     dedupe: [url, repo, finding], chain_to: [9, 20, 22, 25],
+     tool_families: [brave_search, mojeek, searxng, google_pse, bing_legacy, github_dorks, pagodo, grep_app],
+     recursion_triggers: [new_url, new_repo], retry: api_standard, quota: metered_api,
+     failure_modes: [auth_error, quota_exhausted, captcha, empty, tos_block],
+     storage: {entities: "endpoint(url)+finding+repo", raw: "raw/<tool>/"},
+     operator_notes: "Google PSE / Bing are plugins only (quota/ToS). Independent indexes -> dedupe by canonical url."}
+
+  - {id: 5, name: "Web Technology Fingerprinting", stage: validate, active: true, priority: 52,
+     purpose: "Fingerprint live web stacks (server/framework/CMS/WAF) and confirm liveness.",
+     input_types: [live_host, url, subdomain], output_types: [tech, service, tag, finding],
+     dedupe: [tech, service], chain_to: [12, 20, 23, 27],
+     tool_families: [httpx, whatweb, webanalyze, wappalyzer, wafw00f, cdncheck, retire_js],
+     recursion_triggers: [new_tech_for_wordlist, cms_detected], retry: active_scan, quota: active_scan,
+     failure_modes: [timeout, tls_error, waf_block, render_needed],
+     storage: {entities: "asset.tech[]/tags[]+service", raw: "raw/<tool>/"},
+     operator_notes: "httpx is the live-validation hub. Detected tech drives smart wordlist selection (cat 25/28). CDN/WAF tag -> tune, never bypass."}
+
+  - {id: 6, name: "Historical & Archive Recon", stage: enrich, active: false, priority: 20,
+     purpose: "Harvest historical URLs/JS (deleted endpoints, old params) from web archives.",
+     input_types: [domain, live_host], output_types: [url, js_file],
+     dedupe: [url, js_file], chain_to: [5, 22, 25],
+     tool_families: [wayback_cdx, common_crawl, gau, waybackurls, waymore, urlscan_history],
+     recursion_triggers: [new_url, new_js_file], retry: archive, quota: free_polite,
+     failure_modes: [timeout, ratelimited, empty, oversize],
+     storage: {entities: "endpoint(url)+js_file ref", raw: "raw/<tool>/; js/<host>/"},
+     operator_notes: "gau aggregates Wayback+CC+OTX+urlscan. Common Crawl run ONLY when redundancy score says it adds unique coverage."}
+
+  - {id: 7, name: "Email / Username / Identity", stage: overlay, active: false, priority: 30,
+     purpose: "Discover org emails, breach exposure, and identity pivots (PII-gated).",
+     input_types: [domain, email, username, org], output_types: [email, username, finding],
+     dedupe: [email, username, finding], chain_to: [8, 12],
+     tool_families: [hunter, theharvester, phonebook, hibp, dehashed, holehe, ghunt, epieos],
+     recursion_triggers: [new_email, new_username], retry: api_standard, quota: metered_api,
+     failure_modes: [auth_error, quota_exhausted, pii_legal_gate, empty],
+     storage: {entities: "asset(email)+finding(breach,redacted)", raw: "raw/<tool>/ (encrypted, short TTL)"},
+     operator_notes: "PII/breach data: legal gate + data minimization + shortest retention; never archive raw breach data."}
+
+  - {id: 8, name: "Social Media Recon", stage: overlay, active: false, priority: 32,
+     purpose: "Map social presence and identity correlation across platforms.",
+     input_types: [username, org, handle], output_types: [username, url, finding],
+     dedupe: [username, url], chain_to: [7],
+     tool_families: [sherlock, maigret, blackbird, instaloader, social_analyzer, twint, pushshift],
+     recursion_triggers: [new_username, new_handle], retry: api_standard, quota: free_polite,
+     failure_modes: [platform_block, login_required, empty, broken_scraper],
+     storage: {entities: "intel(username/profile)", raw: "raw/<tool>/"},
+     operator_notes: "Active against 3rd-party platforms; scope-dependent, off by default for pure domain recon."}
+
+  - {id: 9, name: "GitHub / GitLab / Source Code", stage: enrich, active: false, priority: 24,
+     purpose: "Discover org repos and leaked secrets/configs/endpoints in source.",
+     input_types: [org, domain, keyword], output_types: [repo, endpoint, finding],
+     dedupe: [repo, endpoint, finding], chain_to: [10, 22, 25],
+     tool_families: [github_code, gitleaks, trufflehog, gitdorker, sourcegraph, semgrep, trivy],
+     recursion_triggers: [new_repo, cloud_key_found, new_endpoint], retry: api_strict, quota: code_strict,
+     failure_modes: [secondary_rate_limit, auth_error, empty],
+     storage: {entities: "repo+finding(secret,REDACTED)+endpoint", raw: "repos/<org>/; raw/<tool>/"},
+     operator_notes: "Secrets stored hash+mask+location ONLY, never raw. trufflehog verify (active) is a toggle. Token rotation for QUOTA, not evasion."}
+
+  - {id: 10, name: "Cloud & Storage Recon", stage: enrich, active: true, priority: 34,
+     purpose: "Find exposed cloud buckets/blobs/functions and origin behind CDN.",
+     input_types: [org, domain, keyword], output_types: [bucket, finding, ip],
+     dedupe: [bucket, finding], chain_to: [12, 27],
+     tool_families: [grayhatwarfare, cloud_enum, s3scanner, gcpbucketbrute, cloudbrute, cloudfail, cloudlist],
+     recursion_triggers: [new_bucket, origin_ip_found], retry: active_scan, quota: free_polite,
+     failure_modes: [provider_throttle, access_denied, empty],
+     storage: {entities: "asset(bucket)+finding(open_bucket,misconfig)", raw: "raw/<tool>/"},
+     operator_notes: "grayhatwarfare passive; cloud_enum/s3scanner active vs cloud provider endpoints (not target app). No credentialed audit unless authorized."}
+
+  - {id: 11, name: "Metadata & Document Recon", stage: enrich, active: false, priority: 36,
+     purpose: "Harvest public documents and extract metadata (users, paths, software).",
+     input_types: [domain, url], output_types: [document, email, finding, tag],
+     dedupe: [document, email], chain_to: [7, 20],
+     tool_families: [metagoofil, exiftool, tika, oletools, pdfinfo, strings],
+     recursion_triggers: [new_username_from_meta, new_internal_path], retry: api_standard, quota: free_polite,
+     failure_modes: [download_fail, parse_error, empty],
+     storage: {entities: "document+intel(user/path/software)", raw: "documents/<sha256>"},
+     operator_notes: "Harvested paths seed content discovery (cat 20); usernames pivot to cat 7."}
+
+  - {id: 12, name: "Malware / IOC / Threat Intel", stage: enrich, active: false, priority: 38,
+     purpose: "Enrich IPs/domains/services with IOC/threat intel and map CVEs (correlation, no exploit).",
+     input_types: [ip, domain, url, service, cpe, hash], output_types: [ioc, finding, tag],
+     dedupe: [ioc, finding], chain_to: [27],
+     tool_families: [virustotal, otx, threatfox, abuse_ch, pulsedive, nvd, epss, vulners, shodan_cve, greynoise],
+     recursion_triggers: [cve_candidate_for_nuclei], retry: api_standard, quota: metered_api,
+     failure_modes: [auth_error, quota_exhausted, empty, nvd_throttle],
+     storage: {entities: "vuln_ref+finding(cve, priority_rank)+tag(malicious)", raw: "raw/<tool>/"},
+     operator_notes: "service+version -> CPE -> NVD -> EPSS rank; nuclei (cat 27) confirms. GreyNoise = context only."}
+
+  - {id: 13, name: "Visual Recon & Screenshotting", stage: validate, active: true, priority: 54,
+     purpose: "Capture screenshots of live hosts for triage and high-value flagging.",
+     input_types: [live_host, url], output_types: [screenshot, tag, tech],
+     dedupe: [screenshot], chain_to: [20, 27],
+     tool_families: [gowitness, eyewitness, playwright, urlscan_screens],
+     recursion_triggers: [login_or_admin_panel_tag], retry: active_scan, quota: active_scan,
+     failure_modes: [render_timeout, tls_error, oversize],
+     storage: {entities: "endpoint.evidence_ref+asset.tags(login/admin/high_value)", raw: "screenshots/<sha256>.png"},
+     operator_notes: "Title/visual cues flag high-value targets for prioritized detection."}
+
+  - {id: 14, name: "Frameworks & Automation Suites", stage: engine, active: false, priority: 0,
+     purpose: "Orchestration engines (we ARE one); integrate selected suites as sources, not as the platform.",
+     input_types: [domain], output_types: [subdomain, url, finding],
+     dedupe: [subdomain, url], chain_to: [2, 5],
+     tool_families: [bbot, amass, reconftw, spiderfoot, recon_ng, projectdiscovery_stack, uncover, notify, interactsh],
+     recursion_triggers: [any_new_entity], retry: api_standard, quota: free_polite,
+     failure_modes: [tool_missing, config_error, empty],
+     storage: {entities: "(routed to the proper typed tables)", raw: "raw/<tool>/"},
+     operator_notes: "Integrate BBOT/Amass as ONE source feeding the corpus; do not adopt their store. notify=alert sink, interactsh=OAST."}
+
+  - {id: 15, name: "Physical / Geo / Wireless", stage: overlay, active: false, priority: 42,
+     purpose: "Geo/wireless/telecom OSINT (scope-dependent; rarely part of domain recon).",
+     input_types: [org, bssid, coords, ip], output_types: [finding, tag],
+     dedupe: [finding], chain_to: [],
+     tool_families: [wigle, opencellid, flightradar24, adsbexchange, marinetraffic, sentinel_hub, openstreetmap],
+     recursion_triggers: [], retry: api_standard, quota: metered_api,
+     failure_modes: [auth_error, empty, out_of_scope],
+     storage: {entities: "intel(geo/wireless)", raw: "raw/<tool>/"},
+     operator_notes: "Enable only when physical/geo is explicitly in scope."}
+
+  - {id: 16, name: "Dark Web & Onion Recon", stage: overlay, active: false, priority: 40,
+     purpose: "Search indexed onion/leak sources for scope mentions (read-only intel).",
+     input_types: [domain, org, keyword], output_types: [onion, finding, url],
+     dedupe: [onion, finding], chain_to: [12],
+     tool_families: [ahmia, onionsearch, intelx_tor, darksearch, dark_fail],
+     recursion_triggers: [new_leak_mention], retry: api_standard, quota: metered_api,
+     failure_modes: [auth_error, tor_unavailable, empty, noisy],
+     storage: {entities: "intel(onion/leak mention)", raw: "raw/<tool>/"},
+     operator_notes: "Read-only OSINT; route over Tor only via authorized infra. No interaction with marketplaces."}
+
+  - {id: 17, name: "APIs & Intelligence Feeds", stage: enrich, active: false, priority: 18,
+     purpose: "Key-backed enrichment providers used ACROSS stages (not a standalone pipeline).",
+     input_types: [domain, ip, email, asn], output_types: [service, subdomain, tag, finding],
+     dedupe: [service, subdomain], chain_to: [1, 2, 3, 12],
+     tool_families: [shodan_api, censys_api, securitytrails_api, whoisxml, ipinfo_api, hunter_api, greynoise_api, intelx_api],
+     recursion_triggers: [new_entity_from_feed], retry: api_standard, quota: credit_api,
+     failure_modes: [auth_error, quota_exhausted, empty],
+     storage: {entities: "(routed to typed tables by output)", raw: "raw/<tool>/"},
+     operator_notes: "Provider layer behind cats 1/2/3/12; budget-ledger metered."}
+
+  - {id: 18, name: "Massive Living Indexes", stage: resource, active: false, priority: 95,
+     purpose: "Reference indexes/awesome-lists for tool discovery - NOT executed in a scan.",
+     input_types: [], output_types: [],
+     dedupe: [], chain_to: [],
+     tool_families: [osint_framework, awesome_osint, hacktricks, payloadsallthethings],
+     recursion_triggers: [], retry: none, quota: local,
+     failure_modes: [not_applicable],
+     storage: {entities: "(none)", raw: "(none)"},
+     operator_notes: "Curation/discovery references; surfaced in docs, never network-executed."}
+
+  - {id: 19, name: "Common Recon Workflows", stage: engine, active: false, priority: 1,
+     purpose: "Named presets that compose stages A-F into one-command flows.",
+     input_types: [domain], output_types: [subdomain, live_host, finding],
+     dedupe: [], chain_to: [1, 2, 3, 5, 6, 21, 27],
+     tool_families: [preset_passive, preset_full, preset_continuous],
+     recursion_triggers: [], retry: none, quota: local,
+     failure_modes: [config_error],
+     storage: {entities: "(composes other categories)", raw: "(n/a)"},
+     operator_notes: "Not tools - presets/profiles that select+order categories (maps to CLI profiles + --category)."}
+
+  - {id: 20, name: "Content & Directory Discovery", stage: deep, active: true, priority: 60,
+     purpose: "Brute-force hidden paths/files on live hosts with 404/wildcard calibration.",
+     input_types: [live_host, url], output_types: [url, endpoint],
+     dedupe: [url, endpoint], chain_to: [22, 23, 25, 27],
+     tool_families: [pydirb, ffuf, feroxbuster, dirsearch, kiterunner],
+     recursion_triggers: [new_path, new_endpoint], retry: active_scan, quota: active_scan,
+     failure_modes: [soft_404, waf_block, timeout, oversize_wordlist],
+     storage: {entities: "endpoint(url,status,risk_class)", raw: "raw/<tool>/"},
+     operator_notes: "Wordlist from cat 28 + harvested paths (cat 6/11). Calibrate per host; no bypass."}
+
+  - {id: 21, name: "Port Scanning & Service Detect", stage: network, active: true, priority: 50,
+     purpose: "Discover open ports/services on in-scope IPs (fast sweep -> deep version detect).",
+     input_types: [ip, cidr, subdomain], output_types: [service, host_port],
+     dedupe: [service], chain_to: [5, 12, 24],
+     tool_families: [naabu, nmap, masscan, rustscan, fingerprintx],
+     recursion_triggers: [web_port_for_httpx], retry: active_scan, quota: active_scan,
+     failure_modes: [timeout, host_down, filtered, conn_reset],
+     storage: {entities: "service(port,product,version,banner)", raw: "raw/<tool>/"},
+     operator_notes: "naabu fast -> nmap -sV on found ports. Skip CDN edge ranges (cat 5 tag). Web ports feed httpx."}
+
+  - {id: 22, name: "JavaScript Analysis & Secrets", stage: deep, active: false, priority: 58,
+     purpose: "Mine JS for endpoints, frames, websockets, source maps, and secret-like strings.",
+     input_types: [js_file, url, live_host], output_types: [endpoint, finding, frame, websocket, source_map],
+     dedupe: [endpoint, finding, source_map], chain_to: [23, 25, 27],
+     tool_families: [pycrawl, jsluice, linkfinder, secretfinder, getjs, retire_js],
+     recursion_triggers: [new_endpoint, new_host_in_js, source_map_found], retry: crawl, quota: free_polite,
+     failure_modes: [fetch_fail, parse_error, empty],
+     storage: {entities: "endpoint+finding(secret,REDACTED)+source_map+frame+websocket", raw: "js/<host>/"},
+     operator_notes: "Source maps recover original sources -> richer endpoints. Secrets redacted. Operates on harvested JS (cat 6) + crawled JS."}
+
+  - {id: 23, name: "API & GraphQL Recon", stage: deep, active: true, priority: 62,
+     purpose: "Discover API specs (OpenAPI/Swagger), GraphQL engines/introspection, and API routes.",
+     input_types: [live_host, url, endpoint], output_types: [endpoint, param, finding],
+     dedupe: [endpoint, param, finding], chain_to: [25, 27],
+     tool_families: [graphw00f, clairvoyance, kiterunner, swaggerhole, arjun],
+     recursion_triggers: [new_api_endpoint, new_param], retry: active_scan, quota: active_scan,
+     failure_modes: [auth_required, introspection_disabled, timeout],
+     storage: {entities: "endpoint(api)+param+finding(exposed_spec/introspection)", raw: "raw/<tool>/"},
+     operator_notes: "Read specs only; GraphQL introspection read (no mutation/exploit). Probe /openapi.json /graphql /v3/api-docs."}
+
+  - {id: 24, name: "TLS/SSL & Certificate Analysis", stage: validate, active: true, priority: 56,
+     purpose: "Grab live certs (SAN pivots) and audit TLS config; pivot certs->hosts.",
+     input_types: [live_host, ip, service], output_types: [cert, subdomain, finding],
+     dedupe: [cert, subdomain, finding], chain_to: [2, 27],
+     tool_families: [tlsx, sslyze, testssl, cero],
+     recursion_triggers: [new_cert_san, cert_pivot_host], retry: active_scan, quota: active_scan,
+     failure_modes: [tls_handshake_fail, timeout, self_signed],
+     storage: {entities: "asset(cert)+service.tls+edge(serves_cert,covers)+finding(tls)", raw: "raw/<tool>/"},
+     operator_notes: "tlsx SANs + cero (cert scrape of IP ranges) -> NEW subdomains re-enter cat 2 (recursion)."}
+
+  - {id: 25, name: "Parameter Discovery & Fuzz Prep", stage: deep, active: true, priority: 64,
+     purpose: "Mine parameters from URLs/forms/JS/specs/archives; prep tuned fuzz inputs.",
+     input_types: [url, endpoint, js_file, live_host], output_types: [param, endpoint, wordlist],
+     dedupe: [param, endpoint], chain_to: [27],
+     tool_families: [paramspider, arjun, x8, param_miner, gf, qsreplace],
+     recursion_triggers: [new_param, new_path_pattern], retry: active_scan, quota: active_scan,
+     failure_modes: [timeout, empty, waf_block],
+     storage: {entities: "endpoint.params[]+wordlist(tuned)", raw: "raw/<tool>/; wordlists/"},
+     operator_notes: "Emits tuned wordlists + regex packs from learned params/paths (feeds cat 20/28). Recon scope only, no exploitation."}
+
+  - {id: 26, name: "Mobile / APK Recon", stage: deep, active: false, priority: 66,
+     purpose: "Extract endpoints/secrets/hosts from mobile app packages (scope-dependent).",
+     input_types: [apk, package_id, url], output_types: [endpoint, finding, subdomain],
+     dedupe: [endpoint, finding], chain_to: [2, 22, 23],
+     tool_families: [apkleaks, apkurlgrep, mobsf, apktool],
+     recursion_triggers: [new_host_in_apk, new_endpoint], retry: none, quota: local,
+     failure_modes: [download_fail, decompile_error, empty],
+     storage: {entities: "endpoint+finding(secret,REDACTED)+subdomain", raw: "apks/<sha256>/"},
+     operator_notes: "Enable when mobile apps are in scope; discovered hosts re-enter cat 2."}
+
+  - {id: 27, name: "Active Vulnerability Detection", stage: detect, active: true, priority: 70,
+     purpose: "Signature-based detection of CVEs/misconfig/exposure/takeover on VALIDATED live assets (NO exploitation).",
+     input_types: [live_host, url, service, cert, endpoint], output_types: [finding],
+     dedupe: [finding], chain_to: [12],
+     tool_families: [nuclei, subjack, tko_subs, sslyze, nuclei_templates],
+     recursion_triggers: [], retry: active_scan, quota: active_scan,
+     failure_modes: [timeout, waf_block, template_error, false_positive],
+     storage: {entities: "finding(severity,detector,cve,evidence_ref)", raw: "raw/<tool>/"},
+     operator_notes: "Detection only; runs ONLY on validated live assets. Templated/auditable; correlate with cat 12 (EPSS/CVSS rank)."}
+
+  - {id: 28, name: "Wordlists & Recon Resources", stage: resource, active: false, priority: 90,
+     purpose: "Provide/generate wordlists + regex packs (static curated + dynamically tuned from learnings).",
+     input_types: [tech, endpoint, param, path_pattern], output_types: [wordlist, regex_pack],
+     dedupe: [wordlist, regex_pack], chain_to: [20, 23, 25],
+     tool_families: [seclists, assetnote_wordlists, commonspeak2, tuned_generator],
+     recursion_triggers: [new_tech, new_path_corpus], retry: none, quota: local,
+     failure_modes: [missing_wordlist_dir, empty_corpus],
+     storage: {entities: "wordlist+regex_pack (hashed)", raw: "wordlists/; regex_packs/"},
+     operator_notes: "Selects tech-specific lists from detected tech (cat 5) and MERGES harvested paths/params (cat 6/11/25). Tuned lists feed cat 20/23/25."}
