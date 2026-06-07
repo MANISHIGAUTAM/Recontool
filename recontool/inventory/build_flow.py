@@ -113,17 +113,37 @@ def sec_num(section: str) -> int:
 
 
 def load_yaml_contracts() -> dict:
+    out = {}
     try:
         import yaml
         data = yaml.safe_load(TOOLS_YAML.read_text()) or {}
     except Exception:
-        return {}
-    out = {}
+        data = {}
     for name, c in (data.get("tools") or {}).items():
         if isinstance(c, dict):
             out[alnum(name)] = {**c, "_yaml_name": name}
             if c.get("binary"):
                 out[alnum(c["binary"])] = {**c, "_yaml_name": name}
+    # also merge the declarative generic specs (config/tools_generic.yaml)
+    gpath = REPO / "config" / "tools_generic.yaml"
+    try:
+        import yaml
+        gdata = yaml.safe_load(gpath.read_text()) or {}
+    except Exception:
+        gdata = {}
+    for spec in (gdata.get("tools") or []):
+        if not isinstance(spec, dict) or not spec.get("name"):
+            continue
+        norm = {
+            "_yaml_name": spec["name"],
+            "integration": spec.get("integration", "cli"),
+            "invocation": spec.get("invocation") or spec.get("endpoint", ""),
+            "binary": spec.get("binary"),
+            "input": (spec.get("consumes") or ["domain"])[0],
+            "output": (spec.get("produces") or ["any"])[0],
+            "requires_key": spec.get("requires_key"),
+        }
+        out.setdefault(alnum(spec["name"]), norm)
     return out
 
 

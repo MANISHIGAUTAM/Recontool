@@ -45,7 +45,11 @@ def all_adapters() -> dict[str, type[Adapter]]:
 
 
 def load_builtin() -> None:
-    """Import adapter modules so their @register decorators fire."""
+    """Import adapter modules so their @register decorators fire, then register
+    the declarative generic adapters (config/tools_generic.yaml)."""
     from recontool.adapters import passive  # noqa: F401
     from recontool.adapters import active    # noqa: F401
     from recontool.adapters import internet_search  # noqa: F401  (Category 1)
+    from recontool.adapters.autoload import register_generic
+
+    register_generic()

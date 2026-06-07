@@ -208,6 +208,37 @@ discovery runs on the root, then **active scans run only on live hosts** (see
 
 ---
 
+## Adding tools at scale (generic adapter engine)
+
+Most of the 500+ tools are wired **declaratively** — no Python. A tool is a YAML spec in
+[`config/tools_generic.yaml`](config/tools_generic.yaml) that a tested generic executor
+([`recontool/adapters/generic.py`](recontool/adapters/generic.py)) runs and parses into
+the normalized schema. Hand-written adapters exist only for the highest-value/complex
+tools and always win on a name collision.
+
+```yaml
+# add a tool in ~10 lines — it auto-registers into the pipeline on next run
+- name: certspotter
+  phase: p1_seed
+  category: 2
+  integration: api          # or cli
+  consumes: [domain]
+  produces: [subdomain]
+  endpoint: "https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names"
+  parse:
+    format: json
+    emit:
+      - {entity: asset, value_each: dns_names, type: subdomain, scope_filter: subdomain}
+```
+
+The parse engine (`parse_records` + `emit_events`) is pure and unit-tested against
+fixtures, so every spec's output mapping is validated without network/subprocess. See
+[`docs/pipeline/09-category-milestones.md`](docs/pipeline/09-category-milestones.md) for
+per-category status and [`docs/pipeline/10-gaps-and-advancements.md`](docs/pipeline/10-gaps-and-advancements.md)
+for gaps found + advancements.
+
+---
+
 ## Setup: external tools & resources
 
 `docker/install_tools.sh` downloads and installs the recon CLIs (graceful — Recontool

@@ -1,0 +1,218 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Recontool — GENERIC adapter specs.
+#
+# Each entry here is executed by recontool/adapters/generic.py (no Python needed).
+# Tools with a hand-written adapter of the same name are NOT overridden.
+#
+# Fields:
+#   name, phase (p1_seed|p2_expansion|p3_enrichment|p4_verify|p5_deep|p6_vuln),
+#   category, integration (api|cli), is_active, consumes[], produces[],
+#   requires_key (env var, optional),
+#   endpoint + headers{} (api)  OR  binary + invocation (cli),
+#   bucket (rate-limit bucket), max_inputs, timeout,
+#   parse: { format: json|jsonl|text|csv, list_path, line_regex, columns[], emit[] }
+#
+# Templating in endpoint/invocation/headers: {value}/{domain}/{ip}/{asn}/{host}/{key}
+# Templating in emit fields: {record.field} (dotted). value_each iterates a list field.
+# scope_filter: subdomain  -> only emit if value is in the seed domain's scope.
+# ─────────────────────────────────────────────────────────────────────────────
+tools:
+
+  # ── Cat 2: Passive DNS & Subdomain Enumeration ─────────────────────────────
+  - name: certspotter
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: [domain]
+    produces: [subdomain]
+    requires_key: CERTSPOTTER_API_KEY        # works without key at low limits
+    key_optional: true
+    endpoint: "https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names"
+    headers: {Authorization: "Bearer {key}"}
+    bucket: certspotter
+    parse:
+      format: json
+      emit:
+        - {entity: asset, value_each: dns_names, type: subdomain, scope_filter: subdomain}
+
+  - name: subdomaincenter
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: [domain]
+    produces: [subdomain]
+    endpoint: "https://api.subdomain.center/?domain={domain}"
+    bucket: subdomaincenter
+    max_inputs: 1
+    enabled: false           # disabled: unreliable (frequent read timeouts). Re-enable if needed.
+    parse:
+      format: json
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  - name: assetfinder
+    phase: p2_expansion
+    category: 2
+    integration: cli
+    is_active: false
+    consumes: [domain]
+    produces: [subdomain]
+    binary: assetfinder
+    invocation: "assetfinder --subs-only {domain}"
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  - name: findomain
+    phase: p2_expansion
+    category: 2
+    integration: cli
+    is_active: false
+    consumes: [domain]
+    produces: [subdomain]
+    binary: findomain
+    invocation: "findomain -t {domain} -q"
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  # ── Cat 3: WHOIS / ASN / BGP ───────────────────────────────────────────────
+  - name: asnmap
+    phase: p3_enrichment
+    category: 3
+    integration: cli
+    is_active: false
+    consumes: [domain]
+    produces: [asn, cidr]
+    binary: asnmap
+    invocation: "asnmap -d {domain} -json -silent"
+    parse:
+      format: jsonl
+      emit:
+        - {entity: asset, value: "{as_number}", type: asn}
+        - {entity: asset, value_each: as_range, type: cidr}
+
+  - name: bgpview
+    phase: p3_enrichment
+    category: 3
+    integration: api
+    is_active: false
+    consumes: [asn]
+    produces: [cidr]
+    endpoint: "https://api.bgpview.io/asn/{asn}/prefixes"
+    bucket: bgpview
+    parse:
+      format: json
+      list_path: "data.ipv4_prefixes"
+      emit:
+        - {entity: asset, value: "{prefix}", type: cidr}
+
+  - name: ripestat
+    phase: p3_enrichment
+    category: 3
+    integration: api
+    is_active: false
+    consumes: [asn]
+    produces: [cidr]
+    endpoint: "https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS{asn}"
+    bucket: ripestat
+    parse:
+      format: json
+      list_path: "data.prefixes"
+      emit:
+        - {entity: asset, value: "{prefix}", type: cidr}
+
+  # ── Cat 4 / 6: URL & archive harvesting ────────────────────────────────────
+  - name: gau
+    phase: p3_enrichment
+    category: 4
+    integration: cli
+    is_active: false
+    consumes: [domain]
+    produces: [url]
+    binary: gau
+    invocation: "gau {domain} --threads 5"
+    max_inputs: 20
+    parse:
+      format: text
+      emit:
+        - {entity: endpoint, url: "{_value}"}
+
+  - name: gauplus
+    phase: p3_enrichment
+    category: 4
+    integration: cli
+    is_active: false
+    consumes: [domain]
+    produces: [url]
+    binary: gauplus
+    invocation: "gauplus -t 5 {domain}"
+    max_inputs: 20
+    parse:
+      format: text
+      emit:
+        - {entity: endpoint, url: "{_value}"}
+
+  - name: waybackurls
+    phase: p3_enrichment
+    category: 6
+    integration: cli
+    is_active: false
+    consumes: [domain]
+    produces: [url]
+    binary: waybackurls
+    invocation: "waybackurls {domain}"
+    max_inputs: 20
+    parse:
+      format: text
+      emit:
+        - {entity: endpoint, url: "{_value}"}
+
+  # ── Cat 22: JS-aware crawling (active) ─────────────────────────────────────
+  - name: katana
+    phase: p5_deep
+    category: 22
+    integration: cli
+    is_active: true
+    consumes: [url]
+    produces: [url]
+    binary: katana
+    invocation: "katana -u {value} -jc -silent -d 2"
+    max_inputs: 50
+    parse:
+      format: text
+      emit:
+        - {entity: endpoint, url: "{_value}"}
+
+  # ── Cat 24: TLS / cert pivots (active) ─────────────────────────────────────
+  - name: tlsx
+    phase: p4_verify
+    category: 24
+    integration: cli
+    is_active: true
+    consumes: [subdomain]
+    produces: [subdomain]
+    binary: tlsx
+    invocation: "tlsx -u {value} -san -silent -json"
+    parse:
+      format: jsonl
+      emit:
+        - {entity: asset, value_each: subject_an, type: subdomain, scope_filter: subdomain}
+
+  - name: cero
+    phase: p4_verify
+    category: 24
+    integration: cli
+    is_active: true
+    consumes: [ip]
+    produces: [subdomain]
+    binary: cero
+    invocation: "cero {value}"
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}

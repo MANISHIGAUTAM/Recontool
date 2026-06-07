@@ -534,14 +534,14 @@
         2
       ],
       "method": "binary",
-      "command": "assetfinder <domain>  # flags TBD",
-      "params": "-",
+      "command": "assetfinder --subs-only xyz.com",
+      "params": "no key",
       "consumes": "domain",
       "produces": "subdomain",
       "feeds": "S2 httpx, S4 ports",
       "store_db": "asset(type=subdomain)",
       "store_fs": "raw/<tool>/",
-      "real_contract": false,
+      "real_contract": true,
       "web_only": false
     },
     {
@@ -3040,14 +3040,14 @@
         2
       ],
       "method": "binary",
-      "command": "findomain <domain>  # flags TBD",
-      "params": "-",
+      "command": "findomain -t xyz.com -q",
+      "params": "no key",
       "consumes": "domain",
       "produces": "subdomain",
       "feeds": "S2 httpx, S4 ports",
       "store_db": "asset(type=subdomain)",
       "store_fs": "raw/<tool>/",
-      "real_contract": false,
+      "real_contract": true,
       "web_only": false
     },
     {
@@ -3346,14 +3346,14 @@
         4
       ],
       "method": "binary",
-      "command": "gauplus <domain_or_live_host>  # flags TBD",
-      "params": "-",
-      "consumes": "domain_or_live_host",
+      "command": "gauplus -t 5 xyz.com",
+      "params": "no key",
+      "consumes": "domain",
       "produces": "url",
       "feeds": "S5 js/params, vuln",
       "store_db": "endpoint(url,status,title)",
       "store_fs": "raw/<tool>/ , bodies/",
-      "real_contract": false,
+      "real_contract": true,
       "web_only": false
     },
     {
