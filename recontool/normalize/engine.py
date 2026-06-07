@@ -102,10 +102,13 @@ class Normalizer:
                 existing.status_code = d["status"]
             if d.get("title"):
                 existing.title = d["title"][:512]
+            if d.get("params"):
+                existing.params = sorted(set((existing.params or []) + list(d["params"])))
             return False
         self.s.add(Endpoint(
             asset_id=asset.id, url=url[:2048], status_code=d.get("status"),
             title=(d.get("title") or "")[:512] or None, source=d.get("source"),
+            params=sorted(set(d.get("params") or [])),
             risk_class=_risk_class(url), dedupe_key=key,
         ))
         return True

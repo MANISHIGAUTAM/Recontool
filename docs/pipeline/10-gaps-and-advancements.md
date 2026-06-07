@@ -53,6 +53,20 @@ improvements made (and proposed). Honest status, not aspirational.
    discovers new in-scope subdomains (feeding the recursive loop), and re-checks scope
    before every fetch (verified live: crawled `example.com` with zero offsite egress).
 
+8. **Pure-Python content/directory discovery** (`content_discovery.py`, `pydirb`).
+   ffuf-style path brute-force over the rate-limited HttpClient with **404 / soft-404
+   ("wildcard") calibration** so junk responses are filtered. Built-in high-signal
+   wordlist (admin/api/.git/.env/...) extensible via `config` resources. Falls back to
+   ffuf/feroxbuster if installed. Verified live against `example.com` (calibrated,
+   no false hits, no crash).
+
+9. **Form & parameter extraction** (`params.py`). `params_from_url` mines query-string
+   params from the discovered URL corpus (`param_miner` adapter); `extract_forms`
+   pulls `<form>` action/method + input/select/textarea names from crawled HTML (wired
+   into `pycrawl`). Params persist to `endpoint.params` (merged on re-discovery),
+   ready to feed fuzzing — closing the Category-20/25 active-recon gap with zero
+   external dependencies.
+
 ---
 
 ## C. Advancements proposed (ranked, not yet built)

@@ -24,6 +24,7 @@ from urllib.parse import urljoin, urlsplit
 from recontool.adapters.active import _ENDPOINT_RE, _SECRET_PATTERNS, _mask
 from recontool.adapters.base import Adapter, AdapterContext, Event
 from recontool.adapters.registry import register
+from recontool.adapters.params import extract_forms
 from recontool.core.scope import is_subdomain_of
 
 _JS_RE = re.compile(r"\.js(\?|$)", re.I)
@@ -149,6 +150,12 @@ class PyCrawler(Adapter):
                 if not html:
                     continue
                 events.extend(self._mine_js(host_of(url), html, ref=None, seed_dom=seed_dom))
+                # form parameters -> feed fuzz prep (scope-filtered)
+                for form in extract_forms(url, html):
+                    if form["params"] and is_subdomain_of(host_of(form["action"]), seed_dom or ""):
+                        events.append(Event.endpoint(self.name, form["action"],
+                                                     params=form["params"],
+                                                     source=f"pycrawl-form:{form['method']}"))
                 for link in extract_links(url, html):
                     lhost = host_of(link)
                     if lhost and lhost not in seen_hosts and is_subdomain_of(lhost, seed_dom or ""):
