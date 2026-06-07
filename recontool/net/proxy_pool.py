@@ -1,15 +1,16 @@
 """Proxy / egress-IP rotation pool.
 
-Rotates outbound requests across a pool of proxies to avoid rate-limit
-blacklisting and to control egress IP reputation (docs/D6-opsec.md §2).
+⚠️ POLICY NOTE (authorized-only blueprint, docs/blueprint/README.md §Policy):
+    This module's ROTATION-FOR-EVASION behavior is DEPRECATED. The platform is
+    authorized-only and does NOT do stealth, proxy rotation to dodge rate limits, or
+    detection evasion. Reliability/limit-compliance is now handled by provider quotas,
+    backoff, caching, concurrency caps, and circuit breakers (see net/circuit.py and
+    net/rate_limiter.py). Retain at most a SINGLE declared egress (e.g. a corporate
+    egress IP for allow-listing) — not a rotating pool used to circumvent limits.
+    Roadmap item G1 in docs/blueprint/05-diff-ai-gaps-roadmap.md tracks reframing/removal.
 
-Strategies:
-  - round_robin: cycle evenly (best for spreading load)
-  - random: pick at random
-  - sticky: one proxy per (engagement/host) — for client-whitelisted scanners
-
-Health: a proxy that fails repeatedly is quarantined (cooldown) and skipped.
-A dead proxy is NEVER silently replaced by direct egress during active scans.
+Rotates outbound requests across a pool of proxies (legacy behavior, kept for
+backward compatibility only).
 """
 from __future__ import annotations
 

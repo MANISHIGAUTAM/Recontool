@@ -107,6 +107,10 @@ class RateProfile:
     randomize_order: bool
 
 
+# POLICY NOTE (docs/blueprint/README.md §Policy): under the authorized-only blueprint,
+# the "stealth" profile's jitter/randomization is reframed as POLITENESS (thundering-herd
+# avoidance + provider-limit compliance), NOT detection evasion. Roadmap G2 renames it to
+# "polite". No proxy rotation / rate-limit bypass is used; see net/circuit.py.
 PROFILES: dict[str, RateProfile] = {
     "passive_only": RateProfile(
         name="passive_only", active_enabled=False, global_concurrency=20,
