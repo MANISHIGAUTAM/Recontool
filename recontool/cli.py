@@ -39,6 +39,8 @@ def scan(
         False, "--authorize-active",
         help="REQUIRED to run active phases that touch the target."),
     no_ai: bool = typer.Option(False, "--no-ai", help="Disable the AI supervisor."),
+    category: str = typer.Option(None, "--category", "-c",
+                                 help="Comma-separated category numbers to run ONLY (e.g. '2' or '1,2,3')."),
     export: Path = typer.Option(None, "--export", "-o", help="Write full JSON results here."),
 ):
     """Run a recon scan on SEED."""
@@ -63,8 +65,12 @@ def scan(
         console.print(line)
 
     pipeline = ReconPipeline(supervisor=supervisor)
+    cats = None
+    if category:
+        cats = {int(c) for c in category.replace(" ", "").split(",") if c.strip().isdigit()}
     result = asyncio.run(pipeline.run(
-        seed, profile_name=profile, authorize_active=authorize_active, progress=progress,
+        seed, profile_name=profile, authorize_active=authorize_active,
+        categories=cats, progress=progress,
     ))
 
     _render_result(result, supervisor)

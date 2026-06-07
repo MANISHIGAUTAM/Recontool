@@ -119,9 +119,10 @@ The platform is built as **per-category pipelines** that chain tools (A's output
 input) through a shared DB. You drive everything with a scope domain:
 
 ```bash
-recontool scan www.xyz.com                  # default preset (passive categories)
-recontool scan www.xyz.com --category 2     # run ONLY the Cat-2 subdomain pipeline
-recontool scan www.xyz.com --authorize-active   # unlock active categories
+recontool scan www.xyz.com                       # default preset (passive categories)
+recontool scan www.xyz.com --category 2          # run ONLY the Cat-2 subdomain pipeline
+recontool scan www.xyz.com --category 1,2,3      # run several categories
+recontool scan www.xyz.com --authorize-active    # unlock active categories
 ```
 
 See the full design in [`docs/pipeline/`](docs/pipeline/):
@@ -135,6 +136,11 @@ See the full design in [`docs/pipeline/`](docs/pipeline/):
   live hosts only → feed discoveries back → loop until convergence; console/UI display.
 - `07-tool-io-reference.md` — per-tool invocation, sample output, and DB/filesystem storage.
 - `08-feature-advancements.md` — ranked roadmap of enhancements beyond the current design.
+- `09-category-milestones.md` — per-category implementation status + rollout gate.
+- `10-gaps-and-advancements.md` — gaps found, advancements implemented + proposed.
+
+Full parallel/recursive architecture (all categories, one diagram):
+[`docs/flow/01-PARALLEL-RECURSIVE-ARCHITECTURE.md`](docs/flow/01-PARALLEL-RECURSIVE-ARCHITECTURE.md).
 
 ---
 
@@ -257,15 +263,21 @@ bash docker/install_tools.sh resources   # just wordlists + clean DNS resolvers
 
 | Capability | Module |
 |------------|--------|
-| **Tool chaining** (output → input across phases) | `orchestrator/pipeline.py` |
-| **Parallel execution** (adapters fan out per phase) | `orchestrator/pipeline.py` |
+| **Tool chaining** (output → input across phases via the DB) | `orchestrator/pipeline.py` |
+| **Parallel execution** (L1 tools-per-phase + L2 inputs-per-tool) | `orchestrator/pipeline.py`, all adapters; see `docs/flow/01-PARALLEL-RECURSIVE-ARCHITECTURE.md` |
+| **Generic adapter engine** (wire tools as declarative YAML, no code) | `adapters/generic.py`, `adapters/autoload.py`, `config/tools_generic.yaml` |
+| **Pure-Python web crawler** (no binary; JS download + endpoint/secret mining) | `adapters/crawler.py` (`pycrawl`) |
+| **Content/directory discovery** (ffuf-style + 404 calibration) | `adapters/content_discovery.py` (`pydirb`) |
+| **Param/form extraction** (fuzz prep) | `adapters/params.py` (`param_miner`) |
 | **IP / proxy rotation** (avoid blacklisting) | `net/proxy_pool.py` |
 | **Rate limiting** (per-provider token buckets) | `net/rate_limiter.py` |
 | **DB storage** (subdomains, IPs, params, services, findings) | `core/models.py`, `normalize/engine.py` |
-| **Filesystem artifacts** (JS from Wayback, bodies, raw output) | `core/artifacts.py` |
+| **Filesystem artifacts** (JS, response bodies, screenshots, raw output) | `core/artifacts.py` |
 | **Dedup + confidence scoring** | `core/dedupe.py`, `core/confidence.py` |
 | **Scope + passive→active safety gate** | `core/scope.py`, `orchestrator/pipeline.py` |
 | **AI agentic supervisor** (light/heavy model routing) | `ai/router.py`, `ai/supervisor.py` |
+| **Tool inventory + flow generators** | `recontool/inventory/` → `data/`, `docs/inventory/`, `docs/flow/` |
+| **Reporting / export** (JSON/summary) | `report.py`, `cli.py` |
 
 ### IP rotation
 Set `RECON_PROXIES` in `.env` to a comma-separated list of proxy URLs
@@ -313,9 +325,10 @@ bundles everything. Full list + invocation details in
 ```
 recontool.db                 # SQLite (default) — switch to Postgres via RECON_DB_URL
 artifacts/<scan_id>/
-  ├── raw/<tool>/*.json       # raw tool/API output
-  ├── js/<host>/*.js          # JS files harvested from Wayback
+  ├── raw/<tool>/*.json       # raw tool/API output (provenance)
+  ├── js/<host>/*.js          # JS files harvested from Wayback / crawler
   ├── bodies/<host>/*         # response bodies
+  ├── screenshots/*.png       # gowitness (if installed)
   └── nuclei_targets.txt
 ```
 
@@ -325,7 +338,8 @@ artifacts/<scan_id>/
 
 ```bash
 pip install -r requirements.txt
-pytest -q
+pytest -q          # 49 atomic tests: parsers, dedupe/confidence, scope, generic
+                   # engine, crawler, content discovery, params, JS storage
 ```
 
 See [`docs/00-architecture-overview.md`](docs/00-architecture-overview.md) for the

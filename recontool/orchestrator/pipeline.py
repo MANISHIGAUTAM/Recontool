@@ -13,6 +13,7 @@ An optional AI supervisor is consulted at phase boundaries for runtime decisions
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -33,6 +34,12 @@ from recontool.normalize.engine import Normalizer
 
 PASSIVE_PHASES = ["p1_seed", "p2_expansion", "p3_enrichment"]
 ACTIVE_PHASES = ["p4_verify", "p5_deep", "p6_vuln"]
+
+
+def _cat_num(category: str) -> int:
+    """Parse an adapter category string like 'CAT-2' -> 2 (0 if unknown)."""
+    m = re.search(r"(\d+)", category or "")
+    return int(m.group(1)) if m else 0
 
 
 @dataclass
@@ -67,8 +74,10 @@ class ReconPipeline:
         *,
         profile_name: str | None = None,
         authorize_active: bool = False,
+        categories: set[int] | None = None,
         progress=None,
     ) -> ScanResult:
+        self._categories = categories          # None = run all categories
         create_all()
         profile = settings.profile() if not profile_name else __import__(
             "recontool.config", fromlist=["PROFILES"]
@@ -160,8 +169,11 @@ class ReconPipeline:
         pr = PhaseResult(phase=phase)
         classes = adapters_for(phase)
         instances = []
+        cats = getattr(self, "_categories", None)
         for cls in classes:
             inst = cls()
+            if cats is not None and _cat_num(getattr(cls, "category", "")) not in cats:
+                continue  # --category filter: skip adapters outside the chosen set
             if inst.available(ctx):
                 instances.append(inst)
             else:

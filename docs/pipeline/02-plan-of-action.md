@@ -164,7 +164,7 @@ The whole platform is driven by a single entrypoint:
 ```
 recontool scan www.xyz.com                      # runs the default passive preset
 recontool scan www.xyz.com --category 2          # run ONLY category 2 pipeline
-recontool scan www.xyz.com --wave 1              # run a whole wave
+recontool scan www.xyz.com --category 1,2,3      # run several categories (--wave grouping: planned)
 recontool scan www.xyz.com --authorize-active    # unlock active waves
 ```
 
