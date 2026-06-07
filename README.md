@@ -183,6 +183,31 @@ are never merged into the extracted inventory.
 
 ---
 
+## Execution flow (root domain → every tool)
+
+Want to see exactly how all 532 tools execute from a single root domain, with each
+tool's **invocation method (binary/API/web), flags/params, expected output, where it
+feeds next, and where it's stored**? That's generated too:
+
+```bash
+python -m recontool.inventory.build_flow      # regenerates the flow from inventory + tools.yaml
+```
+
+| Artifact | What it is |
+|----------|-----------|
+| [`docs/flow/00-MASTER-FLOW.md`](docs/flow/00-MASTER-FLOW.md) | Master execution diagram (ASCII + Mermaid), stage pipeline, category→stage map, and a worked `xyz.com` cardinality example. |
+| [`docs/flow/by-category/NN.md`](docs/flow/by-category/) | Per-category execution table: **every tool** → method, command/endpoint with flags, consumes, produces, feeds-next, storage (DB table + artifact path). |
+| [`data/flow_plan.json`](data/flow_plan.json) | Machine-readable execution plan for all 532 tools. |
+
+Invocations are **authoritative** where a contract exists in `config/tools.yaml` (e.g.
+`subfinder -d xyz.com -all -silent -oJ`, `crt.sh/?q=%25.xyz.com&output=json`), and
+**templated** (marked `(t)`) for tools not yet wired — clearly distinguished so you know
+what's ready vs. what needs a flag confirmed. The flow enforces the core rule: passive
+discovery runs on the root, then **active scans run only on live hosts** (see
+[`docs/pipeline/06-recursive-flow.md`](docs/pipeline/06-recursive-flow.md)).
+
+---
+
 ## Setup: external tools & resources
 
 `docker/install_tools.sh` downloads and installs the recon CLIs (graceful — Recontool
