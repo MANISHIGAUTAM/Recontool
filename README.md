@@ -292,9 +292,15 @@ narrative, with a hard per-scan call budget (`RECON_AI_MAX_CALLS`).
 ## Optional external tools
 
 Recontool runs fully on its built-in Python adapters (crt.sh, HackerTarget, OTX,
-Wayback, DNS resolution, HTTP probing, JS analysis). If the Go/CLI binaries are on
-`PATH`, the matching adapters light up automatically (graceful detection): `subfinder`,
-`httpx`, `dnsx`, `naabu`, `nuclei`, `katana`, `tlsx`, `gau`, `gowitness`, and more.
+Wayback, certspotter, DNS resolution, HTTP probing, **a pure-Python web crawler**, JS
+analysis). If the Go/CLI binaries are on `PATH`, the matching adapters light up
+automatically (graceful detection): `subfinder`, `httpx`, `dnsx`, `naabu`, `nuclei`,
+`katana`, `tlsx`, `gau`, `gowitness`, and more.
+
+> **Web crawling works with zero setup** — the built-in `pycrawl` adapter (active
+> phase) BFS-crawls in-scope live hosts, downloads JS to local storage, and mines
+> endpoints/secrets, without needing `katana`. `katana` is used automatically if
+> installed for faster JS-aware crawling.
 
 Install them with `bash docker/install_tools.sh all`, or use the Docker image which
 bundles everything. Full list + invocation details in

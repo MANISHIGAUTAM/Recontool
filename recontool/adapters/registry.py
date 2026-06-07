@@ -50,6 +50,7 @@ def load_builtin() -> None:
     from recontool.adapters import passive  # noqa: F401
     from recontool.adapters import active    # noqa: F401
     from recontool.adapters import internet_search  # noqa: F401  (Category 1)
+    from recontool.adapters import crawler   # noqa: F401  (pure-python web crawler)
     from recontool.adapters.autoload import register_generic
 
     register_generic()

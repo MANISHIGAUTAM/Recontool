@@ -45,6 +45,14 @@ improvements made (and proposed). Honest status, not aspirational.
    invocations (was 50), and adding a spec upgrades both the runnable pipeline and
    the flow docs at once.
 
+7. **Pure-Python web crawler** (`recontool/adapters/crawler.py`, `pycrawl`).
+   A self-contained, scope-aware, rate-limited BFS crawler built on the platform's
+   own async HttpClient + stdlib `html.parser` — **no external binary** (works where
+   `katana`/`hakrawler` aren't installed). It extracts links (a/script/form/img/link),
+   downloads `.js` to local storage, mines endpoints + secrets from inline/crawled JS,
+   discovers new in-scope subdomains (feeding the recursive loop), and re-checks scope
+   before every fetch (verified live: crawled `example.com` with zero offsite egress).
+
 ---
 
 ## C. Advancements proposed (ranked, not yet built)
