@@ -101,11 +101,17 @@ install_all() {
   pip_install arjun arjun
   pip_install theHarvester theHarvester
   pip_install trufflehog3 trufflehog3
+  # ── Tools backing the full 28-lane coverage ──────────────────────────────
+  pip_install sherlock "sherlock-project"        # cat 8: social media recon
+  pip_install graphw00f graphw00f                # cat 23: GraphQL fingerprinting
+  pip_install apkleaks apkleaks                  # cat 26: mobile / APK recon
+  pip_install bbot bbot                          # cat 14: automation suite (one source)
   # apt packages
   apt_install nmap nmap
   apt_install masscan masscan
   apt_install whatweb whatweb
   apt_install whois whois
+  apt_install exiftool libimage-exiftool-perl    # cat 11: document metadata
 
   install_resources
 }

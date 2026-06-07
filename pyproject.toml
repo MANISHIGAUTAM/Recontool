@@ -27,6 +27,7 @@ dependencies = [
 postgres = ["psycopg[binary]>=3.1"]
 redis = ["redis>=5.0"]
 ai = ["openai>=1.30"]
+full = ["psycopg[binary]>=3.1", "redis>=5.0", "openai>=1.30"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4", "respx>=0.21"]
 
 [project.scripts]
@@ -43,3 +44,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint.per-file-ignores]
+# Compact multi-statement lines are intentional in these state-machine tests.
+"tests/atomic/test_circuit.py" = ["E702"]

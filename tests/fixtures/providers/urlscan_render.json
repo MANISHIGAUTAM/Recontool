@@ -1,0 +1,13 @@
+{
+  "data": {
+    "requests": [
+      {
+        "request": {
+          "request": {
+            "url": "https://www.recontool.local/app.js"
+          }
+        }
+      }
+    ]
+  }
+}

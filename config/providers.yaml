@@ -1,0 +1,386 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Recontool — Provider configuration (validated by recontool/providers.py).
+#
+# One dedicated block per external source family. Secrets are NEVER stored here:
+# only `auth_env` (the NAME of the environment variable that supplies the secret).
+# The config layer FAILS FAST when a provider is enabled but its required secret
+# is missing (live/test) or its mock_fixture is missing (demo).
+#
+# Validate with:   recontool config-validate --env live
+# Families: search_engine, passive_index, archive, code_search, threat_intel,
+#           cloud_storage, identity_social, browser_rendered, mobile_apk, visual,
+#           dns_cert, network_intel
+# ─────────────────────────────────────────────────────────────────────────────
+version: 1
+providers:
+
+  # ── DNS / Certificate Transparency (family: dns_cert) ──────────────────────
+  - name: crtsh
+    family: dns_cert
+    enabled: true
+    auth_method: none
+    base_url: "https://crt.sh"
+    endpoints: {search: "/?q=%25.{domain}&output=json"}
+    query_limit: 10000
+    timeout: 30.0
+    rate_limit: {unit: request, per_minute: 30, concurrency: 2, budget_per_run: 0}
+    retry: {max_attempts: 4, backoff: exp_jitter, retry_on: [429, 500, 502, 503, 504, timeout]}
+    pagination: {style: none}
+    cache: {enabled: true, ttl_seconds: 86400}
+    mock_fixture: "providers/crtsh.json"
+    on_error: skip
+
+  - name: certspotter
+    family: dns_cert
+    enabled: true
+    auth_method: bearer
+    auth_env: CERTSPOTTER_API_KEY      # works keyless at low limits; key raises them
+    key_optional: true
+    auth_header: Authorization
+    base_url: "https://api.certspotter.com"
+    endpoints: {issuances: "/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names"}
+    query_limit: 1000
+    timeout: 20.0
+    rate_limit: {unit: query, per_minute: 20, concurrency: 2, budget_per_run: 100}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    cache: {enabled: true, ttl_seconds: 43200}
+    mock_fixture: "providers/certspotter.json"
+    on_error: skip
+
+  # ── Passive internet indexes (family: passive_index) ───────────────────────
+  - name: shodan
+    family: passive_index
+    enabled: false
+    auth_method: query
+    auth_env: SHODAN_API_KEY
+    auth_query_param: key
+    base_url: "https://api.shodan.io"
+    endpoints: {host_search: "/shodan/host/search?key={key}&query=hostname:{domain}"}
+    query_limit: 100
+    timeout: 20.0
+    rate_limit: {unit: credit, per_minute: 10, concurrency: 2, budget_per_run: 200}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    pagination: {style: page, page_param: page, page_size: 100, max_pages: 5}
+    cache: {enabled: true, ttl_seconds: 21600}
+    mock_fixture: "providers/shodan.json"
+    on_error: skip
+
+  - name: internetdb
+    family: passive_index
+    enabled: true
+    auth_method: none
+    base_url: "https://internetdb.shodan.io"
+    endpoints: {host: "/{ip}"}
+    query_limit: 64
+    timeout: 15.0
+    rate_limit: {unit: request, per_minute: 60, concurrency: 4, budget_per_run: 0}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    cache: {enabled: true, ttl_seconds: 21600}
+    mock_fixture: "providers/internetdb.json"
+    on_error: skip
+
+  - name: censys
+    family: passive_index
+    enabled: false
+    auth_method: basic
+    auth_env: CENSYS_API_SECRET        # paired with CENSYS_API_ID (see env map)
+    base_url: "https://search.censys.io"
+    endpoints: {hosts_search: "/api/v2/hosts/search?q={domain}&per_page=100"}
+    query_limit: 100
+    timeout: 25.0
+    rate_limit: {unit: credit, per_minute: 10, concurrency: 2, budget_per_run: 200}
+    retry: {max_attempts: 3, backoff: exp_jitter_long}
+    pagination: {style: cursor, cursor_path: "result.links.next", max_pages: 5}
+    cache: {enabled: true, ttl_seconds: 21600}
+    mock_fixture: "providers/censys.json"
+    on_error: skip
+
+  - name: hackertarget
+    family: passive_index
+    enabled: true
+    auth_method: none
+    base_url: "https://api.hackertarget.com"
+    endpoints: {hostsearch: "/hostsearch/?q={domain}"}
+    query_limit: 500
+    timeout: 20.0
+    rate_limit: {unit: request, per_minute: 10, concurrency: 1, budget_per_run: 50}
+    retry: {max_attempts: 2, backoff: exp}
+    cache: {enabled: true, ttl_seconds: 43200}
+    mock_fixture: "providers/hackertarget.txt"
+    on_error: skip
+
+  # ── Archives (family: archive) ─────────────────────────────────────────────
+  - name: wayback
+    family: archive
+    enabled: true
+    auth_method: none
+    base_url: "https://web.archive.org"
+    endpoints: {cdx: "/cdx/search/cdx?url=*.{domain}/*&output=json&fl=original&collapse=urlkey&limit=3000"}
+    query_limit: 3000
+    timeout: 40.0
+    rate_limit: {unit: request, per_minute: 15, concurrency: 2, budget_per_run: 0}
+    retry: {max_attempts: 4, backoff: exp_jitter}
+    cache: {enabled: true, ttl_seconds: 86400}
+    mock_fixture: "providers/wayback.json"
+    on_error: skip
+
+  # ── Search engines / metasearch (family: search_engine) ────────────────────
+  - name: urlscan
+    family: search_engine
+    enabled: true
+    auth_method: header
+    auth_env: URLSCAN_API_KEY          # optional; keyless at low limits
+    key_optional: true
+    auth_header: API-Key
+    base_url: "https://urlscan.io"
+    endpoints: {search: "/api/v1/search/?q=domain:{domain}&size=100"}
+    query_limit: 100
+    timeout: 20.0
+    rate_limit: {unit: query, per_minute: 20, concurrency: 2, budget_per_run: 100}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    pagination: {style: cursor, cursor_path: "results.-1.sort", max_pages: 3}
+    cache: {enabled: true, ttl_seconds: 21600}
+    mock_fixture: "providers/urlscan.json"
+    on_error: skip
+
+  - name: brave_search
+    family: search_engine
+    enabled: false
+    auth_method: header
+    auth_env: BRAVE_SEARCH_API_KEY
+    auth_header: X-Subscription-Token
+    base_url: "https://api.search.brave.com"
+    endpoints: {web: "/res/v1/web/search?q={query}"}
+    query_limit: 20
+    timeout: 15.0
+    rate_limit: {unit: query, per_minute: 20, concurrency: 1, budget_per_run: 100}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    pagination: {style: offset, page_param: offset, size_param: count, page_size: 20, max_pages: 5}
+    cache: {enabled: true, ttl_seconds: 3600}
+    mock_fixture: "providers/brave_search.json"
+    on_error: skip
+
+  # ── Code search (family: code_search) ──────────────────────────────────────
+  - name: github_code
+    family: code_search
+    enabled: false
+    auth_method: bearer
+    auth_env: GITHUB_TOKEN
+    auth_header: Authorization
+    base_url: "https://api.github.com"
+    endpoints: {code_search: "/search/code?q={query}", repo_search: "/search/repositories?q={query}"}
+    query_limit: 100
+    timeout: 25.0
+    rate_limit: {unit: search, per_minute: 10, concurrency: 1, budget_per_run: 60}
+    retry: {max_attempts: 5, backoff: exp_jitter_long, retry_on: [403, 429, 500, 502, 503, 504, timeout]}
+    pagination: {style: page, page_param: page, size_param: per_page, page_size: 100, max_pages: 10}
+    cache: {enabled: true, ttl_seconds: 3600}
+    mock_fixture: "providers/github_code.json"
+    on_error: skip
+
+  - name: gitlab_search
+    family: code_search
+    enabled: false
+    auth_method: header
+    auth_env: GITLAB_TOKEN
+    auth_header: PRIVATE-TOKEN
+    base_url: "https://gitlab.com"
+    endpoints: {projects: "/api/v4/search?scope=projects&search={query}"}
+    query_limit: 100
+    timeout: 25.0
+    rate_limit: {unit: search, per_minute: 10, concurrency: 1, budget_per_run: 60}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    pagination: {style: page, page_param: page, size_param: per_page, page_size: 100, max_pages: 5}
+    cache: {enabled: true, ttl_seconds: 3600}
+    mock_fixture: "providers/gitlab_search.json"
+    on_error: skip
+
+  # ── Threat intel (family: threat_intel) ────────────────────────────────────
+  - name: alienvault_otx
+    family: threat_intel
+    enabled: true
+    auth_method: none
+    base_url: "https://otx.alienvault.com"
+    endpoints: {passive_dns: "/api/v1/indicators/domain/{domain}/passive_dns"}
+    query_limit: 1000
+    timeout: 20.0
+    rate_limit: {unit: query, per_minute: 20, concurrency: 2, budget_per_run: 100}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    cache: {enabled: true, ttl_seconds: 43200}
+    mock_fixture: "providers/otx.json"
+    on_error: skip
+
+  - name: greynoise
+    family: threat_intel
+    enabled: true
+    auth_method: header
+    auth_env: GREYNOISE_API_KEY        # community endpoint works keyless
+    key_optional: true
+    auth_header: key
+    base_url: "https://api.greynoise.io"
+    endpoints: {community: "/v3/community/{ip}"}
+    query_limit: 64
+    timeout: 15.0
+    rate_limit: {unit: query, per_minute: 30, concurrency: 2, budget_per_run: 100}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    cache: {enabled: true, ttl_seconds: 21600}
+    mock_fixture: "providers/greynoise.json"
+    on_error: skip
+
+  - name: threatfox
+    family: threat_intel
+    enabled: false
+    auth_method: none
+    base_url: "https://threatfox-api.abuse.ch"
+    endpoints: {search: "/api/v1/"}
+    query_limit: 100
+    timeout: 20.0
+    rate_limit: {unit: query, per_minute: 20, concurrency: 2, budget_per_run: 100}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    cache: {enabled: true, ttl_seconds: 21600}
+    mock_fixture: "providers/threatfox.json"
+    on_error: skip
+
+  - name: nvd
+    family: threat_intel
+    enabled: false
+    auth_method: header
+    auth_env: NVD_API_KEY              # optional; raises rate limit
+    auth_header: apiKey
+    base_url: "https://services.nvd.nist.gov"
+    endpoints: {cve: "/rest/json/2.0/cves/2.0?cpeName={cpe}"}
+    query_limit: 100
+    timeout: 30.0
+    rate_limit: {unit: query, per_minute: 30, concurrency: 1, budget_per_run: 100}
+    retry: {max_attempts: 4, backoff: exp_jitter_long}
+    pagination: {style: offset, page_param: startIndex, size_param: resultsPerPage, page_size: 100, max_pages: 5}
+    cache: {enabled: true, ttl_seconds: 86400}
+    mock_fixture: "providers/nvd.json"
+    on_error: skip
+
+  # ── Cloud / storage (family: cloud_storage) ────────────────────────────────
+  - name: grayhatwarfare
+    family: cloud_storage
+    enabled: false
+    auth_method: header
+    auth_env: GRAYHATWARFARE_API_KEY
+    auth_header: Authorization
+    base_url: "https://buckets.grayhatwarfare.com"
+    endpoints: {buckets: "/api/v2/buckets?keywords={keyword}"}
+    query_limit: 100
+    timeout: 20.0
+    rate_limit: {unit: query, per_minute: 10, concurrency: 1, budget_per_run: 60}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    pagination: {style: offset, page_param: start, page_size: 100, max_pages: 5}
+    cache: {enabled: true, ttl_seconds: 21600}
+    mock_fixture: "providers/grayhatwarfare.json"
+    on_error: skip
+
+  # ── Identity / social (family: identity_social) — PII-gated, off by default ─
+  - name: hunter
+    family: identity_social
+    enabled: false
+    auth_method: query
+    auth_env: HUNTER_API_KEY
+    auth_query_param: api_key
+    base_url: "https://api.hunter.io"
+    endpoints: {domain_search: "/v2/domain-search?domain={domain}&api_key={key}"}
+    query_limit: 100
+    timeout: 20.0
+    rate_limit: {unit: query, per_minute: 15, concurrency: 1, budget_per_run: 50}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    cache: {enabled: true, ttl_seconds: 86400}
+    mock_fixture: "providers/hunter.json"
+    on_error: skip
+
+  - name: sherlock
+    family: identity_social
+    enabled: false
+    auth_method: none
+    base_url: "https://api.recontool.local"   # local wrapper around the sherlock CLI
+    endpoints: {lookup: "/sherlock/{username}"}
+    query_limit: 1
+    timeout: 60.0
+    rate_limit: {unit: request, per_minute: 10, concurrency: 1, budget_per_run: 0}
+    retry: {max_attempts: 1, backoff: none}
+    cache: {enabled: true, ttl_seconds: 86400}
+    mock_fixture: "providers/sherlock.json"
+    on_error: skip
+
+  # ── Browser-rendered sources (family: browser_rendered) ────────────────────
+  - name: urlscan_render
+    family: browser_rendered
+    enabled: false
+    auth_method: header
+    auth_env: URLSCAN_API_KEY
+    auth_header: API-Key
+    base_url: "https://urlscan.io"
+    endpoints: {result: "/api/v1/result/{scan_uuid}/"}
+    query_limit: 100
+    timeout: 30.0
+    rate_limit: {unit: query, per_minute: 20, concurrency: 1, budget_per_run: 60}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    cache: {enabled: true, ttl_seconds: 21600}
+    mock_fixture: "providers/urlscan_render.json"
+    on_error: skip
+
+  # ── Mobile / APK sources (family: mobile_apk) ──────────────────────────────
+  - name: apkpure
+    family: mobile_apk
+    enabled: false
+    auth_method: none
+    base_url: "https://apkpure.local"          # local wrapper / mirror
+    endpoints: {meta: "/api/v1/package/{package_id}"}
+    query_limit: 10
+    timeout: 60.0
+    rate_limit: {unit: request, per_minute: 5, concurrency: 1, budget_per_run: 0}
+    retry: {max_attempts: 2, backoff: exp}
+    cache: {enabled: true, ttl_seconds: 86400}
+    mock_fixture: "providers/apkpure.json"
+    on_error: skip
+
+  # ── Visual / screenshot sources (family: visual) ───────────────────────────
+  - name: urlscan_screens
+    family: visual
+    enabled: false
+    auth_method: header
+    auth_env: URLSCAN_API_KEY
+    auth_header: API-Key
+    base_url: "https://urlscan.io"
+    endpoints: {screenshot: "/screenshots/{scan_uuid}.png"}
+    query_limit: 100
+    timeout: 30.0
+    rate_limit: {unit: query, per_minute: 20, concurrency: 1, budget_per_run: 60}
+    retry: {max_attempts: 2, backoff: exp_jitter}
+    cache: {enabled: true, ttl_seconds: 21600}
+    mock_fixture: "providers/urlscan_screens.json"
+    on_error: skip
+
+  # ── Network intel (family: network_intel) ──────────────────────────────────
+  - name: bgpview
+    family: network_intel
+    enabled: true
+    auth_method: none
+    base_url: "https://api.bgpview.io"
+    endpoints: {asn_prefixes: "/asn/{asn}/prefixes"}
+    query_limit: 100
+    timeout: 20.0
+    rate_limit: {unit: request, per_minute: 30, concurrency: 2, budget_per_run: 0}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    cache: {enabled: true, ttl_seconds: 86400}
+    mock_fixture: "providers/bgpview.json"
+    on_error: skip
+
+  - name: ripestat
+    family: network_intel
+    enabled: true
+    auth_method: none
+    base_url: "https://stat.ripe.net"
+    endpoints: {announced_prefixes: "/data/announced-prefixes/data.json?resource=AS{asn}"}
+    query_limit: 100
+    timeout: 20.0
+    rate_limit: {unit: request, per_minute: 30, concurrency: 2, budget_per_run: 0}
+    retry: {max_attempts: 3, backoff: exp_jitter}
+    cache: {enabled: true, ttl_seconds: 86400}
+    mock_fixture: "providers/ripestat.json"
+    on_error: skip

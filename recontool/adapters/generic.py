@@ -210,6 +210,9 @@ class GenericApiAdapter(Adapter):
     spec: dict = {}
 
     def available(self, ctx: AdapterContext) -> bool:
+        # spec-level kill switch: registered for lane completeness but off by default
+        if self.spec.get("enabled") is False:
+            return False
         key_env = self.spec.get("requires_key")
         # key_optional tools run keyless (lower limits) but use a key if present
         if key_env and not self.spec.get("key_optional"):
@@ -254,6 +257,8 @@ class GenericCliAdapter(Adapter):
     spec: dict = {}
 
     def available(self, ctx: AdapterContext) -> bool:
+        if self.spec.get("enabled") is False:
+            return False
         binary = self.spec.get("binary")
         return bool(binary) and shutil.which(binary) is not None
 

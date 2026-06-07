@@ -1,0 +1,5 @@
+www.recontool.local,192.0.2.10
+api.recontool.local,192.0.2.11
+dev.recontool.local,192.0.2.12
+staging.recontool.local,192.0.2.13
+admin.recontool.local,192.0.2.14

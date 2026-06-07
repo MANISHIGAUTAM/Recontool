@@ -89,7 +89,9 @@ def test_chain_outputs_feed_some_consumer():
     consumed = set()
     for cls in all_adapters().values():
         consumed.update(cls.consumes)
-    terminal = {"finding", "tag", "screenshot", "service", "cert", "bucket", "email", "cidr", "asn"}
+    terminal = {"finding", "tag", "screenshot", "service", "cert", "bucket", "email",
+                "cidr", "asn", "wordlist", "regex_pack", "repo", "onion", "document",
+                "ioc", "param", "frame", "websocket", "source_map", "username", "endpoint"}
     for name, cls in all_adapters().items():
         for out in cls.produces:
             assert out in consumed or out in terminal, \

@@ -54,12 +54,26 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
 # Full pipeline against the built-in MOCK environment — never touches the network:
-python -m recontool.cli scan recontool.local --mode demo --profile normal --authorize-active --no-ai
+python -m recontool.cli demo recontool.local
 ```
 
 This runs all six phases against `recontool/testing/mock_env.py`, discovering a
 fictional attack surface (subdomains, IPs, live hosts, endpoints, and planted —
 redacted — secrets). It's the safest way to see the whole system work.
+
+### Minimal boot with Docker (one command)
+
+```bash
+cp .env.example .env          # fill in any API keys you have — ALL optional
+docker compose up --build     # builds the image, runs a zero-network demo
+```
+
+Then run real (authorized) scans:
+
+```bash
+docker compose run --rm recontool scan acme.com --mode live                  # passive
+docker compose run --rm recontool scan acme.com --mode live --authorize-active
+```
 
 ### Real (authorized) targets — local
 
@@ -99,13 +113,16 @@ env or raises `LiveEgressBlocked` — a hard guarantee no real target is touched
 
 ```bash
 recontool preflight <seed> --mode <mode>     # health checks (exit 2 on error)
+recontool config-validate --env <env>        # validate provider configs (fail-fast)
 recontool scan <seed> [-p profile] [-m mode] [--authorize-active]
                        [-c 1,2,3] [--resume <id>] [--skip-preflight] [-o out.json]
+recontool demo [seed]                        # full pipeline vs mock (zero network)
 recontool scans                              # list past scans
 recontool report <scan_id>                   # summary + findings
 recontool export <scan_id> -o out.json       # full JSON export
 recontool diff <seed>                        # diff the two latest scans (monitoring)
 recontool replay <scan_id>                   # inspect dead-lettered (failed) work units
+recontool replay-fixtures                    # validate recorded provider fixtures
 recontool tools                              # all adapters + current availability
 ```
 
@@ -122,9 +139,17 @@ All API keys are **optional** — passive recon runs with zero keys.
 | File | Purpose |
 |------|---------|
 | `config/recontool.yaml` | Main config — mode, profile, **scope allowlist**, API keys, AI, recovery, categories. Copy from `recontool.example.yaml`. **Gitignored.** |
+| `config/providers.yaml` | **Provider registry** — one validated block per external source family (auth/base_url/endpoints/quota/retry/pagination/cache/mock fixture). Secrets via env vars only. |
 | `config/tools.yaml` | Machine-readable **tool registry** — invocation/IO/install per tool. |
 | `config/tools_generic.yaml` | **Declarative adapter specs** — wire tools with no Python. |
 | `config/categories.yaml` | The **28-category registry** (contracts, dedupe keys, chain_to, quotas). |
+
+Validate provider config (fails fast on a misconfigured enabled provider):
+
+```bash
+recontool config-validate --env live    # checks secrets + base_url for enabled providers
+recontool config-validate --env demo     # checks mock fixtures (no secrets needed)
+```
 
 ```yaml
 # config/recontool.yaml (excerpt)
@@ -143,7 +168,9 @@ api_keys: { shodan: "...", securitytrails: "...", github_token: "..." }
 | Capability | Module |
 |------------|--------|
 | **Run mode + test-mode egress enforcement** | `core/mode.py`, `net/http_client.py` |
-| **Mock / demo environment** | `testing/mock_env.py` |
+| **Provider config** (validated, env-mapped, fail-fast) | `providers.py`, `config/providers.yaml` |
+| **Structured logs + trace IDs** | `obs.py` |
+| **Mock / demo environment** | `testing/mock_env.py`, `testing/fixtures.py` |
 | **Preflight health checks** | `preflight.py` |
 | **Source planner / 28-category registry** | `categories.py`, `config/categories.yaml` |
 | **Tool chaining + parallel phases** | `orchestrator/pipeline.py` |
@@ -168,12 +195,14 @@ and [`docs/00-architecture-overview.md`](docs/00-architecture-overview.md).
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest tests/ -q          # 85 tests, all network-free
+python -m pytest tests/ -q          # 127 tests, all network-free
 
-python -m pytest tests/atomic -q        # unit: parsers, scope, dedupe, circuit, mode
-python -m pytest tests/integration -q   # chains, preflight, frontier, diff
+python -m pytest tests/atomic -q        # unit: parsers, scope, dedupe, circuit, mode,
+                                        #       providers, learning, fixtures, obs
+python -m pytest tests/integration -q   # chains, preflight, frontier, diff, lanes, CLI,
+                                        #       provider fixtures, error handling
 python -m pytest tests/e2e -q           # full pipeline vs mock + fixture regression
-ruff check recontool
+ruff check recontool tests
 ```
 
 - **Atomic/unit** — every adapter parser, canonicalizer, planner rule, scope,
@@ -267,5 +296,7 @@ Canonical entities (assets, services, endpoints, findings, edges), plus
 - **Testing:** [`docs/D11-testing-strategy.md`](docs/D11-testing-strategy.md)
 - **Demo E2E:** [`docs/D12-demo-e2e-plan.md`](docs/D12-demo-e2e-plan.md)
 - **Operator runbook:** [`docs/D13-operator-runbook.md`](docs/D13-operator-runbook.md)
+- **Provider config:** [`docs/D16-provider-config.md`](docs/D16-provider-config.md)
+- **Setup & Docker:** [`docs/D17-setup-and-docker.md`](docs/D17-setup-and-docker.md)
 - Pipelines & categories: [`docs/pipeline/`](docs/pipeline/), [`docs/categories/`](docs/categories/)
 - Roadmap & risks: [`docs/D7-roadmap.md`](docs/D7-roadmap.md), [`docs/D10-risk-register.md`](docs/D10-risk-register.md)

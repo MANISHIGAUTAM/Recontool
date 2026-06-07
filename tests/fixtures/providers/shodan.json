@@ -1,0 +1,15 @@
+{
+  "matches": [
+    {
+      "ip_str": "192.0.2.10",
+      "port": 443,
+      "product": "nginx",
+      "hostnames": [
+        "www.recontool.local"
+      ],
+      "vulns": [
+        "CVE-2021-44228"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "results": [
+    {
+      "page": {
+        "url": "https://www.recontool.local/",
+        "domain": "www.recontool.local",
+        "ip": "192.0.2.10"
+      }
+    },
+    {
+      "page": {
+        "url": "https://api.recontool.local/",
+        "domain": "api.recontool.local",
+        "ip": "192.0.2.10"
+      }
+    },
+    {
+      "page": {
+        "url": "https://dev.recontool.local/",
+        "domain": "dev.recontool.local",
+        "ip": "192.0.2.10"
+      }
+    },
+    {
+      "page": {
+        "url": "https://staging.recontool.local/",
+        "domain": "staging.recontool.local",
+        "ip": "192.0.2.10"
+      }
+    },
+    {
+      "page": {
+        "url": "https://admin.recontool.local/",
+        "domain": "admin.recontool.local",
+        "ip": "192.0.2.10"
+      }
+    }
+  ]
+}

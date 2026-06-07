@@ -26,7 +26,6 @@ Pure standard library. Run:  python -m recontool.inventory.build_inventory
 """
 from __future__ import annotations
 
-import json
 import re
 from collections import defaultdict
 from datetime import datetime, timezone

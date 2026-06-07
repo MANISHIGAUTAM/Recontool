@@ -1,0 +1,20 @@
+{
+  "result": {
+    "hits": [
+      {
+        "ip": "192.0.2.11",
+        "services": [
+          {
+            "port": 443,
+            "service_name": "HTTP"
+          }
+        ],
+        "dns": {
+          "names": [
+            "api.recontool.local"
+          ]
+        }
+      }
+    ]
+  }
+}

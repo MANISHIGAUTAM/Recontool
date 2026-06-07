@@ -3,8 +3,8 @@
 How the full inventory executes end-to-end from a single root domain. Each spreadsheet category maps to a pipeline stage; every tool's invocation, output, chaining, and storage is in the per-category files ([`by-category/`](by-category/)) and in [`../../data/flow_plan.json`](../../data/flow_plan.json).
 
 - **Tools planned:** 532
-- **Authoritative invocations (config/tools.yaml):** 53
-- **Templated invocations (to be wired):** 479
+- **Authoritative invocations (config/tools.yaml):** 55
+- **Templated invocations (to be wired):** 477
 
 ## Stage pipeline (data handoffs)
 

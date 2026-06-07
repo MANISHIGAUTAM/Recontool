@@ -41,5 +41,15 @@ COPY . .
 # Default config: if user hasn't provided one, fall back to the example.
 RUN test -f config/recontool.yaml || cp config/recontool.example.yaml config/recontool.yaml || true
 
+# Self-test the image at build time: provider config + demo pipeline must work
+# entirely offline (no network, no keys). Fails the build if the stack is broken.
+RUN RECON_MODE=demo recontool config-validate --env demo \
+    && RECON_MODE=demo RECON_ARTIFACT_DIR=/tmp/build-demo recontool demo recontool.local \
+    && rm -rf /tmp/build-demo
+
+# Container healthcheck: provider config stays valid.
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD recontool config-validate --env demo || exit 1
+
 ENTRYPOINT ["recontool"]
 CMD ["--help"]

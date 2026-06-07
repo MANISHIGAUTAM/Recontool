@@ -1,0 +1,66 @@
+name: CI
+
+# Authorized-only recon platform. All gates are network-free (demo/test mode
+# blocks real egress), so CI needs no secrets and no outbound connectivity.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  RECON_MODE: test
+  RECON_LOG_LEVEL: WARNING
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install (pinned)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check recontool tests
+
+      - name: Provider config validation (demo + test)
+        run: |
+          recontool config-validate --env demo
+          recontool config-validate --env test
+
+      - name: Fixture replay (recorded provider fixtures)
+        run: recontool replay-fixtures
+
+      - name: Unit tests
+        run: python -m pytest tests/atomic -q
+
+      - name: Integration tests
+        run: python -m pytest tests/integration -q
+
+      - name: E2E tests (demo, zero network)
+        run: python -m pytest tests/e2e -q
+
+      - name: Preflight smoke
+        run: recontool preflight recontool.local --mode demo
+
+      - name: Demo pipeline smoke (full pipeline, no network)
+        run: recontool demo recontool.local
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker compose + build + zero-network demo
+        run: bash scripts/compose-smoke.sh

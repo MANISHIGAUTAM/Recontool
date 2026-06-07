@@ -233,8 +233,8 @@ def build():
     print(f"  tools planned        : {len(plan_tools)}")
     print(f"  real invocations     : {real}  (from config/tools.yaml)")
     print(f"  templated invocations: {len(plan_tools) - real}")
-    print(f"  outputs              : data/flow_plan.json, docs/flow/00-MASTER-FLOW.md,")
-    print(f"                         docs/flow/by-category/*.md")
+    print("  outputs              : data/flow_plan.json, docs/flow/00-MASTER-FLOW.md,")
+    print("                         docs/flow/by-category/*.md")
 
 
 def _render_category(n: int, entries: list) -> str:

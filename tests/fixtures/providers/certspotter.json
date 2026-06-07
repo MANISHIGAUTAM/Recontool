@@ -1,0 +1,11 @@
+[
+  {
+    "dns_names": [
+      "www.recontool.local",
+      "api.recontool.local",
+      "dev.recontool.local",
+      "staging.recontool.local",
+      "admin.recontool.local"
+    ]
+  }
+]

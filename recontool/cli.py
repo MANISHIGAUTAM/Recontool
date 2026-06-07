@@ -113,6 +113,81 @@ def preflight(
     raise typer.Exit(0 if pf.ok else 2)
 
 
+@app.command(name="config-validate")
+def config_validate(
+    env: str = typer.Option("live", "--env", "-e", help="demo | test | live"),
+):
+    """Validate provider configs (config/providers.yaml) for the given environment.
+
+    Fails (exit 2) if an enabled provider is missing its required secret (live/test)
+    or its mock fixture (demo), or if any block is structurally invalid."""
+    from recontool.providers import load_providers, validate_providers
+    errors = validate_providers(env)
+    reg = load_providers()
+    table = Table(title=f"Providers ({env})", header_style="bold")
+    for c in ("provider", "family", "enabled", "auth", "secret", "fixture"):
+        table.add_column(c, overflow="fold")
+    for p in reg.providers:
+        pe = p.for_env(env)
+        secret = "n/a" if pe.auth_method == "none" else (
+            "[green]set[/green]" if pe.has_secret() else
+            ("[yellow]optional[/yellow]" if pe.key_optional else "[red]missing[/red]"))
+        table.add_row(p.name, p.family, "yes" if pe.enabled else "no",
+                      pe.auth_method, secret, pe.mock_fixture or "-")
+    console.print(table)
+    if errors:
+        console.print("[red]Provider config INVALID:[/red]")
+        for e in errors:
+            console.print(f"  [red]- {e}[/red]")
+        raise typer.Exit(2)
+    console.print(f"[green]Provider config valid for env={env}[/green] "
+                  f"({len(reg.enabled())} enabled, {len(reg.providers)} total)")
+
+
+@app.command()
+def demo(
+    seed: str = typer.Argument("recontool.local", help="demo apex (default: recontool.local)"),
+    profile: str = typer.Option("normal", "--profile", "-p"),
+):
+    """Run the full pipeline against the built-in MOCK environment (zero network)."""
+    from recontool.core.mode import RunMode
+    pipeline = ReconPipeline(mode=RunMode.DEMO)
+    console.print(Panel.fit(
+        f"[bold]DEMO[/bold] (mock env, no network)  seed=[cyan]{seed}[/cyan]  "
+        f"profile=[yellow]{profile}[/yellow]", title="demo", border_style="magenta"))
+    result = asyncio.run(pipeline.run(seed, profile_name=profile, authorize_active=True))
+    _render_result(result, None)
+    console.print(f"\nScan id: [bold cyan]{result.scan_id}[/bold cyan]")
+
+
+@app.command(name="replay-fixtures")
+def replay_fixtures(
+    provider: str = typer.Option(None, "--provider", help="validate one provider's fixture"),
+):
+    """Load + validate provider mock fixtures (the recorded-fixture replay command)."""
+    from recontool.providers import load_providers
+    from recontool.testing.fixtures import list_fixtures, load_fixture
+    reg = load_providers()
+    table = Table(title="Provider fixtures", header_style="bold")
+    for c in ("provider", "fixture", "status"):
+        table.add_column(c, overflow="fold")
+    targets = [p for p in reg.providers if (not provider or p.name == provider)]
+    bad = 0
+    for p in targets:
+        if not p.mock_fixture:
+            table.add_row(p.name, "-", "[yellow]none[/yellow]")
+            continue
+        try:
+            load_fixture(p.mock_fixture)
+            table.add_row(p.name, p.mock_fixture, "[green]ok[/green]")
+        except Exception as exc:  # noqa: BLE001
+            bad += 1
+            table.add_row(p.name, p.mock_fixture, f"[red]{exc}[/red]")
+    console.print(table)
+    console.print(f"available fixtures on disk: {len(list_fixtures())}")
+    raise typer.Exit(2 if bad else 0)
+
+
 @app.command()
 def diff(
     seed: str = typer.Argument(..., help="seed whose two latest scans to diff"),

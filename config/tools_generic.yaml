@@ -216,3 +216,289 @@ tools:
       format: text
       emit:
         - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # FULL 28-LANE COVERAGE — declarative adapters for previously-empty categories.
+  # Each maps a provider response (mockable in demo/test) into canonical Events.
+  # Endpoints are sourced from config/providers.yaml; secrets from env vars.
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Cat 4: Search Engine Dorking & Index Recon ─────────────────────────────
+  - name: urlscan_search
+    phase: p1_seed
+    category: 4
+    integration: api
+    is_active: false
+    consumes: [domain]
+    produces: [url, subdomain, ip]
+    endpoint: "https://urlscan.io/api/v1/search/?q=domain:{domain}&size=100"
+    bucket: urlscan
+    provider: urlscan
+    parse:
+      format: json
+      list_path: results
+      emit:
+        - {entity: endpoint, url: "{page.url}"}
+        - {entity: asset, value: "{page.domain}", type: subdomain, scope_filter: subdomain}
+
+  # ── Cat 7: Email / Username / Identity Recon (PII-gated, off by default) ────
+  - name: hunter_emails
+    phase: p1_seed
+    category: 7
+    integration: api
+    is_active: false
+    enabled: false
+    consumes: [domain]
+    produces: [email, finding]
+    requires_key: HUNTER_API_KEY
+    endpoint: "https://api.hunter.io/v2/domain-search?domain={domain}&api_key={key}"
+    bucket: hunter
+    provider: hunter
+    parse:
+      format: json
+      list_path: "data.emails"
+      emit:
+        - {entity: asset, value: "{value}", type: email}
+
+  # ── Cat 8: Social Media Recon ──────────────────────────────────────────────
+  - name: sherlock_social
+    phase: p1_seed
+    category: 8
+    integration: cli
+    is_active: false
+    enabled: false
+    consumes: [username]
+    produces: [url, finding]
+    binary: sherlock
+    invocation: "sherlock {value} --print-found --no-color"
+    provider: sherlock
+    parse:
+      format: text
+      line_regex: "^\\[\\+\\]\\s+(?P<site>[^:]+):\\s+(?P<url>https?://\\S+)$"
+      emit:
+        - {entity: endpoint, url: "{url}"}
+
+  # ── Cat 9: GitHub / GitLab / Source-Code Recon ─────────────────────────────
+  - name: github_code
+    phase: p1_seed
+    category: 9
+    integration: api
+    is_active: false
+    enabled: false
+    consumes: [domain, org]
+    produces: [repo, endpoint, finding]
+    requires_key: GITHUB_TOKEN
+    endpoint: "https://api.github.com/search/code?q={value}"
+    headers: {Authorization: "Bearer {key}", Accept: "application/vnd.github+json"}
+    bucket: github
+    provider: github_code
+    parse:
+      format: json
+      list_path: items
+      emit:
+        - {entity: edge, src: "{repository.full_name}", dst: "{html_url}", rel: contains_file}
+
+  # ── Cat 10: Cloud & Storage Recon ──────────────────────────────────────────
+  - name: grayhatwarfare
+    phase: p1_seed
+    category: 10
+    integration: api
+    is_active: false
+    enabled: false
+    consumes: [domain, org]
+    produces: [bucket, finding]
+    requires_key: GRAYHATWARFARE_API_KEY
+    endpoint: "https://buckets.grayhatwarfare.com/api/v2/buckets?keywords={value}"
+    headers: {Authorization: "Bearer {key}"}
+    bucket: grayhatwarfare
+    provider: grayhatwarfare
+    parse:
+      format: json
+      list_path: buckets
+      emit:
+        - {entity: asset, value: "{bucket}", type: bucket}
+        - {entity: finding, kind: cloud, title: "Public bucket {bucket}", severity: medium,
+           detector: grayhatwarfare, asset_value: "{bucket}"}
+
+  # ── Cat 11: Metadata / Document Recon ──────────────────────────────────────
+  - name: doc_metadata
+    phase: p3_enrichment
+    category: 11
+    integration: cli
+    is_active: false
+    enabled: false
+    consumes: [url]
+    produces: [document, finding, email]
+    binary: exiftool
+    invocation: "exiftool -json {value}"
+    parse:
+      format: json
+      emit:
+        - {entity: finding, kind: metadata, title: "Document author {Author}",
+           severity: info, detector: exiftool, asset_value: "{Author}"}
+
+  # ── Cat 12: Malware / IOC / Threat Intel ───────────────────────────────────
+  - name: threatfox
+    phase: p3_enrichment
+    category: 12
+    integration: api
+    is_active: false
+    enabled: false
+    consumes: [domain, ip]
+    produces: [ioc, finding, tag]
+    endpoint: "https://threatfox-api.abuse.ch/api/v1/"
+    bucket: threatfox
+    provider: threatfox
+    parse:
+      format: json
+      list_path: data
+      emit:
+        - {entity: finding, kind: ioc, title: "IOC {ioc} ({threat_type})", severity: high,
+           detector: threatfox, asset_value: "{ioc}"}
+
+  # ── Cat 13: Visual Recon & Screenshotting ──────────────────────────────────
+  - name: gowitness
+    phase: p5_deep
+    category: 13
+    integration: cli
+    is_active: true
+    consumes: [url, subdomain]
+    produces: [screenshot, tag]
+    binary: gowitness
+    invocation: "gowitness single --url {value} --screenshot-path artifacts/screenshots"
+    parse:
+      format: text
+      emit: []   # gowitness writes PNGs to disk; artifact linkage handled by the runner
+
+  # ── Cat 15: Physical / Geo / Wireless Recon (scope-gated) ──────────────────
+  - name: wigle_geo
+    phase: p3_enrichment
+    category: 15
+    integration: api
+    is_active: false
+    enabled: false
+    consumes: [org]
+    produces: [finding, tag]
+    requires_key: WIGLE_API_KEY
+    endpoint: "https://api.wigle.net/api/v2/network/search?ssid={value}"
+    headers: {Authorization: "Basic {key}"}
+    bucket: wigle
+    parse:
+      format: json
+      list_path: results
+      emit:
+        - {entity: finding, kind: geo, title: "Wireless network {ssid}", severity: info,
+           detector: wigle, asset_value: "{ssid}"}
+
+  # ── Cat 16: Dark Web / Onion Recon (read-only intel) ───────────────────────
+  - name: ahmia_onion
+    phase: p1_seed
+    category: 16
+    integration: api
+    is_active: false
+    enabled: false
+    consumes: [domain, org, keyword]
+    produces: [onion, finding, url]
+    endpoint: "https://ahmia.fi/search/?q={value}"
+    bucket: ahmia
+    parse:
+      format: json
+      list_path: results
+      emit:
+        - {entity: finding, kind: darkweb, title: "Onion mention: {title}", severity: medium,
+           detector: ahmia, asset_value: "{value}"}
+
+  # ── Cat 17: APIs & Intelligence Feeds (cross-stage provider layer) ─────────
+  - name: securitytrails_feed
+    phase: p1_seed
+    category: 17
+    integration: api
+    is_active: false
+    enabled: false
+    consumes: [domain]
+    produces: [subdomain]
+    requires_key: SECURITYTRAILS_API_KEY
+    endpoint: "https://api.securitytrails.com/v1/domain/{domain}/subdomains"
+    headers: {APIKEY: "{key}"}
+    bucket: securitytrails
+    parse:
+      format: json
+      emit:
+        - {entity: asset, value_each: subdomains, type: subdomain, scope_filter: subdomain}
+
+  # ── Cat 18: Massive Living Indexes (resource references — local catalog) ───
+  - name: osint_index
+    phase: p1_seed
+    category: 18
+    integration: cli
+    is_active: false
+    enabled: false
+    consumes: [domain]
+    produces: [finding]
+    binary: "true"        # placeholder: index is a curated reference, not a network call
+    invocation: "true {value}"
+    parse: {format: text, emit: []}
+
+  # ── Cat 19: Common Recon Workflows (preset engine — handled by pipeline) ───
+  - name: preset_passive
+    phase: p1_seed
+    category: 19
+    integration: cli
+    is_active: false
+    enabled: false
+    consumes: [domain]
+    produces: [subdomain]
+    binary: "true"        # presets are pipeline profiles, surfaced here for completeness
+    invocation: "true {value}"
+    parse: {format: text, emit: []}
+
+  # ── Cat 23: API & GraphQL Recon ────────────────────────────────────────────
+  - name: graphql_probe
+    phase: p5_deep
+    category: 23
+    integration: cli
+    is_active: true
+    consumes: [url, subdomain]
+    produces: [endpoint, finding]
+    binary: graphw00f
+    invocation: "graphw00f -d -t {value}"
+    parse:
+      format: text
+      line_regex: "^.*(?P<engine>GraphQL).*(?P<url>https?://\\S+).*$"
+      emit:
+        - {entity: endpoint, url: "{url}"}
+
+  # ── Cat 26: Mobile / APK Recon ─────────────────────────────────────────────
+  - name: apkleaks
+    phase: p5_deep
+    category: 26
+    integration: cli
+    is_active: false
+    enabled: false
+    consumes: [apk]
+    produces: [endpoint, finding, subdomain]
+    binary: apkleaks
+    invocation: "apkleaks -f {value} -o /dev/stdout"
+    parse:
+      format: text
+      line_regex: "^\\s*(?P<url>https?://\\S+)\\s*$"
+      emit:
+        - {entity: endpoint, url: "{url}"}
+
+
+  # ── Cat 14: Frameworks & Automation Suites (integrate as ONE source) ───────
+  - name: bbot_suite
+    phase: p2_expansion
+    category: 14
+    integration: cli
+    is_active: false
+    enabled: false
+    consumes: [domain]
+    produces: [subdomain, url, finding]
+    binary: bbot
+    invocation: "bbot -t {value} -f subdomain-enum -y -o /dev/stdout --json"
+    parse:
+      format: jsonl
+      emit:
+        - {entity: asset, value: "{data.host}", type: subdomain, scope_filter: subdomain}

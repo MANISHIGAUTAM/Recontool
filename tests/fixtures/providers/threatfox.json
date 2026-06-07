@@ -1,0 +1,9 @@
+{
+  "data": [
+    {
+      "ioc": "bad.recontool.local",
+      "threat_type": "botnet_cc",
+      "confidence_level": 75
+    }
+  ]
+}

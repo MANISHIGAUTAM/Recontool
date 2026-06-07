@@ -9,8 +9,6 @@ import hashlib
 import json
 import re
 import shutil
-from pathlib import Path
-from urllib.parse import urlsplit
 
 from recontool.adapters.base import Adapter, AdapterContext, Event
 from recontool.adapters.registry import register
@@ -134,7 +132,7 @@ class HttpProbe(Adapter):
 @register("p4_verify")
 class PortScan(Adapter):
     name = "naabu"
-    category = "CAT-5"
+    category = "CAT-21"          # Port Scanning & Service Detection
     is_active = True
     consumes = ("ip", "subdomain")
     produces = ("service",)
@@ -195,7 +193,7 @@ class PortScan(Adapter):
 @register("p5_deep")
 class JsAnalyze(Adapter):
     name = "js_analyze"
-    category = "CAT-4"
+    category = "CAT-22"          # JavaScript Analysis & Secrets
     is_active = False  # operates on already-downloaded files
     consumes = ("url",)
     produces = ("url", "finding")
@@ -239,7 +237,7 @@ class JsAnalyze(Adapter):
 @register("p6_vuln")
 class Nuclei(Adapter):
     name = "nuclei"
-    category = "CAT-10"
+    category = "CAT-27"          # Active Vulnerability Detection
     is_active = True
     consumes = ("url",)
     produces = ("finding",)

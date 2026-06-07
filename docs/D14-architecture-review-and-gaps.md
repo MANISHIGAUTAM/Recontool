@@ -114,15 +114,18 @@ flowchart TD
 | 6 | Circuit breaker + budget wired into egress | ✅ done | `net/http_client.py`, `test_mode_and_egress.py` |
 | 7 | Integration + E2E + fixture tests | ✅ done | `tests/integration/`, `tests/e2e/` (85 tests total) |
 | 8 | Continuous diff/monitoring | 🟡 partial | `diff.py` + CLI `diff` (engine done; no built-in scheduler/cron) |
-| 9 | Missing docs (testing/demo/runbook) | ✅ done | `D11`, `D12`, `D13`, `D14` |
-| 10 | Most category adapters empty | 🟡 partial | ~17/28 categories have executable adapters; rest specced |
+| 9 | Missing docs (testing/demo/runbook) | ✅ done | `D11`, `D12`, `D13`, `D14`, `D16`, `D17` |
+| 10 | Most category adapters empty | ✅ done | all 28 lanes represented (53 adapters); `tests/atomic/test_fixtures_and_obs.py::test_all_28_lanes_have_at_least_one_adapter` |
+| 11 | Provider config + schema validation + mocks | ✅ done | `providers.py`, `config/providers.yaml` (12 families/23 providers), `tests/fixtures/providers/`, `config-validate` |
+| 12 | Docker compose minimal boot + lockfile + CI | ✅ done | `docker-compose.yml`, `Dockerfile` self-test, `scripts/`, `requirements.lock`, `.github/workflows/ci.yml` |
+| 13 | Structured logs + trace IDs | ✅ done | `obs.py`; pipeline emits `scan.begin`/`phase.done` under a per-scan trace id |
 
 ### Remaining (deliberately deferred)
 - **Native graph DB (Neo4j) mirror** — relational edges suffice at current scale.
-- **Adapter breadth for cats 7,8,11,15,16,26** — registry + generic-spec ready; wire
-  per-need (mechanical via `tools_generic.yaml`, no core changes).
-- **Built-in scheduler/cron for continuous monitoring** — diff engine exists; drive
-  it from external cron/CI for now.
+- **Live wiring of PII-gated lanes (7,8,16)** — registered + fixture-backed + off by
+  default; enable per authorization.
+- **Built-in scheduler/cron for continuous monitoring** — diff engine + CLI exist;
+  drive from external cron/CI for now.
 
 ## 6. Roadmap to full breadth
 

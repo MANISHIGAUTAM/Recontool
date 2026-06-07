@@ -1,0 +1,7 @@
+{
+  "package": "com.acme.app",
+  "version": "1.0",
+  "endpoints": [
+    "https://api.recontool.local/v1"
+  ]
+}

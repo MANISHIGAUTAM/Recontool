@@ -1,0 +1,10 @@
+{
+  "items": [
+    {
+      "repository": {
+        "full_name": "acme/app"
+      },
+      "html_url": "https://github.com/acme/app/blob/main/config.js"
+    }
+  ]
+}

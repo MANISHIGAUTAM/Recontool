@@ -1,0 +1,20 @@
+[
+  {
+    "name_value": "www.recontool.local"
+  },
+  {
+    "name_value": "api.recontool.local"
+  },
+  {
+    "name_value": "dev.recontool.local"
+  },
+  {
+    "name_value": "staging.recontool.local"
+  },
+  {
+    "name_value": "admin.recontool.local"
+  },
+  {
+    "name_value": "*.recontool.local"
+  }
+]

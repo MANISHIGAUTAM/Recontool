@@ -1,0 +1,16 @@
+{
+  "passive_dns": [
+    {
+      "hostname": "www.recontool.local",
+      "address": "192.0.2.10"
+    },
+    {
+      "hostname": "api.recontool.local",
+      "address": "192.0.2.10"
+    },
+    {
+      "hostname": "dev.recontool.local",
+      "address": "192.0.2.10"
+    }
+  ]
+}

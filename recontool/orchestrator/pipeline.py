@@ -110,6 +110,12 @@ class ReconPipeline:
         else:
             scan_id = uuid.uuid4().hex[:16]
 
+        # bind the scan_id as the trace id for all structured logs in this run
+        from recontool.obs import log_event, set_trace_id
+        set_trace_id(scan_id)
+        log_event("scan.begin", seed=seed, seed_type=seed_type, mode=self.mode.value,
+                  profile=profile.name, resumed=resumed)
+
         # shared infra for the whole scan
         proxies = ProxyPool(settings.proxies, strategy=settings.proxy_strategy)
         limiter = RateLimiter(default_rate=profile.requests_per_second)
@@ -277,6 +283,10 @@ class ReconPipeline:
             pr.counts = norm.ingest(all_events)
 
         pr.duration = round(time.time() - t0, 2)
+
+        from recontool.obs import log_event
+        log_event("phase.done", phase=phase, ran=pr.adapters_run,
+                  skipped=pr.adapters_skipped, counts=pr.counts, duration=pr.duration)
 
         # AI supervisor reviews the output of this phase
         if self.supervisor:

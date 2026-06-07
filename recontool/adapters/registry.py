@@ -53,6 +53,7 @@ def load_builtin() -> None:
     from recontool.adapters import crawler   # noqa: F401  (pure-python web crawler)
     from recontool.adapters import content_discovery  # noqa: F401  (dir brute-force)
     from recontool.adapters import params    # noqa: F401  (param/form extraction)
+    from recontool.adapters import resources  # noqa: F401  (Category 28 learning)
     from recontool.adapters.autoload import register_generic
 
     register_generic()

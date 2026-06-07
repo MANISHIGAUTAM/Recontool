@@ -1,0 +1,17 @@
+{
+  "ip": "192.0.2.10",
+  "ports": [
+    80,
+    443,
+    22
+  ],
+  "hostnames": [
+    "www.recontool.local"
+  ],
+  "vulns": [
+    "CVE-2021-44228"
+  ],
+  "tags": [
+    "cloud"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "buckets": [
+    {
+      "bucket": "acme-public-assets",
+      "keywords": "acme"
+    }
+  ]
+}

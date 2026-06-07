@@ -28,7 +28,11 @@ def load_generic_specs() -> list[dict]:
 
 def register_generic() -> int:
     """Build + register adapter classes for every generic spec not already
-    covered by a hand-written adapter. Returns the count registered."""
+    covered by a hand-written adapter. Returns the count registered.
+
+    Specs marked ``enabled: false`` ARE still registered (so their lane is
+    represented + auditable + planner-visible), but their adapter reports
+    unavailable until enabled in config — so they never run by default."""
     from recontool.adapters.registry import PHASES, all_adapters, register
 
     existing = set(all_adapters())
@@ -36,8 +40,6 @@ def register_generic() -> int:
     for spec in load_generic_specs():
         name = spec.get("name")
         phase = spec.get("phase")
-        if spec.get("enabled") is False:
-            continue
         if not name or phase not in PHASES or name in existing:
             continue
         cls = build_adapter_class(spec)
