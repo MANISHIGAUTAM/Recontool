@@ -179,13 +179,15 @@ class Wayback(Adapter):
         events: list[Event] = []
         js_downloaded = 0
         max_urls = self._MAX_URLS_BY_PROFILE.get(ctx.profile.name, self.MAX_URLS)
+        max_js = 10 if ctx.profile.name == "normal" else self.MAX_JS
         for domain in ctx.seeds_of("domain"):
             cdx = (
-                "http://web.archive.org/cdx/search/cdx"
+                "https://web.archive.org/cdx/search/cdx"
                 f"?url=*.{domain}/*&output=json&fl=original&collapse=urlkey&limit={max_urls}"
             )
             try:
-                resp = await ctx.http.get(cdx, bucket="wayback")
+                resp = await asyncio.wait_for(
+                    ctx.http.get(cdx, bucket="wayback"), timeout=30.0)
             except Exception:
                 continue
             if not resp.json_ok:
@@ -196,8 +198,12 @@ class Wayback(Adapter):
             for url in urls:
                 events.append(Event.endpoint(self.name, url, source="wayback"))
                 # Download JS files to the filesystem (chaining input for JS mining).
-                if js_downloaded < self.MAX_JS and _JS_RE.search(url):
-                    ref = await self._fetch_js(ctx, url)
+                if js_downloaded < max_js and _JS_RE.search(url):
+                    try:
+                        ref = await asyncio.wait_for(
+                            self._fetch_js(ctx, url), timeout=5.0)
+                    except Exception:
+                        ref = None
                     if ref:
                         js_downloaded += 1
                         events.append(
