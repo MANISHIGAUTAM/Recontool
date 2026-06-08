@@ -4,100 +4,104 @@
 
 ---
 
-## Setup (2 lines)
-
-```bash
-pip install -e .
-recontool scan yourdomain.com --mode live --authorize-active
-```
-
-That's it. Zero API keys required for passive recon. Add keys to `.env` to unlock more sources.
-
----
-
-## Docker Setup (1 command)
+## Setup (1 command — Docker)
 
 ```bash
 cp .env.example .env && docker compose up --build
 ```
 
-This builds the image with all recon CLIs bundled, starts Redis (for task queue + caching), a worker, and runs a zero-network demo. Then scan real targets:
+That's it. The Docker image **bundles everything** — Python platform, all 30+ Go/Python recon tools (subfinder, nuclei, naabu, gau, katana, tlsx, ffuf, gowitness...), Redis for task queue + caching, and a worker for parallel execution. Zero manual installs.
+
+Then scan:
 
 ```bash
-docker compose run --rm recontool scan yourdomain.com --mode live --authorize-active
+docker compose run --rm recontool scan groww.in --mode live --authorize-active
 ```
+
+Or use the Makefile:
+
+```bash
+make build                    # build the image
+make scan T=groww.in          # full active scan
+make demo                     # zero-network demo
+make push DOCKER_REPO=yourhub/recontool   # push to Docker Hub
+```
+
+### Push to Docker Hub
+
+```bash
+docker build -t yourdockerhub/recontool:latest .
+docker push yourdockerhub/recontool:latest
+```
+
+Then on any machine:
+
+```bash
+docker pull yourdockerhub/recontool:latest
+docker run --rm -v "$PWD/output:/app/output" -v "$PWD/.env:/app/.env" \
+  yourdockerhub/recontool:latest scan groww.in --mode live --authorize-active
+```
+
+### Alternative: pip install (no Docker)
+
+```bash
+pip install -e .              # just the Python platform
+recontool scan groww.in --mode live --authorize-active
+```
+
+This works but only uses adapters whose binaries are on your PATH. For full coverage, use Docker or install Go tools separately (see below).
 
 ---
 
 ## Laptop Setup (macOS / Linux)
 
-Everything you need to go from zero to scanning in under 5 minutes.
+**Recommended: use Docker** (bundles all 30+ tools automatically). If you prefer native:
 
 ### Prerequisites
 
-- Python 3.10+ (check: `python3 --version`)
+- Python 3.10+ (`python3 --version`)
 - pip (`python3 -m pip --version`)
-- git
+- (Optional) Go 1.21+ for recon CLI tools
+- (Optional) Docker for the all-in-one image
 
-### 1. Clone and install
-
-```bash
-git clone https://github.com/YOUR_USER/Recontool.git
-cd Recontool
-pip install -e .
-```
-
-### 2. Configure environment
+### Option A: Docker (recommended — everything bundled)
 
 ```bash
+git clone https://github.com/MANISHIGAUTAM/Recontool.git && cd Recontool
 cp .env.example .env
+docker compose up --build     # builds image with ALL tools, runs demo
+# Then:
+docker compose run --rm recontool scan yourdomain.com --mode live --authorize-active
 ```
 
-Open `.env` in your editor. **All keys are optional** -- the tool runs passive recon out-of-the-box using free keyless sources (crt.sh, hackertarget, urlscan, certspotter). Add API keys later to unlock more sources and higher rate limits.
-
-### 3. (Optional) Install Go recon tools
-
-These are external CLI tools that Recontool calls when available. They are not required but add coverage:
+### Option B: Native pip + Go tools
 
 ```bash
-# Install Go first if you don't have it (https://go.dev/dl/)
-# Then install recon tools:
-go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-go install -v github.com/lc/gau/v2/cmd/gau@latest
-go install -v github.com/tomnomnom/assetfinder@latest
-go install -v github.com/tomnomnom/waybackurls@latest
-go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
-go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-go install -v github.com/projectdiscovery/katana/cmd/katana@latest
+git clone https://github.com/MANISHIGAUTAM/Recontool.git && cd Recontool
+pip install -e .
+cp .env.example .env
+
+# Install Go recon tools (all optional but recommended):
+bash docker/install_tools.sh core     # subfinder, nuclei, naabu, gau, httpx, asnmap, uncover
+# OR for EVERYTHING:
+bash docker/install_tools.sh all      # + katana, tlsx, ffuf, gowitness, waybackurls, massdns...
+
+# Scan:
+recontool scan yourdomain.com --mode live --authorize-active
 ```
 
-Make sure `~/go/bin` is in your PATH:
-
-```bash
-export PATH="$PATH:$(go env GOPATH)/bin"
-# Add this to your ~/.zshrc or ~/.bashrc to make it permanent
-```
-
-### 4. Run your first scan
-
-```bash
-# Passive-only scan (safe, no direct target contact)
-recontool scan example.com --mode live
-
-# Full active scan with a 5-minute timeout
-recontool scan example.com --mode live --authorize-active --timeout 300
-
-# Zero-network demo (no keys, no egress, built-in mocks)
-recontool demo
-```
-
-### 5. Where results go
+### Where results go
 
 | Location | Contents |
 |----------|----------|
-| `output/` | Final scan reports, JSON exports, diffs |
-| `artifacts/` | Raw tool output, JS files, response bodies, screenshots |
-| `recontool.db` | SQLite database with all discovered entities |
+| `output/<domain>/subdomains.txt` | One subdomain per line |
+| `output/<domain>/live_hosts.txt` | Confirmed live hosts |
+| `output/<domain>/services.txt` | host:port |
+| `output/<domain>/endpoints.txt` | URLs |
+| `output/<domain>/findings.txt` | Secrets/vulns detected |
+| `output/<domain>/full_report.json` | Complete JSON |
+| `recontool.db` | SQLite database (all entities) |
+| `artifacts/<scan_id>/` | Raw tool output, JS files |
 
 View results:
 
