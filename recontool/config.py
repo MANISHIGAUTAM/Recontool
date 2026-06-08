@@ -124,9 +124,9 @@ PROFILES: dict[str, RateProfile] = {
         nuclei_severities=("info", "low", "medium"), randomize_order=True,
     ),
     "normal": RateProfile(
-        name="normal", active_enabled=True, global_concurrency=20,
-        per_host_concurrency=4, requests_per_second=15.0, jitter_seconds=0.2,
-        dns_qps=50.0, port_set="top-1000",
+        name="normal", active_enabled=True, global_concurrency=40,
+        per_host_concurrency=6, requests_per_second=30.0, jitter_seconds=0.1,
+        dns_qps=100.0, port_set="top-1000",
         nuclei_severities=("low", "medium", "high", "critical"), randomize_order=False,
     ),
     "aggressive": RateProfile(

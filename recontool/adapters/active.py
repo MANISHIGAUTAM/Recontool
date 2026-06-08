@@ -51,6 +51,8 @@ class DnsResolve(Adapter):
         resolver = dns.asyncresolver.Resolver()
         resolver.lifetime = 5.0
         hosts = sorted(set(ctx.seeds_of("subdomain") + ctx.seeds_of("domain")))
+        # Use dns_qps as the concurrency cap (50 for normal profile) so all
+        # hosts can resolve in parallel without being throttled to 16.
         sem = asyncio.Semaphore(max(1, int(ctx.profile.dns_qps)))
         events: list[Event] = []
 
@@ -89,7 +91,9 @@ class HttpProbe(Adapter):
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
         hosts = sorted(set(ctx.seeds_of("subdomain") + ctx.seeds_of("domain")))
-        sem = asyncio.Semaphore(ctx.profile.per_host_concurrency * 4 or 4)
+        # Allow up to global_concurrency parallel probes (20 for normal profile).
+        # The old value per_host_concurrency*4=16 was too restrictive for 55+ hosts.
+        sem = asyncio.Semaphore(ctx.profile.global_concurrency or 20)
         events: list[Event] = []
 
         async def probe(host: str):
@@ -167,7 +171,8 @@ class PortScan(Adapter):
     async def _fallback(self, ctx: AdapterContext, targets: list[str]) -> list[Event]:
         events: list[Event] = []
         ports = _TOP_PORTS if ctx.profile.port_set != "full" else _TOP_PORTS
-        sem = asyncio.Semaphore(ctx.profile.global_concurrency or 10)
+        # Use global_concurrency for parallel connect scans (not the old low value)
+        sem = asyncio.Semaphore(ctx.profile.global_concurrency or 20)
 
         async def check(host: str, port: int):
             async with sem:

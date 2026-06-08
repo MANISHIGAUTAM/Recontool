@@ -83,9 +83,11 @@ class ReconPipeline:
         authorize_active: bool = False,
         categories: set[int] | None = None,
         progress=None,
+        stream=None,
         resume_scan_id: str | None = None,
     ) -> ScanResult:
         self._categories = categories          # None = run all categories
+        self._emit = stream                    # live per-adapter event callback
         create_all()
         profile = settings.profile() if not profile_name else __import__(
             "recontool.config", fromlist=["PROFILES"]
@@ -246,11 +248,30 @@ class ReconPipeline:
         if progress:
             progress(phase, [i.name for i in instances], pr.adapters_skipped)
 
+        # live per-adapter streaming: emit start/finish so long scans show progress
+        emit = getattr(self, "_emit", None)
+
         # PARALLEL fan-out across adapters in this phase
         async def run_one(inst):
+            t_start = time.time()
+            if emit:
+                emit("adapter_start", phase=phase, tool=inst.name,
+                     category=getattr(inst, "category", ""), active=getattr(inst, "is_active", False))
+            from recontool.obs import log_event
+            log_event("adapter.start", phase=phase, tool=inst.name)
             try:
-                return inst.name, await inst.run(ctx)
+                # per-adapter hard timeout so one slow live adapter can't hang the scan
+                adapter_timeout = float(getattr(ctx.profile, "adapter_timeout", 0) or 180)
+                events = await asyncio.wait_for(inst.run(ctx), timeout=adapter_timeout)
+                dt = round(time.time() - t_start, 1)
+                if emit:
+                    emit("adapter_done", phase=phase, tool=inst.name,
+                         events=len(events), duration=dt)
+                log_event("adapter.done", phase=phase, tool=inst.name,
+                          events=len(events), duration=dt)
+                return inst.name, events
             except Exception as exc:  # noqa: BLE001
+                dt = round(time.time() - t_start, 1)
                 # park failed unit in the dead-letter queue for replay/inspection
                 with session_scope() as s:
                     s.add(AuditLog(scan_id=scan_id, action="adapter.error",
@@ -258,6 +279,11 @@ class ReconPipeline:
                     s.add(DeadLetter(scan_id=scan_id, phase=phase, tool=inst.name,
                                      error=str(exc)[:2000],
                                      payload={"category": getattr(inst, "category", "")}))
+                if emit:
+                    emit("adapter_error", phase=phase, tool=inst.name,
+                         error=str(exc)[:200], duration=dt)
+                log_event("adapter.error", level="ERROR", phase=phase,
+                          tool=inst.name, error=str(exc)[:300])
                 return inst.name, []
 
         sem = asyncio.Semaphore(ctx.profile.global_concurrency or 10)
@@ -287,6 +313,9 @@ class ReconPipeline:
         from recontool.obs import log_event
         log_event("phase.done", phase=phase, ran=pr.adapters_run,
                   skipped=pr.adapters_skipped, counts=pr.counts, duration=pr.duration)
+        if getattr(self, "_emit", None):
+            self._emit("phase_done", phase=phase, counts=pr.counts,
+                       ran=len(pr.adapters_run), duration=pr.duration)
 
         # AI supervisor reviews the output of this phase
         if self.supervisor:

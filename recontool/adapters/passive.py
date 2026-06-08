@@ -170,16 +170,19 @@ class Wayback(Adapter):
     is_active = False
     consumes = ("domain",)
     produces = ("url",)
-    MAX_URLS = 3000
+    # Per-profile URL caps: normal=500 keeps scan time sane, aggressive gets full 3000.
+    _MAX_URLS_BY_PROFILE = {"stealth": 200, "normal": 500, "aggressive": 3000}
+    MAX_URLS = 500  # default fallback
     MAX_JS = 40  # cap JS downloads per scan to stay polite / bounded
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
         events: list[Event] = []
         js_downloaded = 0
+        max_urls = self._MAX_URLS_BY_PROFILE.get(ctx.profile.name, self.MAX_URLS)
         for domain in ctx.seeds_of("domain"):
             cdx = (
                 "http://web.archive.org/cdx/search/cdx"
-                f"?url=*.{domain}/*&output=json&fl=original&collapse=urlkey&limit={self.MAX_URLS}"
+                f"?url=*.{domain}/*&output=json&fl=original&collapse=urlkey&limit={max_urls}"
             )
             try:
                 resp = await ctx.http.get(cdx, bucket="wayback")

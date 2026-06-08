@@ -34,8 +34,8 @@ BUILTIN_WORDLIST = [
     "cgi-bin", "server-info", "web.config", "crossdomain.xml", "readme.md",
 ]
 
-_PAGE_BUDGET = {"stealth": 40, "normal": 150, "aggressive": 600}
-_MAX_HOSTS = {"stealth": 5, "normal": 25, "aggressive": 100}
+_PAGE_BUDGET = {"stealth": 40, "normal": 60, "aggressive": 600}
+_MAX_HOSTS = {"stealth": 5, "normal": 10, "aggressive": 100}
 
 
 def is_hit(status: int, length: int, baseline: tuple[int, int] | None) -> bool:

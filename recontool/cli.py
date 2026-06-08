@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from pathlib import Path
 
 import typer
@@ -46,6 +47,8 @@ def scan(
                                         help="Skip preflight health checks (not recommended)."),
     category: str = typer.Option(None, "--category", "-c",
                                  help="Comma-separated category numbers to run ONLY (e.g. '2' or '1,2,3')."),
+    timeout: int = typer.Option(0, "--timeout", "-t",
+                                help="Max total scan wall-time in seconds (0 = unlimited)."),
     export: Path = typer.Option(None, "--export", "-o", help="Write full JSON results here."),
 ):
     """Run a recon scan on SEED."""
@@ -82,14 +85,44 @@ def scan(
             line += f"  | skipped: [dim]{', '.join(skipped)}[/dim]"
         console.print(line)
 
+    def stream(event, **kw):
+        # live per-adapter streaming so long scans show continuous progress
+        if event == "adapter_start":
+            tag = "[red]active[/red]" if kw.get("active") else "[green]passive[/green]"
+            console.print(f"   [cyan]▶[/cyan] {kw['tool']} [{kw.get('category','')}] {tag} …")
+        elif event == "adapter_done":
+            n = kw.get("events", 0)
+            console.print(f"   [green]✔[/green] {kw['tool']} "
+                          f"[dim]{kw.get('duration',0)}s[/dim] → {n} events")
+        elif event == "adapter_error":
+            console.print(f"   [red]✘ {kw['tool']} ERROR[/red] [dim]{kw.get('error','')}[/dim]")
+        elif event == "phase_done":
+            c = kw.get("counts", {})
+            console.print(f"   [bold green]= {kw['phase']} done[/bold green] "
+                          f"[dim]{kw.get('duration',0)}s[/dim] "
+                          f"assets={c.get('asset',0)} endpoints={c.get('endpoint',0)} "
+                          f"services={c.get('service',0)} findings={c.get('finding',0)}")
+        sys.stdout.flush()
+
     pipeline = ReconPipeline(supervisor=supervisor, mode=run_mode)
     cats = None
     if category:
         cats = {int(c) for c in category.replace(" ", "").split(",") if c.strip().isdigit()}
-    result = asyncio.run(pipeline.run(
-        seed, profile_name=profile, authorize_active=authorize_active,
-        categories=cats, progress=progress, resume_scan_id=resume,
-    ))
+
+    async def _run_with_timeout():
+        coro = pipeline.run(
+            seed, profile_name=profile, authorize_active=authorize_active,
+            categories=cats, progress=progress, stream=stream, resume_scan_id=resume,
+        )
+        if timeout > 0:
+            try:
+                return await asyncio.wait_for(coro, timeout=timeout)
+            except asyncio.TimeoutError:
+                console.print(f"[red]Scan timed out after {timeout}s[/red]")
+                raise typer.Exit(3)
+        return await coro
+
+    result = asyncio.run(_run_with_timeout())
 
     _render_result(result, supervisor)
 
