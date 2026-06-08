@@ -79,6 +79,25 @@ class HttpClient:
         self.budget = budget
         # Track the egress IP actually used (for audit). Populated lazily.
         self.last_egress: str | None = None
+        # Shared persistent httpx client for connection pooling (reuses TCP
+        # connections across requests instead of opening a new one per call).
+        self._client: httpx.AsyncClient | None = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        """Return (or lazily create) the shared persistent httpx client."""
+        if self._client is None or self._client.is_closed:
+            proxy = self.proxies.acquire(key="_shared")
+            self._client = httpx.AsyncClient(
+                proxy=proxy, timeout=self.timeout,
+                follow_redirects=True, verify=False,
+            )
+        return self._client
+
+    async def close(self) -> None:
+        """Close the shared client and release pooled connections."""
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
 
     async def get(self, url: str, *, bucket: str = "_global", **kw) -> Response:
         return await self.request("GET", url, bucket=bucket, **kw)
@@ -130,10 +149,8 @@ class HttpClient:
             proxy = self.proxies.acquire(key=sticky_key or url)
             self.last_egress = proxy or "direct"
             try:
-                async with httpx.AsyncClient(
-                    proxy=proxy, timeout=self.timeout, follow_redirects=True, verify=False
-                ) as client:
-                    resp = await client.request(method, url, headers=hdrs, params=params, **kw)
+                client = self._get_client()
+                resp = await client.request(method, url, headers=hdrs, params=params, **kw)
                 # 429 / 5xx => backoff + (implicitly) rotate proxy next loop
                 if resp.status_code == 429 or resp.status_code >= 500:
                     self.proxies.report(proxy, ok=False)

@@ -370,10 +370,19 @@ class ReconPipeline:
                 ]
                 await cache.set(name, input_hash, scope_hash, event_dicts, cache_ttl)
 
-        # NORMALIZE (single writer) into the DB
-        with session_scope() as s:
-            norm = Normalizer(s, scan_id, scope=ctx.scope)
-            pr.counts = norm.ingest(all_events)
+        # NORMALIZE in batches of 2000 events to avoid one massive transaction
+        BATCH_SIZE = 2000
+        merged_counts: dict[str, int] = {}
+        for i in range(0, max(len(all_events), 1), BATCH_SIZE):
+            batch = all_events[i:i + BATCH_SIZE]
+            if not batch:
+                break
+            with session_scope() as s:
+                norm = Normalizer(s, scan_id, scope=ctx.scope)
+                batch_counts = norm.ingest(batch)
+                for k, v in batch_counts.items():
+                    merged_counts[k] = merged_counts.get(k, 0) + v
+        pr.counts = merged_counts
 
         pr.duration = round(time.time() - t0, 2)
 
