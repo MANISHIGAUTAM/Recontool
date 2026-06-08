@@ -46,6 +46,17 @@ class DnsResolve(Adapter):
     produces = ("ip",)
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
+        # In demo/test mode, DNS resolution would hit real nameservers (bypasses mock).
+        # Return synthetic results instead.
+        from recontool.config import settings
+        if settings.run_mode.uses_mock:
+            events: list[Event] = []
+            for host in (ctx.seeds_of("subdomain") + ctx.seeds_of("domain"))[:30]:
+                if ctx.scope.contains("subdomain", host):
+                    # Synthetic: mark as live (mock env will serve HTTP for these)
+                    events.append(Event.asset(self.name, "subdomain", host, is_live=True))
+            return events
+
         import dns.asyncresolver
 
         resolver = dns.asyncresolver.Resolver()
@@ -226,6 +237,15 @@ class PortScan(Adapter):
     produces = ("service",)
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
+        # In demo/test mode, port scanning would make real TCP connections.
+        from recontool.config import settings
+        if settings.run_mode.uses_mock:
+            events: list[Event] = []
+            for host in (ctx.seeds_of("subdomain") + ctx.seeds_of("ip"))[:10]:
+                for port in [80, 443]:
+                    events.append(Event.service(self.name, host, port))
+            return events
+
         targets = sorted(set(ctx.seeds_of("ip") + ctx.seeds_of("subdomain")))
         targets = [t for t in targets if _scoped(ctx, "ip", t) or _scoped(ctx, "subdomain", t)]
         if shutil.which("naabu"):

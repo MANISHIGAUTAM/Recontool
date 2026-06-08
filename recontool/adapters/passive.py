@@ -136,6 +136,9 @@ class Subfinder(Adapter):
     produces = ("subdomain",)
 
     def available(self, ctx: AdapterContext) -> bool:
+        from recontool.config import settings
+        if settings.run_mode.uses_mock:
+            return False  # CLI tools bypass mock env; skip in demo/test
         return shutil.which("subfinder") is not None
 
     async def run(self, ctx: AdapterContext) -> list[Event]:

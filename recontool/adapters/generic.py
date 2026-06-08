@@ -259,6 +259,11 @@ class GenericCliAdapter(Adapter):
     def available(self, ctx: AdapterContext) -> bool:
         if self.spec.get("enabled") is False:
             return False
+        # CLI adapters must NOT run in demo/test mode (they shell out to real binaries
+        # that make real network calls, bypassing the mode gate/mock env).
+        from recontool.config import settings
+        if settings.run_mode.uses_mock:
+            return False
         binary = self.spec.get("binary")
         return bool(binary) and shutil.which(binary) is not None
 
