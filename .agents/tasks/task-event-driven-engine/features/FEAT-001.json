@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Event system, enhanced tool registry schema, pending-key model, and extended adapter contract. This establishes the core data structures and models that all subsequent features build upon.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create recontool/engine/__init__.py as the new event-driven engine package",
     "Create recontool/engine/events.py with typed event classes: ScanRequested, ToolSelected, ToolDependencyChecked, ToolReady, ToolBlocked, ToolRunning, ToolArtifactProduced, EntityDiscovered, PendingKeyCreated, PendingKeyResolved, ToolCompleted, ToolFailed, ScanCompleted. Use dataclasses with timestamp, scan_id, correlation_id fields. Include an EventBus class (in-process pub/sub with async handlers).",
@@ -28,5 +28,5 @@
     "python -c 'from recontool.engine.pending_keys import PendingKeyStore; print(\"OK\")'"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 81 existing tests pass with no regressions. ToolRegistry loads 75 tools from both YAML files. EventBus async pub/sub verified. PendingKeyStore CRUD verified with in-memory SQLite. Ruff check passes on all new/modified files. Backwards compatibility confirmed - no existing adapter changes needed."
 }
