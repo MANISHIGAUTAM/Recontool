@@ -106,7 +106,14 @@ class PyCrawler(Adapter):
         sem = asyncio.Semaphore(concurrency)
 
         async def _fetch_root_hash(url: str) -> tuple[str, str | None]:
-            """Return (url, content_hash or None)."""
+            """Return (url, content_hash or None).
+
+            Uses a structural fingerprint rather than raw byte hash:
+            - Only hashes the first 4KB of the body (reduces sensitivity to
+              footer/pagination changes).
+            - Strips common dynamic elements (CSRF tokens, nonces, timestamps)
+              before hashing.
+            """
             try:
                 async with sem:
                     resp = await asyncio.wait_for(
@@ -114,7 +121,21 @@ class PyCrawler(Adapter):
                         timeout=5.0,
                     )
                 if resp.content:
-                    return (url, hashlib.sha256(resp.content).hexdigest())
+                    # Take only first 4KB for fingerprinting
+                    chunk = resp.content[:4096]
+                    # Strip common dynamic elements before hashing
+                    text = chunk.decode(errors="ignore")
+                    text = re.sub(
+                        r'<meta[^>]*name=["\']csrf[^>]*>', '', text, flags=re.I
+                    )
+                    text = re.sub(
+                        r'(nonce|csrf[-_]?token|timestamp)=["\'][^"\']*["\']',
+                        '', text, flags=re.I
+                    )
+                    text = re.sub(
+                        r'<!--\s*generated.*?-->', '', text, flags=re.I | re.S
+                    )
+                    return (url, hashlib.sha256(text.encode()).hexdigest())
             except Exception:  # noqa: BLE001
                 pass
             return (url, None)

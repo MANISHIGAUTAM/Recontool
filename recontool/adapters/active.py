@@ -102,11 +102,11 @@ class HttpProbe(Adapter):
         # Try to build IP mapping from DNS resolve edges stored in inputs
         ip_inputs = ctx.inputs.get("ip", [])
         if ip_inputs:
-            # Fall back to probing all hosts individually - dedup only if we
-            # can do a quick async resolve
+            # Best-effort quick resolve with short timeout to group hosts by IP.
+            # If resolution fails for any host, it is probed individually.
             import dns.asyncresolver
             resolver = dns.asyncresolver.Resolver()
-            resolver.lifetime = 3.0
+            resolver.lifetime = 2.0
 
             async def _quick_resolve(host: str) -> str | None:
                 async with sem:
@@ -176,7 +176,9 @@ class HttpProbe(Adapter):
                     Event.asset(self.name, "subdomain", host, is_live=True, tech=tech)
                 )
 
-                # Fan out results to other hosts sharing the same IP
+                # Fan out results to other hosts sharing the same IP.
+                # These events are marked inferred=True since they were not
+                # directly verified - the sibling may serve different content.
                 ip_key = ip_key_for_rep.get(host, "")
                 siblings = ip_to_hosts.get(ip_key, [])
                 for sibling in siblings:
@@ -189,16 +191,19 @@ class HttpProbe(Adapter):
                         Event.endpoint(
                             self.name, sib_url, status=resp.status, title=title,
                             server=server, tech=tech, scheme=scheme,
+                            inferred=True,
                         )
                     )
                     probe_events.append(
                         Event.service(
                             self.name, sibling, 443 if scheme == "https" else 80,
                             service_name=scheme, product=server,
+                            inferred=True,
                         )
                     )
                     probe_events.append(
-                        Event.asset(self.name, "subdomain", sibling, is_live=True, tech=tech)
+                        Event.asset(self.name, "subdomain", sibling, is_live=True, tech=tech,
+                                    inferred=True)
                     )
                 break  # one successful scheme is enough
             return probe_events
@@ -242,13 +247,12 @@ class PortScan(Adapter):
             async def _read_lines():
                 async for raw_line in proc.stdout:
                     lines.append(raw_line.decode(errors="ignore"))
-                await proc.wait()
             await asyncio.wait_for(_read_lines(), timeout=180)
         except asyncio.TimeoutError:
             proc.kill()
-            await proc.wait()
         except Exception:  # noqa: BLE001
             return events
+        await proc.wait()
         for line in lines:
             line = line.strip()
             if not line:
@@ -363,13 +367,12 @@ class Nuclei(Adapter):
             async def _read_lines():
                 async for raw_line in proc.stdout:
                     lines.append(raw_line.decode(errors="ignore"))
-                await proc.wait()
             await asyncio.wait_for(_read_lines(), timeout=300)
         except asyncio.TimeoutError:
             proc.kill()
-            await proc.wait()
         except Exception:  # noqa: BLE001
             return []
+        await proc.wait()
         events: list[Event] = []
         for line in lines:
             line = line.strip()

@@ -82,16 +82,32 @@ class HttpClient:
         # Shared persistent httpx client for connection pooling (reuses TCP
         # connections across requests instead of opening a new one per call).
         self._client: httpx.AsyncClient | None = None
+        self._request_count: int = 0
 
     def _get_client(self) -> httpx.AsyncClient:
-        """Return (or lazily create) the shared persistent httpx client."""
-        if self._client is None or self._client.is_closed:
-            proxy = self.proxies.acquire(key="_shared")
+        """Return (or lazily create) the shared persistent httpx client.
+
+        The client is created WITHOUT a proxy binding so that the proxy pool
+        rotation strategy remains effective across the scan lifetime. Proxies
+        are applied per-request via the pool instead of being pinned at client
+        creation time. The client is rotated every 200 requests to prevent
+        stale connection issues.
+        """
+        if self._client is None or self._client.is_closed or self._request_count >= 200:
+            if self._client is not None and not self._client.is_closed:
+                # Schedule close of old client (best-effort, non-blocking)
+                import asyncio
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self._client.aclose())
+                except RuntimeError:
+                    pass
             self._client = httpx.AsyncClient(
-                proxy=proxy, timeout=self.timeout,
+                timeout=self.timeout,
                 follow_redirects=True, verify=False,
                 http2=True,
             )
+            self._request_count = 0
         return self._client
 
     async def close(self) -> None:
@@ -151,6 +167,7 @@ class HttpClient:
             self.last_egress = proxy or "direct"
             try:
                 client = self._get_client()
+                self._request_count += 1
                 resp = await client.request(method, url, headers=hdrs, params=params, **kw)
                 # 429 / 5xx => backoff + (implicitly) rotate proxy next loop
                 if resp.status_code == 429 or resp.status_code >= 500:

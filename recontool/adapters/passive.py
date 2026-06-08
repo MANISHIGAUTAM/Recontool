@@ -151,13 +151,17 @@ class Subfinder(Adapter):
                 async def _read_lines():
                     async for raw_line in proc.stdout:
                         lines.append(raw_line.decode(errors="ignore"))
-                    await proc.wait()
                 await asyncio.wait_for(_read_lines(), timeout=120)
             except asyncio.TimeoutError:
                 proc.kill()
-                await proc.wait()
             except Exception:  # noqa: BLE001
+                try:
+                    proc.kill()
+                except ProcessLookupError:
+                    pass
+                await proc.wait()
                 continue
+            await proc.wait()
             raw_text = "".join(lines)
             raw_lines = raw_text.splitlines()
             ctx.artifacts.save_text("subfinder", f"{domain}.jsonl", "\n".join(raw_lines))

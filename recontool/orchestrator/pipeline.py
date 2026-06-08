@@ -205,6 +205,9 @@ class ReconPipeline:
                     self._checkpoint(scan_id, "p4_verify", pr4.counts, recursion)
                     completed_phases.add("p3_enrichment")
                     completed_phases.add("p4_verify")
+                    # Re-seed the frontier from the store so that entities
+                    # discovered by p3/p4 are tracked for recursion evaluation.
+                    frontier.new_in_scope()
                     break  # exit the passive phases loop
                 inputs = self._gather_inputs(scan_id, scope, active=False)
                 pr = await self._run_phase(phase, base_ctx(inputs), scan_id, progress)

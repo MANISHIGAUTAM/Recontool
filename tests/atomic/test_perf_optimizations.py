@@ -266,6 +266,15 @@ def test_subfinder_streams_stdout():
     source = inspect.getsource(Subfinder.run)
     assert "_read_lines" in source or "async for" in source
     assert "proc.communicate()" not in source
+    # proc.wait() must NOT be inside _read_lines (it should be outside)
+    # Check that _read_lines body does not contain proc.wait
+    import re
+    read_lines_match = re.search(
+        r"async def _read_lines\(\):(.*?)(?=\n\s{12}\w|\n\s{12}await asyncio)",
+        source, re.S
+    )
+    if read_lines_match:
+        assert "proc.wait()" not in read_lines_match.group(1)
 
 
 def test_naabu_streams_stdout():
@@ -276,6 +285,14 @@ def test_naabu_streams_stdout():
     source = inspect.getsource(PortScan._naabu)
     assert "_read_lines" in source or "async for" in source
     assert "proc.communicate()" not in source
+    # proc.wait() must NOT be inside _read_lines
+    import re
+    read_lines_match = re.search(
+        r"async def _read_lines\(\):(.*?)(?=\n\s{8}\w|\n\s{8}await asyncio)",
+        source, re.S
+    )
+    if read_lines_match:
+        assert "proc.wait()" not in read_lines_match.group(1)
 
 
 def test_nuclei_streams_stdout():
@@ -286,3 +303,11 @@ def test_nuclei_streams_stdout():
     source = inspect.getsource(Nuclei.run)
     assert "_read_lines" in source or "async for" in source
     assert "proc.communicate()" not in source
+    # proc.wait() must NOT be inside _read_lines
+    import re
+    read_lines_match = re.search(
+        r"async def _read_lines\(\):(.*?)(?=\n\s{8}\w|\n\s{8}await asyncio)",
+        source, re.S
+    )
+    if read_lines_match:
+        assert "proc.wait()" not in read_lines_match.group(1)

@@ -283,12 +283,11 @@ class GenericCliAdapter(Adapter):
                         async def _read_lines():
                             async for raw_line in proc.stdout:
                                 lines.append(raw_line.decode(errors="ignore"))
-                            await proc.wait()
                         await asyncio.wait_for(
                             _read_lines(), timeout=spec.get("timeout", 120))
                     except asyncio.TimeoutError:
                         proc.kill()
-                        await proc.wait()
+                    await proc.wait()
                 except Exception:  # noqa: BLE001
                     return []
             text = "".join(lines)
