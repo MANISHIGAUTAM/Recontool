@@ -46,7 +46,7 @@ tools:
     endpoint: "https://api.subdomain.center/?domain={domain}"
     bucket: subdomaincenter
     max_inputs: 1
-    enabled: false           # disabled: unreliable (frequent read timeouts). Re-enable if needed.
+    enabled: true           # disabled: unreliable (frequent read timeouts). Re-enable if needed.
     parse:
       format: json
       emit:
@@ -248,7 +248,7 @@ tools:
     category: 7
     integration: api
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [domain]
     produces: [email, finding]
     requires_key: HUNTER_API_KEY
@@ -267,7 +267,7 @@ tools:
     category: 8
     integration: cli
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [username]
     produces: [url, finding]
     binary: sherlock
@@ -285,7 +285,7 @@ tools:
     category: 9
     integration: api
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [domain, org]
     produces: [repo, endpoint, finding]
     requires_key: GITHUB_TOKEN
@@ -305,7 +305,7 @@ tools:
     category: 10
     integration: api
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [domain, org]
     produces: [bucket, finding]
     requires_key: GRAYHATWARFARE_API_KEY
@@ -327,7 +327,7 @@ tools:
     category: 11
     integration: cli
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [url]
     produces: [document, finding, email]
     binary: exiftool
@@ -344,7 +344,7 @@ tools:
     category: 12
     integration: api
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [domain, ip]
     produces: [ioc, finding, tag]
     endpoint: "https://threatfox-api.abuse.ch/api/v1/"
@@ -377,7 +377,7 @@ tools:
     category: 15
     integration: api
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [org]
     produces: [finding, tag]
     requires_key: WIGLE_API_KEY
@@ -397,7 +397,7 @@ tools:
     category: 16
     integration: api
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [domain, org, keyword]
     produces: [onion, finding, url]
     endpoint: "https://ahmia.fi/search/?q={value}"
@@ -415,7 +415,7 @@ tools:
     category: 17
     integration: api
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [domain]
     produces: [subdomain]
     requires_key: SECURITYTRAILS_API_KEY
@@ -433,7 +433,7 @@ tools:
     category: 18
     integration: cli
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [domain]
     produces: [finding]
     binary: "true"        # placeholder: index is a curated reference, not a network call
@@ -446,7 +446,7 @@ tools:
     category: 19
     integration: cli
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [domain]
     produces: [subdomain]
     binary: "true"        # presets are pipeline profiles, surfaced here for completeness
@@ -475,7 +475,7 @@ tools:
     category: 26
     integration: cli
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [apk]
     produces: [endpoint, finding, subdomain]
     binary: apkleaks
@@ -493,7 +493,7 @@ tools:
     category: 14
     integration: cli
     is_active: false
-    enabled: false
+    enabled: true
     consumes: [domain]
     produces: [subdomain, url, finding]
     binary: bbot
