@@ -145,8 +145,21 @@ class Subfinder(Adapter):
                 "subfinder", "-d", domain, "-silent", "-json",
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
             )
-            out, _ = await proc.communicate()
-            raw_lines = out.decode(errors="ignore").splitlines()
+            # Stream stdout line-by-line instead of waiting for full output
+            lines: list[str] = []
+            try:
+                async def _read_lines():
+                    async for raw_line in proc.stdout:
+                        lines.append(raw_line.decode(errors="ignore"))
+                    await proc.wait()
+                await asyncio.wait_for(_read_lines(), timeout=120)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+            except Exception:  # noqa: BLE001
+                continue
+            raw_text = "".join(lines)
+            raw_lines = raw_text.splitlines()
             ctx.artifacts.save_text("subfinder", f"{domain}.jsonl", "\n".join(raw_lines))
             for line in raw_lines:
                 try:

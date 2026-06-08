@@ -185,6 +185,27 @@ class ReconPipeline:
             for phase in PASSIVE_PHASES:
                 if phase in completed_phases:
                     continue  # resume: skip already-checkpointed phases
+                # Smart phase ordering: after p1+p2, run p3 concurrently with p4
+                # since p4 only needs subdomain/domain/ip inputs from p1/p2.
+                if phase == "p3_enrichment" and authorize_active:
+                    # p3 and p4 can run concurrently - p4 consumes (subdomain,
+                    # domain, ip) which are fully available after p1+p2.
+                    p3_inputs = self._gather_inputs(scan_id, scope, active=False)
+                    p4_inputs = self._gather_inputs(scan_id, scope, active=True)
+                    p3_coro = self._run_phase(
+                        "p3_enrichment", base_ctx(p3_inputs), scan_id, progress
+                    )
+                    p4_coro = self._run_phase(
+                        "p4_verify", base_ctx(p4_inputs), scan_id, progress
+                    )
+                    pr3, pr4 = await asyncio.gather(p3_coro, p4_coro)
+                    result.phases.append(pr3)
+                    self._checkpoint(scan_id, "p3_enrichment", pr3.counts, recursion)
+                    result.phases.append(pr4)
+                    self._checkpoint(scan_id, "p4_verify", pr4.counts, recursion)
+                    completed_phases.add("p3_enrichment")
+                    completed_phases.add("p4_verify")
+                    break  # exit the passive phases loop
                 inputs = self._gather_inputs(scan_id, scope, active=False)
                 pr = await self._run_phase(phase, base_ctx(inputs), scan_id, progress)
                 result.phases.append(pr)
@@ -211,7 +232,7 @@ class ReconPipeline:
             result.active_ran = True
             for phase in ACTIVE_PHASES:
                 if phase in completed_phases:
-                    continue
+                    continue  # skip p4 if already ran concurrently with p3
                 inputs = self._gather_inputs(scan_id, scope, active=True)
                 pr = await self._run_phase(phase, base_ctx(inputs), scan_id, progress)
                 result.phases.append(pr)

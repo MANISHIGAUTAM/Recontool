@@ -95,9 +95,54 @@ class HttpProbe(Adapter):
         sem = asyncio.Semaphore(ctx.profile.global_concurrency or 40)
         events: list[Event] = []
 
-        async def probe(host: str):
+        # ── IP deduplication: group hosts by resolved IP, probe once per IP ──
+        # If DNS resolution results are available in inputs, use them to group.
+        ip_to_hosts: dict[str, list[str]] = {}
+        host_to_ip: dict[str, str] = {}
+        # Try to build IP mapping from DNS resolve edges stored in inputs
+        ip_inputs = ctx.inputs.get("ip", [])
+        if ip_inputs:
+            # Fall back to probing all hosts individually - dedup only if we
+            # can do a quick async resolve
+            import dns.asyncresolver
+            resolver = dns.asyncresolver.Resolver()
+            resolver.lifetime = 3.0
+
+            async def _quick_resolve(host: str) -> str | None:
+                async with sem:
+                    try:
+                        ans = await resolver.resolve(host, "A")
+                        for r in ans:
+                            return r.to_text()
+                    except Exception:
+                        return None
+                return None
+
+            resolutions = await asyncio.gather(*(_quick_resolve(h) for h in hosts))
+            for host, ip in zip(hosts, resolutions):
+                if ip:
+                    host_to_ip[host] = ip
+                    ip_to_hosts.setdefault(ip, []).append(host)
+                else:
+                    # No resolution - treat as unique
+                    ip_to_hosts.setdefault(f"_unresolved_{host}", []).append(host)
+        else:
+            # No IP data available - probe all hosts individually
+            for host in hosts:
+                ip_to_hosts[f"_solo_{host}"] = [host]
+
+        # Pick one representative host per unique IP to probe
+        representatives: list[str] = []
+        ip_key_for_rep: dict[str, str] = {}
+        for ip_key, group in ip_to_hosts.items():
+            rep = group[0]
+            representatives.append(rep)
+            ip_key_for_rep[rep] = ip_key
+
+        async def probe(host: str) -> list[Event]:
             if not _scoped(ctx, "subdomain", host):
-                return
+                return []
+            probe_events: list[Event] = []
             for scheme in ("https", "http"):
                 url = f"{scheme}://{host}"
                 async with sem:
@@ -113,21 +158,54 @@ class HttpProbe(Adapter):
                     title = m.group(1).strip()[:300]
                 server = resp.headers.get("server", "")
                 tech = _tech_hints(resp.headers, resp.text or "")
-                events.append(
+
+                # Emit events for the probed host
+                probe_events.append(
                     Event.endpoint(
                         self.name, resp.url, status=resp.status, title=title,
                         server=server, tech=tech, scheme=scheme,
                     )
                 )
-                events.append(
+                probe_events.append(
                     Event.service(
                         self.name, host, 443 if scheme == "https" else 80,
                         service_name=scheme, product=server,
                     )
                 )
-                events.append(Event.asset(self.name, "subdomain", host, is_live=True, tech=tech))
+                probe_events.append(
+                    Event.asset(self.name, "subdomain", host, is_live=True, tech=tech)
+                )
+
+                # Fan out results to other hosts sharing the same IP
+                ip_key = ip_key_for_rep.get(host, "")
+                siblings = ip_to_hosts.get(ip_key, [])
+                for sibling in siblings:
+                    if sibling == host:
+                        continue
+                    if not _scoped(ctx, "subdomain", sibling):
+                        continue
+                    sib_url = f"{scheme}://{sibling}"
+                    probe_events.append(
+                        Event.endpoint(
+                            self.name, sib_url, status=resp.status, title=title,
+                            server=server, tech=tech, scheme=scheme,
+                        )
+                    )
+                    probe_events.append(
+                        Event.service(
+                            self.name, sibling, 443 if scheme == "https" else 80,
+                            service_name=scheme, product=server,
+                        )
+                    )
+                    probe_events.append(
+                        Event.asset(self.name, "subdomain", sibling, is_live=True, tech=tech)
+                    )
                 break  # one successful scheme is enough
-        await asyncio.gather(*(probe(h) for h in hosts))
+            return probe_events
+
+        results = await asyncio.gather(*(probe(h) for h in representatives))
+        for batch in results:
+            events.extend(batch)
         return events
 
 
@@ -158,8 +236,23 @@ class PortScan(Adapter):
             "naabu", "-host", ",".join(targets), flag, arg, "-silent", "-json",
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
         )
-        out, _ = await proc.communicate()
-        for line in out.decode(errors="ignore").splitlines():
+        # Stream stdout line-by-line instead of waiting for full output
+        lines: list[str] = []
+        try:
+            async def _read_lines():
+                async for raw_line in proc.stdout:
+                    lines.append(raw_line.decode(errors="ignore"))
+                await proc.wait()
+            await asyncio.wait_for(_read_lines(), timeout=180)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+        except Exception:  # noqa: BLE001
+            return events
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
             try:
                 rec = json.loads(line)
             except json.JSONDecodeError:
@@ -264,9 +357,24 @@ class Nuclei(Adapter):
             "-rl", str(int(ctx.profile.requests_per_second)),
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
         )
-        out, _ = await proc.communicate()
+        # Stream stdout line-by-line instead of waiting for full output
+        lines: list[str] = []
+        try:
+            async def _read_lines():
+                async for raw_line in proc.stdout:
+                    lines.append(raw_line.decode(errors="ignore"))
+                await proc.wait()
+            await asyncio.wait_for(_read_lines(), timeout=300)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+        except Exception:  # noqa: BLE001
+            return []
         events: list[Event] = []
-        for line in out.decode(errors="ignore").splitlines():
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
             try:
                 rec = json.loads(line)
             except json.JSONDecodeError:

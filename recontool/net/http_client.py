@@ -90,6 +90,7 @@ class HttpClient:
             self._client = httpx.AsyncClient(
                 proxy=proxy, timeout=self.timeout,
                 follow_redirects=True, verify=False,
+                http2=True,
             )
         return self._client
 

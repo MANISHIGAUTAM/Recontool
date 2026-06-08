@@ -277,11 +277,21 @@ class GenericCliAdapter(Adapter):
                         *cmd.split(), stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.DEVNULL,
                     )
-                    out, _ = await asyncio.wait_for(
-                        proc.communicate(), timeout=spec.get("timeout", 120))
+                    # Stream stdout line-by-line instead of waiting for full output
+                    lines: list[str] = []
+                    try:
+                        async def _read_lines():
+                            async for raw_line in proc.stdout:
+                                lines.append(raw_line.decode(errors="ignore"))
+                            await proc.wait()
+                        await asyncio.wait_for(
+                            _read_lines(), timeout=spec.get("timeout", 120))
+                    except asyncio.TimeoutError:
+                        proc.kill()
+                        await proc.wait()
                 except Exception:  # noqa: BLE001
                     return []
-            text = out.decode(errors="ignore")
+            text = "".join(lines)
             ctx.artifacts.save_text(spec["name"], f"{v}.out", text)
             recs = parse_records(spec["parse"], text)
             return emit_events(spec["parse"], recs, spec["name"], seed)

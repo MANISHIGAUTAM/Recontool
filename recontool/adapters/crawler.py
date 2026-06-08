@@ -100,12 +100,50 @@ class PyCrawler(Adapter):
                 seeds.append(f"https://{h}/")
         seeds.extend(u for u in ctx.seeds_of("url") if ctx.scope.contains("url", u))
 
+        # ── CDN dedup: hash root page content, skip clones ──────────────────
+        # Fetch GET / for each seed host, compute sha256, group by hash.
+        # Only crawl one representative per content-hash group.
+        sem = asyncio.Semaphore(concurrency)
+
+        async def _fetch_root_hash(url: str) -> tuple[str, str | None]:
+            """Return (url, content_hash or None)."""
+            try:
+                async with sem:
+                    resp = await asyncio.wait_for(
+                        ctx.http.get(url, bucket=f"crawl_dedup:{host_of(url)}"),
+                        timeout=5.0,
+                    )
+                if resp.content:
+                    return (url, hashlib.sha256(resp.content).hexdigest())
+            except Exception:  # noqa: BLE001
+                pass
+            return (url, None)
+
+        hash_results = await asyncio.gather(*(_fetch_root_hash(u) for u in seeds))
+
+        # Group by content hash
+        hash_to_urls: dict[str, list[str]] = {}
+        no_hash_urls: list[str] = []
+        for url, content_hash in hash_results:
+            if content_hash:
+                hash_to_urls.setdefault(content_hash, []).append(url)
+            else:
+                no_hash_urls.append(url)
+
+        # Pick one representative per hash group; track clones for result fan-out
+        deduped_seeds: list[str] = list(no_hash_urls)
+        clone_map: dict[str, list[str]] = {}  # representative -> list of clones
+        for _hash, urls in hash_to_urls.items():
+            rep = urls[0]
+            deduped_seeds.append(rep)
+            if len(urls) > 1:
+                clone_map[rep] = urls[1:]
+
         events: list[Event] = []
         visited: set[str] = set()
         seen_hosts: set[str] = set()
         js_done = 0
-        sem = asyncio.Semaphore(concurrency)
-        frontier = [(u, 0) for u in dict.fromkeys(seeds)]
+        frontier = [(u, 0) for u in dict.fromkeys(deduped_seeds)]
 
         async def fetch(url: str) -> str | None:
             host = host_of(url)
@@ -169,6 +207,23 @@ class PyCrawler(Adapter):
                         frontier.append((link, depth + 1))
                     elif ctx.scope.contains("subdomain", lhost):
                         events.append(Event.endpoint(self.name, link, source="pycrawl"))
+
+        # ── Fan out crawl results to CDN clones ─────────────────────────────
+        # For each representative that had clones, replicate endpoint events
+        # with the clone's host substituted.
+        for rep_url, clones in clone_map.items():
+            rep_host = host_of(rep_url)
+            for clone_url in clones:
+                clone_host = host_of(clone_url)
+                if not clone_host or clone_host == rep_host:
+                    continue
+                events.append(
+                    Event.endpoint(self.name, clone_url, source="pycrawl-cdn-clone")
+                )
+                events.append(
+                    Event.asset(self.name, "subdomain", clone_host, is_live=True)
+                )
+
         return events
 
     def _mine_js(self, host: str, text: str, ref: str | None,
