@@ -186,10 +186,14 @@ class EventBus:
             handlers.remove(handler)
 
     async def publish(self, event: EngineEvent) -> None:
-        """Dispatch an event to all registered handlers for its type."""
+        """Dispatch an event to all registered handlers for its type.
+
+        Uses return_exceptions=True to prevent one failing handler from
+        blocking other handlers for the same event.
+        """
         handlers = self._handlers.get(type(event), [])
         if handlers:
-            await asyncio.gather(*(h(event) for h in handlers))
+            await asyncio.gather(*(h(event) for h in handlers), return_exceptions=True)
 
     def clear(self) -> None:
         """Remove all handlers."""

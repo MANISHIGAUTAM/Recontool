@@ -57,9 +57,9 @@ class IncrementalEngine:
             return True
 
         # Check config fingerprint change (if we have a spec)
-        if tool_spec is not None and last_run.output_fingerprint:
+        if tool_spec is not None and last_run.config_fingerprint:
             new_config_fp = fingerprint_config(tool_spec)
-            if has_changed(last_run.output_fingerprint, new_config_fp):
+            if has_changed(last_run.config_fingerprint, new_config_fp):
                 return True
 
         # Check staleness

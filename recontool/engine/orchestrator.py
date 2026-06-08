@@ -170,7 +170,8 @@ class EventDrivenOrchestrator:
                 await executor.execute_batch(jobs, execute_fn)
             else:
                 idle_cycles += 1
-                if idle_cycles >= max_idle_cycles:
+                # Only break on idle if no tools are still running
+                if idle_cycles >= max_idle_cycles and not scheduler.has_running_tools(scan_id):
                     break
                 await asyncio.sleep(0.01)
 
@@ -179,7 +180,7 @@ class EventDrivenOrchestrator:
                 checkpoint.save({
                     "scan_id": scan_id,
                     "status": "running",
-                    "tools_completed": len(scheduler._completed_tools.get(scan_id, set())),
+                    "tools_completed": len(scheduler.completed_tool_count(scan_id)),
                 })
 
         # Calculate duration
@@ -194,6 +195,10 @@ class EventDrivenOrchestrator:
         # Clear checkpoint on success
         if checkpoint and result.status == "completed":
             checkpoint.clear()
+
+        # Clean up per-scan state to avoid memory leaks across reuse
+        self._scan_results.pop(scan_id, None)
+        self._entities_discovered.pop(scan_id, None)
 
         return result
 

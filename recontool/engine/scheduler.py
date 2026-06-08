@@ -62,6 +62,7 @@ class EventDrivenScheduler:
 
         # Per-scan state
         self._available_keys: dict[str, set[str]] = {}  # scan_id -> set of key_types
+        self._available_entities: dict[str, dict[str, list[str]]] = {}  # scan_id -> {type: [values]}
         self._running_tools: dict[str, set[str]] = {}  # scan_id -> set of tool_names
         self._completed_tools: dict[str, set[str]] = {}  # scan_id -> set of tool_names
         self._blocked_tools: dict[str, dict[str, list[str]]] = {}  # scan_id -> {tool: [keys]}
@@ -84,6 +85,7 @@ class EventDrivenScheduler:
     ) -> None:
         """Initialize scheduling for a new scan."""
         self._available_keys[scan_id] = set()
+        self._available_entities[scan_id] = {}
         self._running_tools[scan_id] = set()
         self._completed_tools[scan_id] = set()
         self._blocked_tools[scan_id] = {}
@@ -100,6 +102,7 @@ class EventDrivenScheduler:
         # Determine initial seed type and add it as an available key
         seed_type = (config or {}).get("seed_type", "domain")
         self._available_keys[scan_id].add(seed_type)
+        self._available_entities[scan_id].setdefault(seed_type, []).append(seed)
 
         # Schedule tools that accept the seed type
         eligible = self.select_eligible_tools(scan_id)
@@ -114,6 +117,11 @@ class EventDrivenScheduler:
 
         # Add the entity type as an available key
         self._available_keys[scan_id].add(event.entity_type)
+
+        # Track the entity value for downstream tool input context
+        self._available_entities.setdefault(scan_id, {}).setdefault(
+            event.entity_type, []
+        ).append(event.entity_value)
 
         # Check if any blocked tools can now be scheduled
         await self._check_blocked_tools(scan_id)
@@ -131,7 +139,9 @@ class EventDrivenScheduler:
         # Check if we can schedule more tools
         eligible = self.select_eligible_tools(scan_id)
         for tool_spec in eligible:
-            await self.schedule_tool(scan_id, tool_spec.name, {})
+            # Pass available key types as inputs context for downstream tools
+            inputs = self._build_inputs_for_tool(scan_id, tool_spec)
+            await self.schedule_tool(scan_id, tool_spec.name, inputs)
 
         # Check convergence
         if self.check_convergence(scan_id):
@@ -184,7 +194,8 @@ class EventDrivenScheduler:
             tool_spec = self._registry.get(tool_name)
             if tool_spec:
                 await self._bus.publish(ToolReady(scan_id=scan_id, tool_name=tool_name))
-                await self.schedule_tool(scan_id, tool_name, {})
+                inputs = self._build_inputs_for_tool(scan_id, tool_spec)
+                await self.schedule_tool(scan_id, tool_name, inputs)
 
     def select_eligible_tools(self, scan_id: str) -> list[ToolSpec]:
         """Find tools eligible to run based on available keys.
@@ -240,6 +251,21 @@ class EventDrivenScheduler:
         )
         await self._job_queue.put(job)
 
+    def _build_inputs_for_tool(self, scan_id: str, tool_spec: ToolSpec) -> dict[str, Any]:
+        """Build inputs dict for a tool from available entity values.
+
+        Maps the tool's consumed types to the discovered entity values,
+        giving downstream tools context about which entities triggered them.
+        """
+        inputs: dict[str, Any] = {}
+        entities = self._available_entities.get(scan_id, {})
+        consumed = set(tool_spec.supported_input_types) | set(tool_spec.consumes)
+        for key_type in consumed:
+            values = entities.get(key_type)
+            if values:
+                inputs[key_type] = list(values)
+        return inputs
+
     def check_convergence(self, scan_id: str) -> bool:
         """Check if the scan has converged (no more work to do).
 
@@ -258,3 +284,11 @@ class EventDrivenScheduler:
 
         eligible = self.select_eligible_tools(scan_id)
         return len(eligible) == 0
+
+    def has_running_tools(self, scan_id: str) -> bool:
+        """Return True if any tools are still running for this scan."""
+        return bool(self._running_tools.get(scan_id))
+
+    def completed_tool_count(self, scan_id: str) -> set[str]:
+        """Return the set of completed tool names for this scan."""
+        return self._completed_tools.get(scan_id, set())

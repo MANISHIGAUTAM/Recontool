@@ -65,6 +65,7 @@ class ParallelExecutor:
         default_per_host: int = 3,
         per_tool_concurrency: dict[str, int] | None = None,
         per_host_concurrency: dict[str, int] | None = None,
+        max_host_semaphores: int = 1000,
     ) -> None:
         self._bus = bus
         self._global_semaphore = asyncio.Semaphore(global_limit)
@@ -74,6 +75,7 @@ class ParallelExecutor:
         self._per_host_limits = per_host_concurrency or {}
         self._tool_semaphores: dict[str, asyncio.Semaphore] = {}
         self._host_semaphores: dict[str, asyncio.Semaphore] = {}
+        self._max_host_semaphores = max_host_semaphores
         self._active_count = 0
         self._total_executed = 0
 
@@ -95,8 +97,17 @@ class ParallelExecutor:
         return self._tool_semaphores[tool_name]
 
     def _get_host_semaphore(self, host: str) -> asyncio.Semaphore:
-        """Get or create a per-host semaphore."""
+        """Get or create a per-host semaphore.
+
+        Evicts the oldest entries when the cache exceeds max_host_semaphores
+        to prevent unbounded memory growth during large scans.
+        """
         if host not in self._host_semaphores:
+            # Evict oldest entries if at capacity
+            if len(self._host_semaphores) >= self._max_host_semaphores:
+                # Remove the first (oldest) entry
+                oldest_key = next(iter(self._host_semaphores))
+                del self._host_semaphores[oldest_key]
             limit = self._per_host_limits.get(host, self._default_per_host)
             self._host_semaphores[host] = asyncio.Semaphore(limit)
         return self._host_semaphores[host]

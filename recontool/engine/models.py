@@ -30,6 +30,7 @@ class ToolRun(Base):
     started_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime(timezone=True))
     input_fingerprint: Mapped[Optional[str]] = mapped_column(String(64))
+    config_fingerprint: Mapped[Optional[str]] = mapped_column(String(64))
     output_fingerprint: Mapped[Optional[str]] = mapped_column(String(64))
     exit_code: Mapped[Optional[int]] = mapped_column(Integer)
     artifact_paths: Mapped[list[Any]] = mapped_column(JSON, default=list)

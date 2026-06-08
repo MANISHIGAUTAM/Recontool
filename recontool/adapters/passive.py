@@ -102,11 +102,11 @@ class CrtSh(Adapter):
         return events
 
     def map_outputs_to_entities(self, parsed: dict[str, Any]) -> list[Event]:
-        """Map parsed outputs to entity discovery events with edges."""
-        events: list[Event] = []
-        for subdomain in parsed.get("subdomains", []):
-            events.append(Event.asset(self.name, "subdomain", subdomain))
-        return events
+        """Map parsed outputs to entity discovery events.
+
+        Delegates to emit_normalized_events to avoid logic duplication.
+        """
+        return self.emit_normalized_events(parsed)
 
     def resolve_pending_keys(self, parsed: dict[str, Any]) -> list[str]:
         """Return subdomain pending key values this output resolves."""
