@@ -18,10 +18,19 @@ def get_queue(redis_url: str | None = None) -> TaskQueue:
     """Return a queue backend based on configuration.
 
     If redis_url is provided, attempts to create a RedisQueue.
-    Falls back to InMemoryQueue if Redis is unavailable or not configured.
+    Falls back to InMemoryQueue if Redis package is not installed or not configured.
     """
     if redis_url:
-        return RedisQueue(redis_url)
+        try:
+            import redis  # noqa: F401 — check if package is installed
+            return RedisQueue(redis_url)
+        except ImportError:
+            import logging
+            logging.getLogger(__name__).warning(
+                "redis package not installed; falling back to InMemoryQueue. "
+                "Install with: pip install redis"
+            )
+            return InMemoryQueue()
     return InMemoryQueue()
 
 

@@ -114,6 +114,7 @@ RUN pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir
 
 # Install Python recon tools that are safe/stable
 RUN pip install --no-cache-dir \
+    redis \
     wafw00f \
     arjun \
     2>/dev/null || true
