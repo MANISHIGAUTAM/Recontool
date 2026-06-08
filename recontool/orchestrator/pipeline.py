@@ -74,6 +74,9 @@ class ReconPipeline:
         self.max_recursion = max_recursion
         self.mode = mode or settings.run_mode
         self.mock_env = mock_env
+        # Pipeline-level cache so in-memory backend persists across phases and runs
+        from recontool.cache import ResultCache
+        self._cache = ResultCache.create(settings.redis_url)
 
     async def run(
         self,
@@ -252,8 +255,8 @@ class ReconPipeline:
         emit = getattr(self, "_emit", None)
 
         # ── result cache: check for cached passive results ──────────────────
-        from recontool.cache import ResultCache, hash_inputs
-        cache = ResultCache.create(settings.redis_url)
+        from recontool.cache import hash_inputs
+        cache = self._cache
         cache_ttl = settings.cache_ttl
         scope_hash = hash_inputs({}, ctx.scope.to_json() if hasattr(ctx.scope, "to_json") else {})
         input_hash = hash_inputs(ctx.inputs, {})
@@ -359,7 +362,7 @@ class ReconPipeline:
             # Cache successful passive adapter results
             if events and not any(
                 getattr(inst, "is_active", False)
-                for inst in to_run if inst.name == name
+                for inst in instances if inst.name == name
             ):
                 event_dicts = [
                     {"entity": e.entity, "tool": e.tool, "data": e.data, "raw_ref": e.raw_ref}
@@ -397,7 +400,10 @@ class ReconPipeline:
 
         task_ids: list[tuple[str, str]] = []  # (task_id, adapter_name)
 
-        # Serialize the minimal context needed by remote workers
+        # Serialize the minimal context needed by remote workers.
+        # NOTE: API keys are transmitted in plaintext via Redis. In production
+        # deployments, secure Redis with TLS + AUTH or inject credentials into
+        # workers via environment variables instead of task payloads.
         context_data = {
             "profile_name": ctx.profile.name,
             "inputs": ctx.inputs,
@@ -420,18 +426,18 @@ class ReconPipeline:
             await queue.enqueue(task_id, task_data)
             task_ids.append((task_id, inst.name))
 
-        # Collect results as they complete
+        # Collect results concurrently (not sequentially) so fast adapters
+        # are not blocked behind slow ones.
         results: list[tuple[str, list[Event]]] = []
         adapter_timeout = float(getattr(ctx.profile, "adapter_timeout", 0) or 180)
 
-        for task_id, adapter_name in task_ids:
+        async def _get_one(task_id: str, adapter_name: str) -> tuple[str, list[Event]]:
             result_data = await queue.get_result(task_id, timeout=adapter_timeout)
             if result_data is None:
-                # Timeout waiting for result
                 if emit:
                     emit("adapter_error", phase=phase, tool=adapter_name,
                          error="timeout waiting for worker result", duration=adapter_timeout)
-                results.append((adapter_name, []))
+                return (adapter_name, [])
             elif result_data.get("status") == "completed":
                 event_dicts = result_data.get("result", {}).get("events", [])
                 events = [
@@ -444,13 +450,17 @@ class ReconPipeline:
                 if emit:
                     emit("adapter_done", phase=phase, tool=adapter_name,
                          events=len(events), duration=0.0)
-                results.append((adapter_name, events))
+                return (adapter_name, events)
             else:
                 error = result_data.get("error", "unknown error")
                 if emit:
                     emit("adapter_error", phase=phase, tool=adapter_name,
                          error=error[:200], duration=0.0)
-                results.append((adapter_name, []))
+                return (adapter_name, [])
+
+        results = list(await asyncio.gather(
+            *(_get_one(tid, name) for tid, name in task_ids)
+        ))
 
         return results
 

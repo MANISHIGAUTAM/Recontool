@@ -28,7 +28,7 @@ class TaskWorker:
         self._sem = asyncio.Semaphore(concurrency)
 
     async def run(self) -> None:
-        """Main worker loop. Runs until stopped or queue is idle."""
+        """Main worker loop. Runs until stopped via signal."""
         self._running = True
         logger.info("TaskWorker starting (concurrency=%d)", self._concurrency)
         tasks: list[asyncio.Task[Any]] = []
@@ -36,10 +36,7 @@ class TaskWorker:
         while self._running:
             item = await self._queue.dequeue(timeout=2.0)
             if item is None:
-                # No work available; if no in-flight tasks, exit cleanly
-                if not tasks or all(t.done() for t in tasks):
-                    break
-                # Clean up completed tasks
+                # No work available; clean up completed tasks and keep polling
                 tasks = [t for t in tasks if not t.done()]
                 continue
 
