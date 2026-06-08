@@ -9,10 +9,8 @@
 #   docker compose run --rm recontool scan acme.com --mode live      # passive (safe)
 #   docker compose run --rm recontool scan acme.com --mode live --authorize-active
 #
-# SQLite + in-process queue work out of the box (no extra services needed).
-# Bring up postgres/redis with the "full" profile for scale:
-#   docker compose --profile full up -d postgres redis
-#   then set RECON_DB_URL / RECON_REDIS_URL in .env.
+# Logs are HUMAN-READABLE on the main terminal (RECON_LOG_FORMAT=text).
+# PYTHONUNBUFFERED=1 ensures real-time streaming (no buffering).
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
@@ -25,6 +23,9 @@ services:
     environment:
       RECON_ARTIFACT_DIR: /app/artifacts
       RECON_REDIS_URL: redis://redis:6379/0
+      RECON_LOG_FORMAT: text
+      RECON_LOG_LEVEL: INFO
+      PYTHONUNBUFFERED: "1"
     volumes:
       - ./config:/app/config
       - ./artifacts:/app/artifacts
@@ -56,6 +57,9 @@ services:
     environment:
       RECON_ARTIFACT_DIR: /app/artifacts
       RECON_REDIS_URL: redis://redis:6379/0
+      RECON_LOG_FORMAT: text
+      RECON_LOG_LEVEL: INFO
+      PYTHONUNBUFFERED: "1"
     volumes:
       - ./config:/app/config
       - ./artifacts:/app/artifacts
@@ -84,8 +88,6 @@ services:
       retries: 5
 
   # ── Optional: local mock provider service for demo/test (profile: mock) ───
-  # Demo mode uses the IN-PROCESS mock by default, so this is only needed if you
-  # want an out-of-process mock endpoint to point live adapters at during dev.
   mockserver:
     build: .
     image: recontool:latest
