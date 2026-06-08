@@ -1,0 +1,3197 @@
+{
+  "scan_id": "9a46e747f1eb41e7",
+  "seed": "groww.in",
+  "assets": [
+    {
+      "type": "domain",
+      "value": "groww.in",
+      "confidence": 0.5,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "seed"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "fallbackmta-232.73.groww.in",
+      "confidence": 0.9775,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "150.129.232.73",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "fallbackmta-232.74.groww.in",
+      "confidence": 0.9775,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "150.129.232.74",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "fallbackmta-232.82.groww.in",
+      "confidence": 0.9775,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "150.129.232.82",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "fallbackmta-232.84.groww.in",
+      "confidence": 0.9775,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "150.129.232.84",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "915.groww.in",
+      "confidence": 0.9994,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare",
+        "react"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "104.18.37.214",
+      "confidence": 0.9888,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "urlscan",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "app.915.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "172.66.0.157",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "delivery.915.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "107.178.250.77",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "app.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "162.159.140.159",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "assets-netstorage.groww.in",
+      "confidence": 0.9994,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "172.64.150.42",
+      "confidence": 0.9888,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "urlscan",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "client-pixel.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "urlscan",
+        "urlscan_search",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "34.36.178.229",
+      "confidence": 0.9888,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "urlscan",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "cms-resources.groww.in",
+      "confidence": 0.9994,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "cmsapi.groww.in",
+      "confidence": 0.9994,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "credit.groww.in",
+      "confidence": 0.9994,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare",
+        "react"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "delivery.credit.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "delivery.dailydigest.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "34.117.197.73",
+      "confidence": 0.9888,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "urlscan",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "delivery.groww.in",
+      "confidence": 1.0,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "urlscan",
+        "certspotter",
+        "urlscan_search",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "digest.groww.in",
+      "confidence": 1.0,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare",
+        "express",
+        "react"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "urlscan",
+        "certspotter",
+        "urlscan_search",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "172.64.151.232",
+      "confidence": 0.9888,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "urlscan",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "fallbackmta-232.75.digest.groww.in",
+      "confidence": 0.9775,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "150.129.232.75",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "fallbackmta-232.76.digest.groww.in",
+      "confidence": 0.9775,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "150.129.232.76",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "growwsso.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "144.24.135.171",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "grwuaterp.groww.in",
+      "confidence": 0.9978,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "68.233.119.208",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "grwuatsso.groww.in",
+      "confidence": 0.9978,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "lite.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "52.85.31.12",
+      "confidence": 0.55,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "mapi.groww.in",
+      "confidence": 0.9888,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "newops.groww.in",
+      "confidence": 0.9775,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "10.80.50.4",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "next.groww.in",
+      "confidence": 0.9775,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "10.1.10.76",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "resources.groww.in",
+      "confidence": 0.9994,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "security.groww.in",
+      "confidence": 0.9994,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare",
+        "react"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "smallcases.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "react"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "52.85.31.94",
+      "confidence": 0.55,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "socket-app.groww.in",
+      "confidence": 0.9994,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "socket-web.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "urlscan",
+        "urlscan_search",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "tech.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "162.159.153.4",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "telemetry-app.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "urlscan",
+        "urlscan_search",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "d66-210.smtp-out.us.groww.in",
+      "confidence": 0.9775,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "175.158.66.210",
+      "confidence": 0.9775,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "vitals.groww.in",
+      "confidence": 0.9888,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "w.groww.in",
+      "confidence": 0.9994,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare",
+        "react"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "delivery.w.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "wp-asset.groww.in",
+      "confidence": 0.9994,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "www.groww.in",
+      "confidence": 0.9999,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare",
+        "wordpress"
+      ],
+      "attributes": {},
+      "sources": [
+        "hackertarget",
+        "certspotter",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2a06:98c1:310b::ac40:962a",
+      "confidence": 0.975,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "urlscan",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "groww.in",
+      "confidence": 1.0,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare",
+        "wordpress"
+      ],
+      "attributes": {},
+      "sources": [
+        "urlscan",
+        "certspotter",
+        "urlscan_search",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2a06:98c1:310b::6812:25d6",
+      "confidence": 0.975,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "urlscan",
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "code-push.groww.in",
+      "confidence": 0.9997,
+      "is_live": true,
+      "in_scope": true,
+      "tags": [],
+      "tech": [
+        "cloudflare",
+        "express"
+      ],
+      "attributes": {},
+      "sources": [
+        "urlscan",
+        "urlscan_search",
+        "dns_resolve",
+        "httpx_probe",
+        "portscan"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "axis-integration.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "www.axis-integration.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "stage-citi-integration.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "www.stage-citi-integration.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "citi-integration.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "www.citi-integration.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "citi-integration-ssl.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "www.citi-integration-ssl.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "stage-citi-integration-ssl.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "www.stage-citi-integration-ssl.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "www.smallcases.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "www.growwsso.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "www.grwuatsso.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "www.grwuaterp.groww.in",
+      "confidence": 0.9,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "certspotter"
+      ]
+    },
+    {
+      "type": "regex_pack",
+      "value": "9396fafa50e55a0e",
+      "confidence": 0.5,
+      "is_live": null,
+      "in_scope": true,
+      "tags": [],
+      "tech": [],
+      "attributes": {
+        "ref": "regex_packs/tuned-9396fafa50e5.json",
+        "size": 3
+      },
+      "sources": [
+        "wordlist_learner"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "162.159.152.4",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "104.18.36.24",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "18.165.98.75",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "18.165.98.77",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "18.165.98.64",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "18.165.98.15",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "3.170.3.100",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "3.170.3.44",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "3.170.3.57",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "3.170.3.68",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2606:4700:4403::6812:2418",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2a06:98c1:3107::ac40:97e8",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2600:9000:286a:1800:19:2370:4a80:93a1",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2600:9000:286a:6c00:19:2370:4a80:93a1",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2600:9000:286a:9a00:19:2370:4a80:93a1",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2600:9000:286a:6200:19:2370:4a80:93a1",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2600:9000:286a:2400:19:2370:4a80:93a1",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2600:9000:286a:bc00:19:2370:4a80:93a1",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2600:9000:286a:5800:19:2370:4a80:93a1",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "ip",
+      "value": "2600:9000:286a:c00:19:2370:4a80:93a1",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "dns_resolve"
+      ]
+    },
+    {
+      "type": "subdomain",
+      "value": "bugbase.ai",
+      "confidence": 0.95,
+      "is_live": null,
+      "in_scope": false,
+      "tags": [],
+      "tech": [],
+      "attributes": {},
+      "sources": [
+        "httpx_probe"
+      ]
+    }
+  ],
+  "services": [
+    {
+      "host": "915.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "915.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "915.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "915.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "app.915.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "app.915.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "app.915.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "app.915.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "delivery.915.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "Google Frontend",
+      "version": null
+    },
+    {
+      "host": "delivery.915.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "app.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "app.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "app.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "app.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "assets-netstorage.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "assets-netstorage.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "assets-netstorage.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "assets-netstorage.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "client-pixel.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "",
+      "version": null
+    },
+    {
+      "host": "client-pixel.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "cms-resources.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "cms-resources.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "cms-resources.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "cms-resources.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "cmsapi.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "cmsapi.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "cmsapi.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "cmsapi.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "credit.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "credit.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "credit.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "credit.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "delivery.credit.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "Google Frontend",
+      "version": null
+    },
+    {
+      "host": "delivery.credit.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "delivery.dailydigest.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "Google Frontend",
+      "version": null
+    },
+    {
+      "host": "delivery.dailydigest.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "delivery.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "Google Frontend",
+      "version": null
+    },
+    {
+      "host": "delivery.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "digest.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "digest.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "digest.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "digest.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "growwsso.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "",
+      "version": null
+    },
+    {
+      "host": "lite.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "AmazonS3",
+      "version": null
+    },
+    {
+      "host": "lite.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "mapi.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "mapi.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "mapi.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "mapi.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "resources.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "resources.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "resources.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "resources.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "security.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "security.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "security.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "security.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "smallcases.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "AmazonS3",
+      "version": null
+    },
+    {
+      "host": "smallcases.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "socket-app.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "socket-app.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "socket-app.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "socket-app.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "socket-web.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "socket-web.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "socket-web.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "socket-web.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "tech.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "tech.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "tech.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "tech.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "telemetry-app.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "telemetry-app.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "telemetry-app.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "telemetry-app.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "vitals.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "vitals.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "vitals.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "vitals.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "w.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "w.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "w.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "w.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "delivery.w.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "Google Frontend",
+      "version": null
+    },
+    {
+      "host": "delivery.w.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "wp-asset.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "wp-asset.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "wp-asset.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "wp-asset.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "www.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "www.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "www.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "www.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "code-push.groww.in",
+      "port": 443,
+      "protocol": "tcp",
+      "service": "https",
+      "product": "cloudflare",
+      "version": null
+    },
+    {
+      "host": "code-push.groww.in",
+      "port": 80,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "code-push.groww.in",
+      "port": 8443,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    },
+    {
+      "host": "code-push.groww.in",
+      "port": 8080,
+      "protocol": "tcp",
+      "service": null,
+      "product": null,
+      "version": null
+    }
+  ],
+  "endpoints": [
+    {
+      "url": "https://915.groww.in",
+      "status": 200,
+      "title": "915 by Groww - Advanced Trading Terminal with Live Charts, Straddle Charts &amp; Customisability | 915 by Groww",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://app.915.groww.in",
+      "status": 403,
+      "title": "Access Denied",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://delivery.915.groww.in",
+      "status": 404,
+      "title": "404 Not Found",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://app.groww.in",
+      "status": 403,
+      "title": "Access Denied",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://assets-netstorage.groww.in",
+      "status": 403,
+      "title": null,
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://client-pixel.groww.in/",
+      "status": 403,
+      "title": null,
+      "risk_class": null,
+      "source": "urlscan"
+    },
+    {
+      "url": "https://cms-resources.groww.in",
+      "status": 403,
+      "title": null,
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://cmsapi.groww.in",
+      "status": 403,
+      "title": "403",
+      "risk_class": "api",
+      "source": null
+    },
+    {
+      "url": "https://credit.groww.in",
+      "status": 200,
+      "title": "Groww Credit - Credit Score, Personal Loan",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://delivery.credit.groww.in",
+      "status": 404,
+      "title": "404 Not Found",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://delivery.dailydigest.groww.in",
+      "status": 404,
+      "title": "404 Not Found",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://delivery.groww.in/YUXVBOWJR",
+      "status": null,
+      "title": null,
+      "risk_class": null,
+      "source": "urlscan"
+    },
+    {
+      "url": "https://delivery.groww.in/",
+      "status": 404,
+      "title": "404 Not Found",
+      "risk_class": null,
+      "source": "urlscan"
+    },
+    {
+      "url": "https://digest.groww.in/",
+      "status": 200,
+      "title": "Groww Digest | Substack",
+      "risk_class": null,
+      "source": "urlscan"
+    },
+    {
+      "url": "https://growwsso.groww.in",
+      "status": 400,
+      "title": null,
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://lite.groww.in",
+      "status": 200,
+      "title": "Groww Lite: Exit open positions & orders",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://resources.groww.in",
+      "status": 403,
+      "title": null,
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://smallcases.groww.in",
+      "status": 200,
+      "title": "Invest in ideas | smallcases on Groww",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://socket-app.groww.in",
+      "status": 400,
+      "title": null,
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://socket-web.groww.in/",
+      "status": 400,
+      "title": null,
+      "risk_class": null,
+      "source": "urlscan"
+    },
+    {
+      "url": "https://tech.groww.in",
+      "status": 403,
+      "title": "Just a moment...",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://telemetry-app.groww.in/",
+      "status": 404,
+      "title": null,
+      "risk_class": null,
+      "source": "urlscan"
+    },
+    {
+      "url": "https://w.groww.in",
+      "status": 200,
+      "title": "W by Groww",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://delivery.w.groww.in",
+      "status": 404,
+      "title": "404 Not Found",
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://wp-asset.groww.in",
+      "status": 403,
+      "title": null,
+      "risk_class": null,
+      "source": null
+    },
+    {
+      "url": "https://groww.in/",
+      "status": 200,
+      "title": "Groww - Online Demat, Trading and Direct Mutual Fund Investment in India",
+      "risk_class": null,
+      "source": "urlscan"
+    },
+    {
+      "url": "https://groww.in/user/profile/report",
+      "status": null,
+      "title": null,
+      "risk_class": null,
+      "source": "urlscan"
+    },
+    {
+      "url": "https://groww.in/v1/api/features/sdk-production-g5hzhqmwonpn3s1q",
+      "status": null,
+      "title": null,
+      "risk_class": "api",
+      "source": "urlscan"
+    },
+    {
+      "url": "https://groww.in/v1/api/search/v1/entity?app=false&entity_type=scheme&page=0&q={search_term}&size=1",
+      "status": null,
+      "title": null,
+      "risk_class": "api",
+      "source": "urlscan"
+    },
+    {
+      "url": "https://groww.in/dashboard/investments/mutual-funds?_branch_match_id=1557364674437379581&_branch_referrer=H4sIAAAAAAAAA8soKSkottLXTy%2FKLy%2FXSywo0MvJzMvWz8jPTbWvK0pNSy0qysxLj08CShenFtk6ZxQBZQBZ68k6NQAAAA%3D%3D",
+      "status": null,
+      "title": null,
+      "risk_class": "dashboard",
+      "source": "urlscan"
+    },
+    {
+      "url": "https://code-push.groww.in/",
+      "status": 200,
+      "title": null,
+      "risk_class": null,
+      "source": "urlscan"
+    },
+    {
+      "url": "https://bugbase.ai/programs/groww",
+      "status": 200,
+      "title": "Groww BugBounty - Bug Bounty Program | BugBase",
+      "risk_class": null,
+      "source": null
+    }
+  ],
+  "findings": [],
+  "edges": [
+    {
+      "src": "fallbackmta-232.73.groww.in",
+      "dst": "150.129.232.73",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "fallbackmta-232.74.groww.in",
+      "dst": "150.129.232.74",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "fallbackmta-232.82.groww.in",
+      "dst": "150.129.232.82",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "fallbackmta-232.84.groww.in",
+      "dst": "150.129.232.84",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "915.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "app.915.groww.in",
+      "dst": "172.66.0.157",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "delivery.915.groww.in",
+      "dst": "107.178.250.77",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "app.groww.in",
+      "dst": "162.159.140.159",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "assets-netstorage.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "client-pixel.groww.in",
+      "dst": "34.36.178.229",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "cms-resources.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "cmsapi.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "credit.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "delivery.credit.groww.in",
+      "dst": "107.178.250.77",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "delivery.dailydigest.groww.in",
+      "dst": "34.117.197.73",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "delivery.groww.in",
+      "dst": "34.117.197.73",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "digest.groww.in",
+      "dst": "172.64.151.232",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "fallbackmta-232.75.digest.groww.in",
+      "dst": "150.129.232.75",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "fallbackmta-232.76.digest.groww.in",
+      "dst": "150.129.232.76",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "growwsso.groww.in",
+      "dst": "144.24.135.171",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "grwuaterp.groww.in",
+      "dst": "68.233.119.208",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "grwuatsso.groww.in",
+      "dst": "68.233.119.208",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "52.85.31.12",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "mapi.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "newops.groww.in",
+      "dst": "10.80.50.4",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "next.groww.in",
+      "dst": "10.1.10.76",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "resources.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "security.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "smallcases.groww.in",
+      "dst": "52.85.31.94",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "socket-app.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "socket-web.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "tech.groww.in",
+      "dst": "162.159.153.4",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "telemetry-app.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "d66-210.smtp-out.us.groww.in",
+      "dst": "175.158.66.210",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "vitals.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "w.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "delivery.w.groww.in",
+      "dst": "107.178.250.77",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "wp-asset.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "www.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "code-push.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "telemetry-app.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "socket-web.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "915.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "915.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "915.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "app.915.groww.in",
+      "dst": "162.159.140.159",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "assets-netstorage.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "credit.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "code-push.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "cmsapi.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "cms-resources.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "socket-web.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "mapi.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "socket-app.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "tech.groww.in",
+      "dst": "162.159.152.4",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "vitals.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "telemetry-app.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "w.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "digest.groww.in",
+      "dst": "104.18.36.24",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "resources.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "wp-asset.groww.in",
+      "dst": "104.18.37.214",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "www.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "security.groww.in",
+      "dst": "172.64.150.42",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "smallcases.groww.in",
+      "dst": "18.165.98.75",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "smallcases.groww.in",
+      "dst": "18.165.98.77",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "smallcases.groww.in",
+      "dst": "18.165.98.64",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "smallcases.groww.in",
+      "dst": "18.165.98.15",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "app.groww.in",
+      "dst": "172.66.0.157",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "3.170.3.100",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "3.170.3.44",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "3.170.3.57",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "3.170.3.68",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "assets-netstorage.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "assets-netstorage.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "code-push.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "code-push.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "cms-resources.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "cms-resources.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "credit.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "credit.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "cmsapi.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "cmsapi.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "socket-app.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "socket-app.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "mapi.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "mapi.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "socket-web.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "telemetry-app.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "vitals.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "vitals.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "w.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "w.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "resources.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "resources.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "wp-asset.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "wp-asset.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "www.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "www.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "security.groww.in",
+      "dst": "2a06:98c1:310b::6812:25d6",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "security.groww.in",
+      "dst": "2a06:98c1:310b::ac40:962a",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "digest.groww.in",
+      "dst": "2606:4700:4403::6812:2418",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "digest.groww.in",
+      "dst": "2a06:98c1:3107::ac40:97e8",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "2600:9000:286a:1800:19:2370:4a80:93a1",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "2600:9000:286a:6c00:19:2370:4a80:93a1",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "2600:9000:286a:9a00:19:2370:4a80:93a1",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "2600:9000:286a:6200:19:2370:4a80:93a1",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "2600:9000:286a:2400:19:2370:4a80:93a1",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "2600:9000:286a:bc00:19:2370:4a80:93a1",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "2600:9000:286a:5800:19:2370:4a80:93a1",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "2600:9000:286a:c00:19:2370:4a80:93a1",
+      "rel": "resolves_to"
+    },
+    {
+      "src": "app.915.groww.in",
+      "dst": "groww.customlinks.appsflyer.com",
+      "rel": "cname_to"
+    },
+    {
+      "src": "delivery.dailydigest.groww.in",
+      "dst": "eapi.world.netcorecloud.net",
+      "rel": "cname_to"
+    },
+    {
+      "src": "delivery.915.groww.in",
+      "dst": "eapi.sslind.netcorecloud.net",
+      "rel": "cname_to"
+    },
+    {
+      "src": "delivery.credit.groww.in",
+      "dst": "eapi.sslind.netcorecloud.net",
+      "rel": "cname_to"
+    },
+    {
+      "src": "delivery.groww.in",
+      "dst": "eapi.world.netcorecloud.net",
+      "rel": "cname_to"
+    },
+    {
+      "src": "app.groww.in",
+      "dst": "groww.customlinks.appsflyer.com",
+      "rel": "cname_to"
+    },
+    {
+      "src": "smallcases.groww.in",
+      "dst": "groww.smallcase.com",
+      "rel": "cname_to"
+    },
+    {
+      "src": "digest.groww.in",
+      "dst": "target.substack-custom-domains.com",
+      "rel": "cname_to"
+    },
+    {
+      "src": "lite.groww.in",
+      "dst": "d25k8azrenxjqi.cloudfront.net",
+      "rel": "cname_to"
+    },
+    {
+      "src": "delivery.w.groww.in",
+      "dst": "eapi.sslind.netcorecloud.net",
+      "rel": "cname_to"
+    }
+  ]
+}

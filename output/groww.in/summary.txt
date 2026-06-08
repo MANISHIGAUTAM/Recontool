@@ -1,0 +1,15 @@
+Scan ID: 9a46e747f1eb41e7
+Seed: groww.in
+
+=== Asset Inventory ===
+  domain: 1
+  ip: 44
+  regex_pack: 1
+  subdomain: 56
+  live: 41
+  services: 101
+  endpoints: 32
+
+=== Findings ===
+  (none)
+
