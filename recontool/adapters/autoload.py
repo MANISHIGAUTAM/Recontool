@@ -13,19 +13,26 @@ from recontool.adapters.generic import build_adapter_class
 
 GENERIC_YAML = CONFIG_DIR / "tools_generic.yaml"
 AUTOGEN_YAML = CONFIG_DIR / "tools_autogen.yaml"
+REAL_YAML = CONFIG_DIR / "tools_real_endpoints.yaml"
 
 
 @lru_cache(maxsize=1)
 def load_generic_specs() -> list[dict]:
-    """Load specs from both tools_generic.yaml and tools_autogen.yaml."""
+    """Load specs from all YAML tool spec files (real endpoints take priority)."""
     specs: list[dict] = []
-    for path in (GENERIC_YAML, AUTOGEN_YAML):
+    seen_names: set[str] = set()
+    # Load real endpoints FIRST (they override autogen placeholders)
+    for path in (REAL_YAML, GENERIC_YAML, AUTOGEN_YAML):
         if not path.exists():
             continue
         try:
             import yaml
             data = yaml.safe_load(path.read_text()) or {}
-            specs.extend(data.get("tools", []))
+            for spec in data.get("tools", []):
+                name = spec.get("name")
+                if name and name not in seen_names:
+                    specs.append(spec)
+                    seen_names.add(name)
         except Exception:  # noqa: BLE001
             continue
     return specs

@@ -1,0 +1,413 @@
+# REAL ENDPOINT adapter specs (researched from documentation)
+# These have verified API URLs and correct response parsing
+tools:
+
+  - name: anubis
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    endpoint: "https://jldc.me/anubis/subdomains/{domain}"
+    bucket: anubis
+    parse:
+      format: json
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  - name: dnsdumpster
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    endpoint: "https://api.hackertarget.com/hostsearch/?q={domain}"
+    bucket: dnsdumpster
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  - name: commoncrawl
+    phase: p3_enrichment
+    category: 6
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["url"]
+    endpoint: "https://index.commoncrawl.org/CC-MAIN-2024-10-index?url=*.{domain}&output=json"
+    bucket: commoncrawl
+    parse:
+      format: jsonl
+      emit:
+        - {entity: endpoint, url: "{url}"}
+
+  - name: whoisxml
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    requires_key: WHOISXML_API_KEY
+    key_optional: true
+    endpoint: "https://subdomains.whoisxmlapi.com/api/v1?apiKey={key}&domainName={domain}"
+    bucket: whoisxml
+    parse:
+      format: json
+      list_path: "result.records"
+      emit:
+        - {entity: asset, value_each: records, type: subdomain, scope_filter: subdomain}
+
+  - name: passivedns
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    endpoint: "https://api.mnemonic.no/pdns/v3/{domain}"
+    bucket: passivedns
+    parse:
+      format: json
+      list_path: "data"
+      emit:
+        - {entity: asset, value_each: data, type: subdomain, scope_filter: subdomain}
+
+  - name: riddler
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    endpoint: "https://riddler.io/search/exportcsv?q=pld:{domain}"
+    bucket: riddler
+    parse:
+      format: csv
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  - name: entrust_ct
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    endpoint: "https://ctsearch.entrust.com/api/v1/certificates?fields=subjectDN&domain={domain}"
+    bucket: entrust_ct
+    parse:
+      format: json
+      list_path: "certificates"
+      emit:
+        - {entity: asset, value_each: certificates, type: subdomain, scope_filter: subdomain}
+
+  - name: sslmate
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    endpoint: "https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names"
+    bucket: sslmate
+    parse:
+      format: json
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  - name: triage
+    phase: p3_enrichment
+    category: 12
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["finding"]
+    requires_key: TRIAGE_API_KEY
+    key_optional: true
+    endpoint: "https://api.tria.ge/v0/search?query=domain:{domain}"
+    headers: {Authorization: "Bearer {key}"}
+    bucket: triage
+    parse:
+      format: json
+      list_path: "data"
+      emit:
+        - {entity: finding, kind: intel, title: "triage result for {domain}", severity: info, detector: triage}
+
+  - name: securitytrails_api
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    requires_key: SECURITYTRAILS_API_KEY
+    key_optional: true
+    endpoint: "https://api.securitytrails.com/v1/domain/{domain}/subdomains"
+    headers: {APIKEY: "{key}"}
+    bucket: securitytrails
+    parse:
+      format: json
+      list_path: "subdomains"
+      emit:
+        - {entity: asset, value: "{_value}.{domain}", type: subdomain, scope_filter: subdomain}
+
+  - name: virustotal_api
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    requires_key: VIRUSTOTAL_API_KEY
+    key_optional: true
+    endpoint: "https://www.virustotal.com/api/v3/domains/{domain}/subdomains"
+    headers: {x-apikey: "{key}"}
+    bucket: virustotal
+    parse:
+      format: json
+      list_path: "data"
+      emit:
+        - {entity: asset, value: "{id}", type: subdomain, scope_filter: subdomain}
+
+  - name: binaryedge_api
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    requires_key: BINARYEDGE_API_KEY
+    key_optional: true
+    endpoint: "https://api.binaryedge.io/v2/query/domains/subdomain/{domain}"
+    headers: {X-Key: "{key}"}
+    bucket: binaryedge
+    parse:
+      format: json
+      list_path: "events"
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  - name: chaos_api
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    requires_key: CHAOS_API_KEY
+    key_optional: true
+    endpoint: "https://dns.projectdiscovery.io/dns/{domain}/subdomains"
+    headers: {Authorization: "{key}"}
+    bucket: chaos
+    parse:
+      format: json
+      list_path: "subdomains"
+      emit:
+        - {entity: asset, value: "{_value}.{domain}", type: subdomain, scope_filter: subdomain}
+
+  - name: bufferover_api
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    endpoint: "https://dns.bufferover.run/dns?q=.{domain}"
+    bucket: bufferover
+    parse:
+      format: json
+      list_path: "FDNS_A"
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  - name: threatminer_api
+    phase: p3_enrichment
+    category: 12
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    endpoint: "https://api.threatminer.org/v2/domain.php?q={domain}&rt=5"
+    bucket: threatminer
+    parse:
+      format: json
+      list_path: "results"
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  - name: robtex_api
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain", "ip"]
+    endpoint: "https://freeapi.robtex.com/pdns/forward/{domain}"
+    bucket: robtex
+    parse:
+      format: json
+      emit:
+        - {entity: asset, value: "{rrdata}", type: ip}
+
+  - name: rapiddns_api
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    endpoint: "https://rapiddns.io/subdomain/{domain}?full=1#result"
+    bucket: rapiddns
+    parse:
+      format: text
+      line_regex: "([a-zA-Z0-9._-]+\\.{domain})"
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  - name: urlhaus_api
+    phase: p3_enrichment
+    category: 12
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["finding", "url"]
+    endpoint: "https://urlhaus-api.abuse.ch/v1/host/"
+    bucket: urlhaus
+    parse:
+      format: json
+      list_path: "urls"
+      emit:
+        - {entity: finding, kind: malware, title: "URLhaus: {url} ({threat})", severity: high, detector: urlhaus, asset_value: "{url}"}
+
+  - name: abuseipdb_api
+    phase: p3_enrichment
+    category: 12
+    integration: api
+    is_active: false
+    consumes: ["ip"]
+    produces: ["finding"]
+    requires_key: ABUSEIPDB_API_KEY
+    key_optional: true
+    endpoint: "https://api.abuseipdb.com/api/v2/check?ipAddress={ip}&maxAgeInDays=90"
+    headers: {Key: "{key}", Accept: "application/json"}
+    bucket: abuseipdb
+    parse:
+      format: json
+      emit:
+        - {entity: finding, kind: abuse, title: "AbuseIPDB: {data.abuseConfidenceScore}% confidence", severity: medium, detector: abuseipdb, asset_value: "{ip}"}
+
+  - name: onyphe_api
+    phase: p1_seed
+    category: 1
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain", "ip"]
+    requires_key: ONYPHE_API_KEY
+    key_optional: true
+    endpoint: "https://www.onyphe.io/api/v2/simple/resolver/{domain}"
+    headers: {Authorization: "apikey {key}"}
+    bucket: onyphe
+    parse:
+      format: json
+      list_path: "results"
+      emit:
+        - {entity: asset, value: "{forward}", type: subdomain, scope_filter: subdomain}
+
+  - name: zoomeye_api
+    phase: p1_seed
+    category: 1
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["ip", "service"]
+    requires_key: ZOOMEYE_API_KEY
+    key_optional: true
+    endpoint: "https://api.zoomeye.org/domain/search?q={domain}&type=1"
+    headers: {API-KEY: "{key}"}
+    bucket: zoomeye
+    parse:
+      format: json
+      list_path: "list"
+      emit:
+        - {entity: asset, value: "{ip}", type: ip}
+
+  - name: dnstwist_api
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["finding"]
+    endpoint: "https://dnstwist.it/api/scans/{domain}"
+    bucket: dnstwist
+    parse:
+      format: json
+      emit:
+        - {entity: finding, kind: typosquat, title: "Typosquat: {domain-name}", severity: medium, detector: dnstwist}
+
+  - name: viewdns_api
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["subdomain"]
+    requires_key: VIEWDNS_API_KEY
+    endpoint: "https://api.viewdns.info/reverseip/?host={domain}&apikey={key}&output=json"
+    bucket: viewdns
+    parse:
+      format: json
+      list_path: "response.domains"
+      emit:
+        - {entity: asset, value: "{name}", type: subdomain, scope_filter: subdomain}
+
+  - name: pulsedive_api
+    phase: p3_enrichment
+    category: 12
+    integration: api
+    is_active: false
+    consumes: ["domain", "ip"]
+    produces: ["finding"]
+    endpoint: "https://pulsedive.com/api/explore.php?q=ioc%3D{domain}&pretty=1"
+    bucket: pulsedive
+    parse:
+      format: json
+      list_path: "results"
+      emit:
+        - {entity: finding, kind: threat_intel, title: "Pulsedive: {indicator} (risk={risk})", severity: info, detector: pulsedive}
+
+  - name: intelx_api
+    phase: p3_enrichment
+    category: 12
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["finding"]
+    requires_key: INTELX_API_KEY
+    endpoint: "https://2.intelx.io/intelligent/search"
+    headers: {x-key: "{key}"}
+    bucket: intelx
+    parse:
+      format: json
+      list_path: "records"
+      emit:
+        - {entity: finding, kind: leak, title: "IntelX: {name}", severity: medium, detector: intelx}
+
+  - name: sourcegraph_api
+    phase: p1_seed
+    category: 9
+    integration: api
+    is_active: false
+    consumes: ["domain"]
+    produces: ["finding"]
+    endpoint: "https://sourcegraph.com/.api/search/stream?q=context:global+{domain}&patternType=literal"
+    bucket: sourcegraph
+    parse:
+      format: jsonl
+      emit:
+        - {entity: finding, kind: code_reference, title: "Sourcegraph: {repository}", severity: info, detector: sourcegraph}
