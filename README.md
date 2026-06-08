@@ -29,6 +29,93 @@ docker compose run --rm recontool scan yourdomain.com --mode live --authorize-ac
 
 ---
 
+## Laptop Setup (macOS / Linux)
+
+Everything you need to go from zero to scanning in under 5 minutes.
+
+### Prerequisites
+
+- Python 3.10+ (check: `python3 --version`)
+- pip (`python3 -m pip --version`)
+- git
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/YOUR_USER/Recontool.git
+cd Recontool
+pip install -e .
+```
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` in your editor. **All keys are optional** -- the tool runs passive recon out-of-the-box using free keyless sources (crt.sh, hackertarget, urlscan, certspotter). Add API keys later to unlock more sources and higher rate limits.
+
+### 3. (Optional) Install Go recon tools
+
+These are external CLI tools that Recontool calls when available. They are not required but add coverage:
+
+```bash
+# Install Go first if you don't have it (https://go.dev/dl/)
+# Then install recon tools:
+go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+go install -v github.com/lc/gau/v2/cmd/gau@latest
+go install -v github.com/tomnomnom/assetfinder@latest
+go install -v github.com/tomnomnom/waybackurls@latest
+go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
+go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+go install -v github.com/projectdiscovery/katana/cmd/katana@latest
+```
+
+Make sure `~/go/bin` is in your PATH:
+
+```bash
+export PATH="$PATH:$(go env GOPATH)/bin"
+# Add this to your ~/.zshrc or ~/.bashrc to make it permanent
+```
+
+### 4. Run your first scan
+
+```bash
+# Passive-only scan (safe, no direct target contact)
+recontool scan example.com --mode live
+
+# Full active scan with a 5-minute timeout
+recontool scan example.com --mode live --authorize-active --timeout 300
+
+# Zero-network demo (no keys, no egress, built-in mocks)
+recontool demo
+```
+
+### 5. Where results go
+
+| Location | Contents |
+|----------|----------|
+| `output/` | Final scan reports, JSON exports, diffs |
+| `artifacts/` | Raw tool output, JS files, response bodies, screenshots |
+| `recontool.db` | SQLite database with all discovered entities |
+
+View results:
+
+```bash
+recontool report <scan_id>
+recontool export <scan_id> -o results.json
+```
+
+### Tips
+
+- Use `--timeout 300` for large targets to avoid runaway scans
+- Use `--category 2,21` to focus on specific areas (e.g. subdomain enum + port scan)
+- Run `recontool tools` to see all 53 adapters and which Go tools are detected
+- No API keys needed for basic scanning -- add them incrementally as you need more coverage
+- Use `recontool preflight example.com --mode live` to validate your config before a real scan
+
+---
+
 ## Usage Samples
 
 ```bash
