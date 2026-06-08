@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Integration tests, E2E test with realistic scan flow, test fixtures, and comprehensive documentation for the event-driven engine architecture.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create tests/integration/__init__.py and tests/integration/test_orchestrator_flow.py - Integration tests covering: adapter with mocked execution producing events, orchestrator with in-memory SQLite DB processing a full discovery->enrichment flow, event flow from EntityDiscovered to PendingKeyCreated to PendingKeyResolved to downstream ToolSelected, parallel scheduling logic (verify concurrency limits respected), retry and timeout handling (mock a failing tool, verify retry with backoff).",
     "Create tests/integration/test_pending_keys.py - Integration tests for pending key lifecycle: create pending key when tool discovers new subdomain, resolve pending key when live_host confirmed, trigger downstream tool (e.g. nuclei) only when live_host key resolved, prevent duplicate tool runs via fingerprint check, verify blocked tools remain blocked when dependencies missing.",
@@ -31,5 +31,5 @@
     "ruff check recontool/ tests/"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 222 tests pass (20 new tests added). Ruff clean on new files. Pre-existing lint issues in recontool/adapters/active.py, inventory/, and tests/atomic/ are unchanged."
 }
