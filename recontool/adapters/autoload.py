@@ -12,18 +12,23 @@ from recontool.config import CONFIG_DIR
 from recontool.adapters.generic import build_adapter_class
 
 GENERIC_YAML = CONFIG_DIR / "tools_generic.yaml"
+AUTOGEN_YAML = CONFIG_DIR / "tools_autogen.yaml"
 
 
 @lru_cache(maxsize=1)
 def load_generic_specs() -> list[dict]:
-    if not GENERIC_YAML.exists():
-        return []
-    try:
-        import yaml
-        data = yaml.safe_load(GENERIC_YAML.read_text()) or {}
-    except Exception:  # noqa: BLE001
-        return []
-    return list(data.get("tools", []))
+    """Load specs from both tools_generic.yaml and tools_autogen.yaml."""
+    specs: list[dict] = []
+    for path in (GENERIC_YAML, AUTOGEN_YAML):
+        if not path.exists():
+            continue
+        try:
+            import yaml
+            data = yaml.safe_load(path.read_text()) or {}
+            specs.extend(data.get("tools", []))
+        except Exception:  # noqa: BLE001
+            continue
+    return specs
 
 
 def register_generic() -> int:
