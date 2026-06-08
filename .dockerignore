@@ -1,0 +1,20 @@
+# Don't send these to Docker build context (speeds up builds significantly)
+.git
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.venv
+venv
+.env
+recontool.db
+*.db
+*.db-journal
+artifacts/
+output/
+run_*/
+scan_*/
+node_modules/
+.mypy_cache/
