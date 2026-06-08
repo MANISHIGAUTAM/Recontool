@@ -83,6 +83,8 @@ def scan(
                                  help="Comma-separated category numbers to run ONLY (e.g. '2' or '1,2,3')."),
     timeout: int = typer.Option(0, "--timeout", "-t",
                                 help="Max total scan wall-time in seconds (0 = unlimited)."),
+    engine: str = typer.Option("pipeline", "--engine", "-E",
+                               help="Engine: pipeline (phased) | event (event-driven)."),
     export: Path = typer.Option(None, "--export", "-o", help="Write full JSON results here."),
     output_dir: Path = typer.Option(None, "--output-dir", "-O",
                                     help="Directory for structured output files (default: output/)."),
@@ -148,7 +150,6 @@ def scan(
                     pass
         sys.stdout.flush()
 
-    pipeline = ReconPipeline(supervisor=supervisor, mode=run_mode)
     cats = None
     if category:
         cats = {int(c) for c in category.replace(" ", "").split(",") if c.strip().isdigit()}
@@ -158,39 +159,81 @@ def scan(
     # Mutable container to hold scan_id once the pipeline starts
     _scan_state: dict = {}
 
-    async def _run_with_timeout():
-        coro = pipeline.run(
-            seed, profile_name=profile, authorize_active=authorize_active,
-            categories=cats, progress=progress, stream=stream, resume_scan_id=resume,
-        )
-        if timeout > 0:
-            try:
-                return await asyncio.wait_for(coro, timeout=timeout)
-            except asyncio.TimeoutError:
-                console.print(f"[red]Scan timed out after {timeout}s[/red]")
-                # Write partial output even on timeout
-                if _scan_state.get("scan_id"):
-                    try:
-                        rpt.write_output_files(_scan_state["scan_id"], seed, _output_path)
-                        console.print(f"[yellow]Partial results written to {_output_path / seed}[/yellow]")
-                    except Exception:  # noqa: BLE001
-                        pass
-                raise typer.Exit(3)
-        return await coro
+    if engine == "event":
+        # ── EVENT-DRIVEN ENGINE ─────────────────────────────────────────────
+        from recontool.engine import create_engine
 
-    result = asyncio.run(_run_with_timeout())
+        eng = create_engine(mode=run_mode, supervisor=supervisor)
+        console.print("[bold magenta]Engine:[/bold magenta] event-driven (continuous expansion)")
 
-    # Write final output files
-    out_path = rpt.write_output_files(result.scan_id, seed, _output_path)
-    console.print(f"\n[green]Output files written to[/green] {out_path}")
+        async def _run_event_engine():
+            return await eng.run(
+                seed, profile_name=profile, authorize_active=authorize_active,
+                categories=cats, stream=stream, timeout=timeout,
+            )
 
-    _render_result(result, supervisor)
+        eng_result = asyncio.run(_run_event_engine())
 
-    if export:
-        path = rpt.export_json(result.scan_id, export)
-        console.print(f"\n[green]Exported[/green] full results → {path}")
-    console.print(f"\nScan id: [bold cyan]{result.scan_id}[/bold cyan] "
-                  f"(artifacts in {settings.artifact_dir}/{result.scan_id})")
+        # Write output files
+        out_path = rpt.write_output_files(eng_result.scan_id, seed, _output_path)
+        console.print(f"\n[green]Output files written to[/green] {out_path}")
+
+        # Summary table for event engine
+        table = Table(title="Event Engine Results", header_style="bold")
+        for c in ("Metric", "Value"):
+            table.add_column(c)
+        table.add_row("Events processed", str(eng_result.events_processed))
+        table.add_row("Adapters dispatched", str(eng_result.adapters_run))
+        table.add_row("Total entities", str(eng_result.total_entities))
+        table.add_row("Converged", str(eng_result.converged))
+        table.add_row("Elapsed", f"{eng_result.elapsed:.1f}s")
+        console.print(table)
+
+        _print_summary(eng_result.scan_id)
+        _print_findings(eng_result.scan_id)
+
+        if export:
+            path = rpt.export_json(eng_result.scan_id, export)
+            console.print(f"\n[green]Exported[/green] full results -> {path}")
+        console.print(f"\nScan id: [bold cyan]{eng_result.scan_id}[/bold cyan] "
+                      f"(artifacts in {settings.artifact_dir}/{eng_result.scan_id})")
+    else:
+        # ── PIPELINE ENGINE (default) ──────────────────────────────────────
+        pipeline = ReconPipeline(supervisor=supervisor, mode=run_mode)
+
+        async def _run_with_timeout():
+            coro = pipeline.run(
+                seed, profile_name=profile, authorize_active=authorize_active,
+                categories=cats, progress=progress, stream=stream, resume_scan_id=resume,
+            )
+            if timeout > 0:
+                try:
+                    return await asyncio.wait_for(coro, timeout=timeout)
+                except asyncio.TimeoutError:
+                    console.print(f"[red]Scan timed out after {timeout}s[/red]")
+                    # Write partial output even on timeout
+                    if _scan_state.get("scan_id"):
+                        try:
+                            rpt.write_output_files(_scan_state["scan_id"], seed, _output_path)
+                            console.print(f"[yellow]Partial results written to {_output_path / seed}[/yellow]")
+                        except Exception:  # noqa: BLE001
+                            pass
+                    raise typer.Exit(3)
+            return await coro
+
+        result = asyncio.run(_run_with_timeout())
+
+        # Write final output files
+        out_path = rpt.write_output_files(result.scan_id, seed, _output_path)
+        console.print(f"\n[green]Output files written to[/green] {out_path}")
+
+        _render_result(result, supervisor)
+
+        if export:
+            path = rpt.export_json(result.scan_id, export)
+            console.print(f"\n[green]Exported[/green] full results -> {path}")
+        console.print(f"\nScan id: [bold cyan]{result.scan_id}[/bold cyan] "
+                      f"(artifacts in {settings.artifact_dir}/{result.scan_id})")
 
 
 @app.command()
