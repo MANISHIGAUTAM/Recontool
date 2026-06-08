@@ -169,6 +169,10 @@ class ReconPipeline:
                             profile=profile.name, mode=self.mode.value, resumed=resumed)
         load_builtin()
 
+        # Emit scan_id so external consumers (like CLI output writers) can use it
+        if stream:
+            stream("scan_start", scan_id=scan_id, seed=seed)
+
         def base_ctx(inputs: dict[str, list[str]]) -> AdapterContext:
             return AdapterContext(
                 scan_id=scan_id, scope=scope, profile=profile, http=http,

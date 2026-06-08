@@ -84,6 +84,8 @@ def scan(
     timeout: int = typer.Option(0, "--timeout", "-t",
                                 help="Max total scan wall-time in seconds (0 = unlimited)."),
     export: Path = typer.Option(None, "--export", "-o", help="Write full JSON results here."),
+    output_dir: Path = typer.Option(None, "--output-dir", "-O",
+                                    help="Directory for structured output files (default: output/)."),
 ):
     """Run a recon scan on SEED."""
     if profile not in PROFILES:
@@ -121,7 +123,9 @@ def scan(
 
     def stream(event, **kw):
         # live per-adapter streaming so long scans show continuous progress
-        if event == "adapter_start":
+        if event == "scan_start":
+            _scan_state["scan_id"] = kw.get("scan_id")
+        elif event == "adapter_start":
             tag = "[red]active[/red]" if kw.get("active") else "[green]passive[/green]"
             console.print(f"   [cyan]▶[/cyan] {kw['tool']} [{kw.get('category','')}] {tag} …")
         elif event == "adapter_done":
@@ -136,12 +140,23 @@ def scan(
                           f"[dim]{kw.get('duration',0)}s[/dim] "
                           f"assets={c.get('asset',0)} endpoints={c.get('endpoint',0)} "
                           f"services={c.get('service',0)} findings={c.get('finding',0)}")
+            # Write intermediate output files after each phase
+            if _scan_state.get("scan_id"):
+                try:
+                    rpt.write_output_files(_scan_state["scan_id"], seed, _output_path)
+                except Exception:  # noqa: BLE001
+                    pass
         sys.stdout.flush()
 
     pipeline = ReconPipeline(supervisor=supervisor, mode=run_mode)
     cats = None
     if category:
         cats = {int(c) for c in category.replace(" ", "").split(",") if c.strip().isdigit()}
+
+    # Resolve output directory (default: output/)
+    _output_path = output_dir if output_dir else Path("output")
+    # Mutable container to hold scan_id once the pipeline starts
+    _scan_state: dict = {}
 
     async def _run_with_timeout():
         coro = pipeline.run(
@@ -153,10 +168,21 @@ def scan(
                 return await asyncio.wait_for(coro, timeout=timeout)
             except asyncio.TimeoutError:
                 console.print(f"[red]Scan timed out after {timeout}s[/red]")
+                # Write partial output even on timeout
+                if _scan_state.get("scan_id"):
+                    try:
+                        rpt.write_output_files(_scan_state["scan_id"], seed, _output_path)
+                        console.print(f"[yellow]Partial results written to {_output_path / seed}[/yellow]")
+                    except Exception:  # noqa: BLE001
+                        pass
                 raise typer.Exit(3)
         return await coro
 
     result = asyncio.run(_run_with_timeout())
+
+    # Write final output files
+    out_path = rpt.write_output_files(result.scan_id, seed, _output_path)
+    console.print(f"\n[green]Output files written to[/green] {out_path}")
 
     _render_result(result, supervisor)
 
