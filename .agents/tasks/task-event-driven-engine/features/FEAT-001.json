@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Event system, enhanced tool registry schema, pending-key model, and extended adapter contract. This establishes the core data structures and models that all subsequent features build upon.",
+  "status": "in_progress",
+  "steps": [
+    "Create recontool/engine/__init__.py as the new event-driven engine package",
+    "Create recontool/engine/events.py with typed event classes: ScanRequested, ToolSelected, ToolDependencyChecked, ToolReady, ToolBlocked, ToolRunning, ToolArtifactProduced, EntityDiscovered, PendingKeyCreated, PendingKeyResolved, ToolCompleted, ToolFailed, ScanCompleted. Use dataclasses with timestamp, scan_id, correlation_id fields. Include an EventBus class (in-process pub/sub with async handlers).",
+    "Create recontool/engine/registry.py with an enhanced ToolSpec model (Pydantic BaseModel) capturing all required fields from the spec: name, category, purpose, version, install_method, runtime_dependencies, invocation_strategy, supported_input_types, required_inputs, optional_inputs, output_types, output_file_paths, stdout_semantics, json_schema, concurrency_safety, idempotency, timeout, retry_policy (max_retries, backoff_factor, retryable_errors), rate_limit_constraints, parallel_safe, incremental_safe, produces_entities, unlocks_pending_keys, triggers_downstream, validation_status, test_coverage_status, documentation_status. Include a ToolRegistry class that loads from config/tools.yaml + config/tools_generic.yaml and provides lookup by name, category, phase, input_type, output_type.",
+    "Create recontool/engine/pending_keys.py with the pending-key model. PendingKey dataclass: key_type (e.g. 'subdomain', 'live_host', 'url'), key_value, created_by_tool, created_at, resolved_at, resolved_by_tool, scan_id, status (pending/resolved/expired). PendingKeyStore class that persists to DB (new table) and provides: create_key(), resolve_key(), get_pending_for_tool(), get_resolved_keys(), is_tool_ready(). Rules: if required keys missing -> tool pending; new keys produced -> dependents reschedulable; all keys available -> schedule tool.",
+    "Create recontool/engine/models.py with SQLAlchemy models: ToolRun (id, scan_id, tool_name, status, started_at, finished_at, input_fingerprint, output_fingerprint, exit_code, artifact_paths JSON, entity_count, retry_count, error_detail, duration_ms, command_executed), PendingKeyRecord (id, scan_id, key_type, key_value, status, created_by_tool, resolved_by_tool, created_at, resolved_at, fingerprint), ScanState (id, scan_id, status, iteration, depth, started_at, updated_at, checkpoint_json JSON).",
+    "Extend recontool/adapters/base.py Adapter class with new optional methods that default to no-ops for backwards compatibility: install_check(self) -> bool, prepare(self, ctx) -> None, validate_inputs(self, inputs) -> list[str] (returns validation errors), build_command(self, ctx) -> str|None, parse_stdout(self, stdout: str) -> dict, parse_files(self, paths: list[str]) -> dict, emit_normalized_events(self, parsed: dict) -> list[Event], map_outputs_to_entities(self, parsed: dict) -> list[Event], resolve_pending_keys(self, parsed: dict) -> list[str], can_run_in_parallel(self) -> bool, dependencies(self) -> list[str], timeout_seconds(self) -> int, retry_policy(self) -> dict. These are optional overrides - existing adapters continue to work via their run() method.",
+    "Add DB migration support: update recontool/core/db.py create_all() to include the new engine models table creation alongside existing models."
+  ],
+  "acceptance_criteria": [
+    "EventBus can register handlers and dispatch events asynchronously",
+    "ToolSpec validates a complete tool entry from config/tools.yaml",
+    "ToolRegistry loads all tools from both YAML files",
+    "PendingKeyStore can create, query, and resolve pending keys",
+    "New SQLAlchemy models (ToolRun, PendingKeyRecord, ScanState) create tables successfully",
+    "Existing Adapter subclasses continue to work without modification (backwards compat)",
+    "pytest -q passes with no regressions"
+  ],
+  "verification": [
+    "pytest -q (all existing + new tests pass)",
+    "python -c 'from recontool.engine.events import EventBus; print(\"OK\")'",
+    "python -c 'from recontool.engine.registry import ToolRegistry; print(\"OK\")'",
+    "python -c 'from recontool.engine.pending_keys import PendingKeyStore; print(\"OK\")'"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
