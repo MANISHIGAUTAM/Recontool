@@ -91,9 +91,6 @@ class HttpProbe(Adapter):
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
         hosts = sorted(set(ctx.seeds_of("subdomain") + ctx.seeds_of("domain")))
-        # Cap the number of hosts to probe — avoids unbounded time on large surfaces.
-        max_hosts = min(len(hosts), 30)
-        hosts = hosts[:max_hosts]
         # High concurrency: all hosts probed in parallel with 5s timeout per request.
         sem = asyncio.Semaphore(ctx.profile.global_concurrency or 40)
         events: list[Event] = []
@@ -148,8 +145,6 @@ class PortScan(Adapter):
     async def run(self, ctx: AdapterContext) -> list[Event]:
         targets = sorted(set(ctx.seeds_of("ip") + ctx.seeds_of("subdomain")))
         targets = [t for t in targets if _scoped(ctx, "ip", t) or _scoped(ctx, "subdomain", t)]
-        # Cap targets to avoid unbounded port-scan time on large surfaces
-        targets = targets[:30]
         if shutil.which("naabu"):
             return await self._naabu(ctx, targets)
         return await self._fallback(ctx, targets)

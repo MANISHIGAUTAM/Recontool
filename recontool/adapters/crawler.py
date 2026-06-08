@@ -28,7 +28,7 @@ from recontool.adapters.params import extract_forms
 from recontool.core.scope import is_subdomain_of
 
 _JS_RE = re.compile(r"\.js(\?|$)", re.I)
-_PAGE_BUDGET = {"stealth": 25, "normal": 50, "aggressive": 400}
+_PAGE_BUDGET = {"stealth": 25, "normal": 400, "aggressive": 400}
 _MAX_DEPTH = {"stealth": 2, "normal": 3, "aggressive": 4}
 _MAX_JS = 60
 
