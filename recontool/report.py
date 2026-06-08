@@ -10,7 +10,9 @@ from recontool.core.db import session_scope
 from recontool.core.models import Asset, Edge, Endpoint, Finding, Service
 
 
-def write_output_files(scan_id: str, seed: str, output_dir: Path | None = None) -> Path:
+def write_output_files(scan_id: str, seed: str, output_dir: Path | None = None,
+                       ai_decisions_text: str | None = None,
+                       ai_summary_text: str | None = None) -> Path:
     """Write all scan results to structured text and JSON files.
 
     Creates the following files in output_dir/<seed>/:
@@ -23,6 +25,8 @@ def write_output_files(scan_id: str, seed: str, output_dir: Path | None = None) 
         edges.txt       - src -> dst (rel)
         full_report.json - complete JSON export
         summary.txt     - human-readable summary
+        ai_decisions.txt - log of all AI decisions with reasoning
+        ai_summary.txt  - executive summary of AI analysis
 
     This function is safe to call multiple times (overwrites existing files),
     so it can be invoked after each phase to capture partial results.
@@ -169,6 +173,14 @@ def write_output_files(scan_id: str, seed: str, output_dir: Path | None = None) 
             summary_lines.append("  (none)")
         summary_lines.append("")
         (out / "summary.txt").write_text("\n".join(summary_lines) + "\n")
+
+        # AI decision log
+        if ai_decisions_text:
+            (out / "ai_decisions.txt").write_text(ai_decisions_text)
+
+        # AI executive summary
+        if ai_summary_text:
+            (out / "ai_summary.txt").write_text(ai_summary_text)
 
     return out
 

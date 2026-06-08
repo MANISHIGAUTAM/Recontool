@@ -136,6 +136,12 @@ def scan(
                           f"[dim]{kw.get('duration',0)}s[/dim] → {n} events")
         elif event == "adapter_error":
             console.print(f"   [red]✘ {kw['tool']} ERROR[/red] [dim]{kw.get('error','')}[/dim]")
+        elif event == "ai_decision":
+            dtype = kw.get("decision_type", "")
+            decision = kw.get("decision", "")
+            reasoning = kw.get("reasoning", "")
+            console.print(f"   [magenta]🧠 AI[/magenta] [{dtype}] {decision} "
+                          f"[dim]{reasoning[:80]}[/dim]")
         elif event == "phase_done":
             c = kw.get("counts", {})
             console.print(f"   [bold green]= {kw['phase']} done[/bold green] "
@@ -223,8 +229,19 @@ def scan(
 
         result = asyncio.run(_run_with_timeout())
 
-        # Write final output files
-        out_path = rpt.write_output_files(result.scan_id, seed, _output_path)
+        # Write final output files (include AI decisions if available)
+        ai_decisions_text = None
+        ai_summary_text = None
+        if hasattr(pipeline, '_ai_decisions') and pipeline._ai_decisions:
+            ai_decisions_text = pipeline._ai_decisions.format_decisions_log()
+            ai_summary_text = pipeline._ai_decisions.generate_summary(
+                result.scan_id, seed, result.phases
+            )
+        out_path = rpt.write_output_files(
+            result.scan_id, seed, _output_path,
+            ai_decisions_text=ai_decisions_text,
+            ai_summary_text=ai_summary_text,
+        )
         console.print(f"\n[green]Output files written to[/green] {out_path}")
 
         _render_result(result, supervisor)

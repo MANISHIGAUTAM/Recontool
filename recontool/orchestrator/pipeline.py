@@ -77,6 +77,8 @@ class ReconPipeline:
         # Pipeline-level cache so in-memory backend persists across phases and runs
         from recontool.cache import ResultCache
         self._cache = ResultCache.create(settings.redis_url)
+        # AI decision layer (initialized per-scan with stream callback)
+        self._ai_decisions = None
 
     async def run(
         self,
@@ -91,6 +93,16 @@ class ReconPipeline:
     ) -> ScanResult:
         self._categories = categories          # None = run all categories
         self._emit = stream                    # live per-adapter event callback
+        # Initialize AI decision layer for this scan
+        from recontool.engine.ai_decision import AIDecisionLayer
+        from recontool.engine.log_analyzer import LogAnalyzer
+        log_analyzer = LogAnalyzer()
+        self._ai_decisions = AIDecisionLayer(
+            log_analyzer=log_analyzer,
+            supervisor=self.supervisor,
+            stream=stream,
+        )
+        self._scan_start_time = time.time()
         create_all()
         profile = settings.profile() if not profile_name else __import__(
             "recontool.config", fromlist=["PROFILES"]
@@ -355,6 +367,27 @@ class ReconPipeline:
                          error=str(exc)[:200], duration=dt)
                 log_event("adapter.error", level="ERROR", phase=phase,
                           tool=inst.name, error=str(exc)[:300])
+                # AI decision on error: retry, skip, or alternative
+                if self._ai_decisions:
+                    other_names = [i.name for i in to_run if i.name != inst.name]
+                    error_decision = self._ai_decisions.handle_error(
+                        inst.name, str(exc), phase, other_names
+                    )
+                    self._ai_decisions.log_analyzer.record_failure(inst.name, dt)
+                    if error_decision.action == "retry" and error_decision.retry_delay > 0:
+                        # Attempt a single retry after delay
+                        await asyncio.sleep(min(error_decision.retry_delay, 5.0))
+                        try:
+                            retry_events = await asyncio.wait_for(
+                                inst.run(ctx), timeout=adapter_timeout
+                            )
+                            if emit:
+                                emit("adapter_done", phase=phase, tool=inst.name,
+                                     events=len(retry_events),
+                                     duration=round(time.time() - t_start, 1))
+                            return inst.name, retry_events
+                        except Exception:  # noqa: BLE001
+                            pass
                 return inst.name, []
 
         if use_local_execution:
@@ -420,6 +453,32 @@ class ReconPipeline:
         if getattr(self, "_emit", None):
             self._emit("phase_done", phase=phase, counts=pr.counts,
                        ran=len(pr.adapters_run), duration=pr.duration)
+
+        # AI strategy adjustment after phase completion
+        if self._ai_decisions:
+            total_assets = sum(pr.counts.get(k, 0) for k in ("asset",))
+            elapsed = time.time() - getattr(self, "_scan_start_time", time.time())
+            self._ai_decisions.adjust_strategy(
+                phase, pr.counts, total_assets, elapsed
+            )
+
+            # Anomaly detection on discovered data
+            from recontool.core.models import Endpoint as _Endpoint
+            with session_scope() as _s:
+                _assets = _s.execute(select(Asset).where(Asset.scan_id == scan_id)).scalars().all()
+                _subs = [a.value for a in _assets if a.type in ("subdomain", "domain")]
+                _ips_list = [a.value for a in _assets if a.type == "ip"]
+                _eps = _s.execute(
+                    select(_Endpoint).where(_Endpoint.asset_id.in_(
+                        select(Asset.id).where(Asset.scan_id == scan_id)
+                    ))
+                ).scalars().all()
+                _ep_urls = [e.url for e in _eps]
+            self._ai_decisions.detect_anomalies({
+                "subdomains": _subs,
+                "ips": _ips_list,
+                "endpoints": _ep_urls,
+            })
 
         # AI supervisor reviews the output of this phase
         if self.supervisor:
