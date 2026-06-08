@@ -27,7 +27,21 @@ class DependencyChecker:
     """Check whether a tool's runtime dependencies are satisfied."""
 
     def check_tool_ready(self, tool_spec: ToolSpec) -> ReadinessResult:
-        """Run all checks for a tool and return a composite ReadinessResult."""
+        """Run all checks for a tool and return a composite ReadinessResult.
+
+        Handles three classes of tool without ever raising:
+          * non-executable (web/gui/dataset-only, reference indexes, presets) ->
+            blocked with the recorded reason; nothing to install.
+          * inventory-derived stubs (api/cli mode but no full contract yet) ->
+            blocked with a "promote to full adapter" reason, plus any missing
+            binary/key surfaced so operators know what to provision.
+          * fully-contracted tools -> the usual binary/dependency/key checks.
+        """
+        # Non-executable tools can never run; report the documented reason.
+        if tool_spec.non_executable:
+            reason = tool_spec.non_executable_reason or "non_executable: no programmatic interface"
+            return ReadinessResult(ready=False, blocked_reason=reason, missing_deps=[])
+
         missing: list[str] = []
         reasons: list[str] = []
 
@@ -49,6 +63,23 @@ class DependencyChecker:
                 missing.append(key_env)
                 reasons.append(f"API key not set: {key_env}")
 
+        # Inventory-derived stubs have no concrete invocation/endpoint contract.
+        # They are selectable by the scheduler but cannot execute until promoted
+        # to a full adapter spec (config/tools_generic.yaml) — report that clearly
+        # rather than silently "succeeding".
+        if tool_spec.is_inventory_derived and not self._has_execution_contract(tool_spec):
+            contract = "API endpoint" if tool_spec.integration == "api" else "invocation"
+            reasons.append(
+                f"inventory_stub: no {contract} contract for "
+                f"'{tool_spec.slug or tool_spec.name}'; "
+                "promote to a generic adapter spec to execute"
+            )
+            return ReadinessResult(
+                ready=False,
+                blocked_reason="; ".join(reasons),
+                missing_deps=missing,
+            )
+
         if missing:
             return ReadinessResult(
                 ready=False,
@@ -56,6 +87,20 @@ class DependencyChecker:
                 missing_deps=missing,
             )
         return ReadinessResult(ready=True)
+
+    @staticmethod
+    def _has_execution_contract(tool_spec: ToolSpec) -> bool:
+        """True if the tool has enough to route through a generic adapter.
+
+        CLI tools can be driven by their binary + a (curated or synthesised)
+        invocation template, so a known binary is sufficient. API tools need a
+        concrete endpoint, which bare inventory stubs do not carry.
+        """
+        if tool_spec.integration == "api":
+            return bool(tool_spec.endpoint)
+        if tool_spec.integration == "cli":
+            return bool(tool_spec.binary or tool_spec.invocation)
+        return False
 
     def check_binary_available(self, name: str) -> bool:
         """Check if a binary is available on PATH."""

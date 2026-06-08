@@ -211,7 +211,10 @@ class EventDrivenScheduler:
         completed = self._completed_tools.get(scan_id, set())
         eligible: list[ToolSpec] = []
 
-        for tool_spec in self._registry.all_tools().values():
+        # Index-backed lookup: only consider tools that consume an available key
+        # type, keeping selection proportional to matches rather than scanning
+        # the whole (500+ tool) registry on every scheduling pass.
+        for tool_spec in self._registry.tools_for_inputs(available):
             if not tool_spec.enabled:
                 continue
             if tool_spec.name in running or tool_spec.name in completed:

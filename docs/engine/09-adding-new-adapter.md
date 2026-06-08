@@ -1,5 +1,24 @@
 # Adding a New Adapter
 
+> **The registry already knows about every canonical tool.** All 531 unique tools
+> from `data/tool_inventory.json` are loaded as `ToolSpec`s (see
+> `docs/engine/02-tool-registry.md`). "Adding an adapter" almost always means
+> **promoting an existing inventory-derived stub** to a full, executable contract —
+> not registering a brand-new name. Check first:
+>
+> ```python
+> reg = ToolRegistry.load()
+> reg.by_slug("my-tool")      # already present as a stub?
+> reg.get("my-tool").non_executable, reg.get("my-tool").validation_status
+> ```
+>
+> Inventory-derived tools are routed through the same generic adapter machinery as
+> curated tools via `recontool/engine/execution.py` (`plan_execution` /
+> `build_adapter_for`). A CLI stub runs with a synthesised `"{binary} {value}"`
+> invocation once its binary is installed; an API stub is *blocked with a reason*
+> until you give it an endpoint. Promoting a stub = adding the curated entry below;
+> its slug overrides the stub automatically.
+
 ## Step-by-Step Guide
 
 This guide walks through adding a new tool adapter to the event-driven engine.
