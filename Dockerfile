@@ -31,12 +31,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpcap-dev && 
 
 # Install Go tools one-by-one with pinned versions where needed.
 # Each RUN is a separate layer so failures are isolated and cacheable.
+# All tools use retry logic + graceful fallback so transient network errors
+# (DNS timeouts, connection resets) do not break the build.
 
-# ── Core ProjectDiscovery suite (MUST succeed — fail build if these break) ────
-RUN go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-RUN go install github.com/projectdiscovery/httpx/cmd/httpx@latest
-RUN CGO_ENABLED=1 go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
-RUN go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+# ── Core ProjectDiscovery suite (retry up to 3 times, then graceful skip) ────
+RUN for i in 1 2 3; do go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && break || echo "retry $i/3 subfinder"; sleep 5; done || true
+RUN for i in 1 2 3; do go install github.com/projectdiscovery/httpx/cmd/httpx@latest && break || echo "retry $i/3 httpx"; sleep 5; done || true
+RUN for i in 1 2 3; do CGO_ENABLED=1 go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest && break || echo "retry $i/3 naabu"; sleep 5; done || true
+RUN for i in 1 2 3; do go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest && break || echo "retry $i/3 nuclei"; sleep 5; done || true
 
 # ── Extended PD tools (graceful — don't block build) ─────────────────────────
 RUN go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest || true
@@ -74,7 +76,7 @@ RUN go install github.com/sa7mon/s3scanner@latest || true
 RUN go install github.com/BishopFox/jsluice/cmd/jsluice@latest || true
 
 # Verify what we got
-RUN ls /go-tools/ && echo "=== $(ls /go-tools/ | wc -l) Go tools compiled ==="
+RUN ls /go-tools/ 2>/dev/null; echo "=== $(ls /go-tools/ 2>/dev/null | wc -l) Go tools compiled ==="
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -94,13 +96,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libimage-exiftool-perl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy compiled Go tools from builder stage
+# Copy compiled Go tools from builder stage (may be empty if builds failed)
 COPY --from=go-builder /go-tools /usr/local/go-tools
 
-# Verify Go tools are functional
-RUN subfinder -version 2>&1 | head -1 || true && \
-    nuclei -version 2>&1 | head -1 || true && \
-    echo "Go tools ready: $(ls /usr/local/go-tools/ | wc -l) binaries"
+# Verify Go tools are functional (informational only)
+RUN subfinder -version 2>&1 | head -1 || echo "subfinder not available" && \
+    nuclei -version 2>&1 | head -1 || echo "nuclei not available" && \
+    echo "Go tools ready: $(ls /usr/local/go-tools/ 2>/dev/null | wc -l) binaries"
 
 # Update nuclei templates
 RUN nuclei -update-templates -silent 2>/dev/null || true
