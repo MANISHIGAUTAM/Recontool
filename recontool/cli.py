@@ -388,6 +388,62 @@ def replay(scan_id: str = typer.Argument(..., help="scan_id whose dead-letters t
 
 
 @app.command()
+def matrix(
+    scan_id: str = typer.Argument(..., help="scan_id to show execution matrix for"),
+    csv_out: Path = typer.Option(None, "--csv", "-o", help="Export matrix as CSV to this path."),
+):
+    """Display the tool execution matrix for a scan (entity x tool status grid)."""
+    create_all()
+    from recontool.matrix import export_csv, get_matrix
+
+    data = get_matrix(scan_id)
+    if not data["entities"]:
+        console.print("[yellow]No execution matrix data for this scan.[/yellow]")
+        raise typer.Exit(0)
+
+    # Stats summary
+    stats = data["stats"]
+    console.print(Panel.fit(
+        f"[bold]Matrix[/bold] scan=[cyan]{scan_id}[/cyan]  "
+        f"pending=[yellow]{stats.get('pending', 0)}[/yellow]  "
+        f"scanning=[blue]{stats.get('scanning', 0)}[/blue]  "
+        f"done=[green]{stats.get('done', 0)}[/green]  "
+        f"failed=[red]{stats.get('failed', 0)}[/red]  "
+        f"skipped=[dim]{stats.get('skipped', 0)}[/dim]",
+        title="execution matrix", border_style="blue",
+    ))
+
+    # Render table
+    table = Table(title="Execution Matrix", header_style="bold", show_lines=True)
+    table.add_column("Entity", style="cyan", no_wrap=True)
+    table.add_column("Type", style="dim")
+    for tool in data["tools"]:
+        table.add_column(tool, justify="center")
+
+    status_colors = {
+        "pending": "yellow",
+        "scanning": "blue",
+        "done": "green",
+        "failed": "red",
+        "skipped": "dim",
+    }
+
+    for entity in data["entities"]:
+        row = [entity["value"], entity["type"]]
+        for tool in data["tools"]:
+            status = entity["tools"].get(tool, "")
+            color = status_colors.get(status, "white")
+            row.append(f"[{color}]{status}[/{color}]" if status else "-")
+        table.add_row(*row)
+
+    console.print(table)
+
+    if csv_out:
+        out_path = export_csv(scan_id, csv_out)
+        console.print(f"[green]Matrix exported to[/green] {out_path}")
+
+
+@app.command()
 def tools():
     """List registered adapters and which are currently available."""
     load_builtin()

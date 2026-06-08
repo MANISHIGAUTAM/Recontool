@@ -182,6 +182,13 @@ def write_output_files(scan_id: str, seed: str, output_dir: Path | None = None,
         if ai_summary_text:
             (out / "ai_summary.txt").write_text(ai_summary_text)
 
+    # Execution matrix CSV (non-critical, best-effort)
+    try:
+        from recontool.matrix import export_csv
+        export_csv(scan_id, out / "execution_matrix.csv")
+    except Exception:  # noqa: BLE001
+        pass  # matrix export is optional
+
     return out
 
 

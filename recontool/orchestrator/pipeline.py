@@ -445,6 +445,13 @@ class ReconPipeline:
                     merged_counts[k] = merged_counts.get(k, 0) + v
         pr.counts = merged_counts
 
+        # Populate the execution matrix with pending tasks for newly discovered entities
+        from recontool.matrix import populate_pending
+        try:
+            populate_pending(scan_id)
+        except Exception:  # noqa: BLE001
+            pass  # matrix population is non-critical
+
         pr.duration = round(time.time() - t0, 2)
 
         from recontool.obs import log_event

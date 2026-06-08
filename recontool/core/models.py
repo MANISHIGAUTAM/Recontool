@@ -165,6 +165,31 @@ class Edge(Base):
     first_seen: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class ToolExecution(Base):
+    """Execution matrix row: one row per (entity, tool) pair.
+
+    Tracks which tools have been run (or need to run) against which entities.
+    Status flow: pending -> scanning -> done/failed/skipped
+    """
+
+    __tablename__ = "tool_execution"
+    __table_args__ = (
+        UniqueConstraint("scan_id", "entity_value", "tool_name", name="uq_tool_exec"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scan_id: Mapped[str] = mapped_column(ForeignKey("scan.id"), index=True)
+    entity_value: Mapped[str] = mapped_column(String(1024), index=True)
+    entity_type: Mapped[str] = mapped_column(String(32), index=True)  # domain|subdomain|ip|url|...
+    tool_name: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending|scanning|done|failed|skipped
+    started_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    events_produced: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    priority: Mapped[int] = mapped_column(Integer, default=0)  # higher = run first
+
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
 
