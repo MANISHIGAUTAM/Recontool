@@ -21,7 +21,8 @@ FROM golang:1.24-bookworm AS go-builder
 
 ENV GOBIN=/go-tools \
     CGO_ENABLED=0 \
-    GO111MODULE=on
+    GO111MODULE=on \
+    GOTOOLCHAIN=auto
 
 RUN mkdir -p /go-tools
 
@@ -31,43 +32,43 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpcap-dev && 
 # Install Go tools one-by-one with pinned versions where needed.
 # Each RUN is a separate layer so failures are isolated and cacheable.
 
-# ── Core ProjectDiscovery suite ──────────────────────────────────────────────
+# ── Core ProjectDiscovery suite (MUST succeed — fail build if these break) ────
 RUN go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-RUN go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest
 RUN go install github.com/projectdiscovery/httpx/cmd/httpx@latest
 RUN CGO_ENABLED=1 go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
 RUN go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-RUN go install github.com/projectdiscovery/katana/cmd/katana@latest
-RUN go install github.com/projectdiscovery/tlsx/cmd/tlsx@latest
-RUN go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest
-RUN go install github.com/projectdiscovery/uncover/cmd/uncover@latest
-RUN go install github.com/projectdiscovery/alterx/cmd/alterx@latest
-RUN go install github.com/projectdiscovery/notify/cmd/notify@latest
-RUN go install github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest
 
-# ── These sometimes fail due to module conflicts — allow graceful skip ───────
+# ── Extended PD tools (graceful — don't block build) ─────────────────────────
+RUN go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest || true
+RUN go install github.com/projectdiscovery/katana/cmd/katana@latest || true
+RUN go install github.com/projectdiscovery/tlsx/cmd/tlsx@latest || true
+RUN go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest || true
+RUN go install github.com/projectdiscovery/uncover/cmd/uncover@latest || true
+RUN go install github.com/projectdiscovery/alterx/cmd/alterx@latest || true
+RUN go install github.com/projectdiscovery/notify/cmd/notify@latest || true
+RUN go install github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest || true
 RUN go install github.com/projectdiscovery/mapcidr/cmd/mapcidr@latest || true
 RUN go install github.com/projectdiscovery/cdncheck/cmd/cdncheck@latest || true
 
-# ── URL/archive tools ────────────────────────────────────────────────────────
-RUN go install github.com/lc/gau/v2/cmd/gau@latest
-RUN go install github.com/tomnomnom/waybackurls@latest
-RUN go install github.com/tomnomnom/assetfinder@latest
-RUN go install github.com/tomnomnom/anew@latest
-RUN go install github.com/tomnomnom/unfurl@latest
-RUN go install github.com/tomnomnom/qsreplace@latest
-RUN go install github.com/tomnomnom/gf@latest
+# ── URL/archive tools (graceful) ─────────────────────────────────────────────
+RUN go install github.com/lc/gau/v2/cmd/gau@latest || true
+RUN go install github.com/tomnomnom/waybackurls@latest || true
+RUN go install github.com/tomnomnom/assetfinder@latest || true
+RUN go install github.com/tomnomnom/anew@latest || true
+RUN go install github.com/tomnomnom/unfurl@latest || true
+RUN go install github.com/tomnomnom/qsreplace@latest || true
+RUN go install github.com/tomnomnom/gf@latest || true
 
-# ── Discovery / scanning ─────────────────────────────────────────────────────
-RUN go install github.com/ffuf/ffuf/v2@latest
-RUN go install github.com/haccer/subjack@latest
-RUN go install github.com/d3mondev/puredns/v2@latest
-RUN go install github.com/glebarez/cero@latest
-RUN go install github.com/j3ssie/metabigor@latest
-RUN go install github.com/gwen001/github-subdomains@latest
-RUN go install github.com/gitleaks/gitleaks/v8@latest
+# ── Discovery / scanning (graceful) ──────────────────────────────────────────
+RUN go install github.com/ffuf/ffuf/v2@latest || true
+RUN go install github.com/haccer/subjack@latest || true
+RUN go install github.com/d3mondev/puredns/v2@latest || true
+RUN go install github.com/glebarez/cero@latest || true
+RUN go install github.com/j3ssie/metabigor@latest || true
+RUN go install github.com/gwen001/github-subdomains@latest || true
+RUN go install github.com/gitleaks/gitleaks/v8@latest || true
 
-# ── These have known build issues — try but don't block ──────────────────────
+# ── Known-flaky tools (graceful) ─────────────────────────────────────────────
 RUN go install github.com/sensepost/gowitness@latest || true
 RUN go install github.com/sa7mon/s3scanner@latest || true
 RUN go install github.com/BishopFox/jsluice/cmd/jsluice@latest || true
