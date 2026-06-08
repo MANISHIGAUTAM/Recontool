@@ -17,7 +17,7 @@
 # ══════════════════════════════════════════════════════════════════════════════
 # STAGE 1: Compile Go recon tools (isolated, cached layer)
 # ══════════════════════════════════════════════════════════════════════════════
-FROM golang:1.23-bookworm AS go-builder
+FROM golang:1.24-bookworm AS go-builder
 
 ENV GOBIN=/go-tools \
     CGO_ENABLED=0 \
