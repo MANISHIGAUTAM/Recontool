@@ -1,0 +1,8 @@
+{"incomplete_json": true, "data": [
+  {"host": "partial.example.com"
+ERROR: connection reset by peer
+WARN: rate limited, retrying in 5s
+{"another": "partial
+binary garbage: \x00\x01\x02\xff\xfe
+FATAL: unexpected EOF
+partial line without newl

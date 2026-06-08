@@ -334,6 +334,44 @@ artifacts/<scan_id>/
 
 ---
 
+## Event-Driven Engine
+
+The platform includes an event-driven orchestration engine that provides parallel,
+dependency-aware tool scheduling. Instead of fixed phase ordering (P1-P6), tools
+execute as soon as their input dependencies are satisfied.
+
+```
+ScanRequested -> ToolSelected -> ToolRunning -> EntityDiscovered
+     -> PendingKeyCreated -> PendingKeyResolved -> (downstream ToolSelected)
+     -> ... -> ScanCompleted
+```
+
+Key capabilities:
+- **Event bus** - async pub/sub routing typed events between components
+- **Pending keys** - inter-tool dependency tracking (e.g., subdomain must be confirmed live before vuln scanning)
+- **Parallel executor** - layered concurrency control (global, per-tool, per-host)
+- **Incremental scans** - SHA-256 fingerprinting to skip unchanged inputs
+- **AI decisioning** - heuristic entity classification (persist/discard/trigger downstream)
+
+The engine is additive: the existing `ReconPipeline` continues to work for
+linear scans. Full documentation lives in [`docs/engine/`](docs/engine/):
+
+| Doc | Topic |
+|-----|-------|
+| [00-architecture-overview.md](docs/engine/00-architecture-overview.md) | High-level diagram and component map |
+| [01-event-flow.md](docs/engine/01-event-flow.md) | All events, when they fire, who handles them |
+| [02-tool-registry.md](docs/engine/02-tool-registry.md) | Schema reference, querying, adding tools |
+| [03-adapter-contract.md](docs/engine/03-adapter-contract.md) | Full contract methods with reference implementation |
+| [04-pending-keys.md](docs/engine/04-pending-keys.md) | Lifecycle, rules, database schema |
+| [05-parallel-execution.md](docs/engine/05-parallel-execution.md) | Concurrency model and safety rules |
+| [06-incremental-scans.md](docs/engine/06-incremental-scans.md) | Fingerprinting, staleness, delta reprocessing |
+| [07-ai-decisioning.md](docs/engine/07-ai-decisioning.md) | Interface, heuristics, mocking |
+| [08-observability.md](docs/engine/08-observability.md) | Logging format, metrics, correlation IDs |
+| [09-adding-new-adapter.md](docs/engine/09-adding-new-adapter.md) | Step-by-step guide with examples |
+| [10-troubleshooting.md](docs/engine/10-troubleshooting.md) | Common issues, debugging, FAQ |
+
+---
+
 ## Tests
 
 ```bash
