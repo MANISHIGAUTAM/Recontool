@@ -158,6 +158,8 @@ class Settings:
         "RECON_ARTIFACT_DIR", ("general", "artifact_dir"), "./artifacts")).resolve())
     redis_url: str | None = field(default_factory=lambda: _resolve(
         "RECON_REDIS_URL", ("general", "redis_url"), "") or None)
+    cache_ttl: int = field(default_factory=lambda: int(_resolve(
+        "RECON_CACHE_TTL", ("general", "cache_ttl"), 3600)))
 
     proxy_strategy: str = field(default_factory=lambda: _resolve(
         "RECON_PROXY_STRATEGY", ("network", "proxy_strategy"), "round_robin"))

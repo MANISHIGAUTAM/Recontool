@@ -251,6 +251,46 @@ class ReconPipeline:
         # live per-adapter streaming: emit start/finish so long scans show progress
         emit = getattr(self, "_emit", None)
 
+        # ── result cache: check for cached passive results ──────────────────
+        from recontool.cache import ResultCache, hash_inputs
+        cache = ResultCache.create(settings.redis_url)
+        cache_ttl = settings.cache_ttl
+        scope_hash = hash_inputs({}, ctx.scope.to_json() if hasattr(ctx.scope, "to_json") else {})
+        input_hash = hash_inputs(ctx.inputs, {})
+
+        cached_results: list[tuple[str, list[Event]]] = []
+        to_run: list = []
+
+        for inst in instances:
+            # Only cache passive adapters
+            if not getattr(inst, "is_active", False):
+                cached = await cache.get(inst.name, input_hash, scope_hash)
+                if cached is not None:
+                    # Reconstruct Event objects from cached dicts
+                    events = [
+                        Event(
+                            entity=e["entity"], tool=e["tool"],
+                            data=e["data"], raw_ref=e.get("raw_ref"),
+                        )
+                        for e in cached
+                    ]
+                    cached_results.append((inst.name, events))
+                    if emit:
+                        emit("adapter_done", phase=phase, tool=inst.name,
+                             events=len(events), duration=0.0)
+                    from recontool.obs import log_event as _log
+                    _log("adapter.cached", phase=phase, tool=inst.name, events=len(events))
+                    continue
+            to_run.append(inst)
+
+        # ── Queue-based dispatch ────────────────────────────────────────────
+        # For InMemoryQueue (default, no Redis): execute in-process with the
+        # same asyncio.gather pattern. The queue abstraction is in place so
+        # switching to RedisQueue with external workers is seamless.
+        from recontool.queue import InMemoryQueue, RedisQueue, get_queue
+        queue = get_queue(settings.redis_url)
+        use_local_execution = isinstance(queue, InMemoryQueue)
+
         # PARALLEL fan-out across adapters in this phase
         async def run_one(inst):
             t_start = time.time()
@@ -286,15 +326,29 @@ class ReconPipeline:
                           tool=inst.name, error=str(exc)[:300])
                 return inst.name, []
 
-        sem = asyncio.Semaphore(ctx.profile.global_concurrency or 10)
+        if use_local_execution:
+            # In-memory path: direct asyncio.gather (same behavior as before)
+            sem = asyncio.Semaphore(ctx.profile.global_concurrency or 10)
 
-        async def guarded(inst):
-            async with sem:
-                return await run_one(inst)
+            async def guarded(inst):
+                async with sem:
+                    return await run_one(inst)
 
-        results = await asyncio.gather(*(guarded(i) for i in instances))
+            results = await asyncio.gather(*(guarded(i) for i in to_run))
+        else:
+            # Redis queue path: dispatch tasks and wait for results from workers
+            results = await self._dispatch_via_queue(
+                queue, to_run, phase, ctx, scan_id, emit,
+            )
+
+        await queue.close()
 
         all_events = []
+        # Include cached results first
+        for name, events in cached_results:
+            pr.adapters_run.append(name)
+            all_events.extend(events)
+
         for name, events in results:
             pr.adapters_run.append(name)
             all_events.extend(events)
@@ -302,6 +356,16 @@ class ReconPipeline:
                 s.add(AuditLog(scan_id=scan_id, action="adapter.run", tool=name,
                                egress_ip=ctx.http.last_egress, profile=ctx.profile.name,
                                detail={"events": len(events)}))
+            # Cache successful passive adapter results
+            if events and not any(
+                getattr(inst, "is_active", False)
+                for inst in to_run if inst.name == name
+            ):
+                event_dicts = [
+                    {"entity": e.entity, "tool": e.tool, "data": e.data, "raw_ref": e.raw_ref}
+                    for e in events
+                ]
+                await cache.set(name, input_hash, scope_hash, event_dicts, cache_ttl)
 
         # NORMALIZE (single writer) into the DB
         with session_scope() as s:
@@ -324,6 +388,71 @@ class ReconPipeline:
             except Exception:  # noqa: BLE001
                 pr.note = ""
         return pr
+
+    async def _dispatch_via_queue(
+        self, queue, instances, phase, ctx: AdapterContext, scan_id, emit,
+    ) -> list[tuple[str, list[Event]]]:
+        """Dispatch adapter tasks to Redis queue and collect results."""
+        import uuid as _uuid
+
+        task_ids: list[tuple[str, str]] = []  # (task_id, adapter_name)
+
+        # Serialize the minimal context needed by remote workers
+        context_data = {
+            "profile_name": ctx.profile.name,
+            "inputs": ctx.inputs,
+            "api_keys": {k: v for k, v in ctx.api_keys.items() if v},
+            "scope_json": ctx.scope.to_json() if hasattr(ctx.scope, "to_json") else {},
+        }
+
+        for inst in instances:
+            task_id = _uuid.uuid4().hex[:16]
+            task_data = {
+                "adapter_name": inst.name,
+                "phase": phase,
+                "scan_id": scan_id,
+                "context_data": context_data,
+            }
+            if emit:
+                emit("adapter_start", phase=phase, tool=inst.name,
+                     category=getattr(inst, "category", ""),
+                     active=getattr(inst, "is_active", False))
+            await queue.enqueue(task_id, task_data)
+            task_ids.append((task_id, inst.name))
+
+        # Collect results as they complete
+        results: list[tuple[str, list[Event]]] = []
+        adapter_timeout = float(getattr(ctx.profile, "adapter_timeout", 0) or 180)
+
+        for task_id, adapter_name in task_ids:
+            result_data = await queue.get_result(task_id, timeout=adapter_timeout)
+            if result_data is None:
+                # Timeout waiting for result
+                if emit:
+                    emit("adapter_error", phase=phase, tool=adapter_name,
+                         error="timeout waiting for worker result", duration=adapter_timeout)
+                results.append((adapter_name, []))
+            elif result_data.get("status") == "completed":
+                event_dicts = result_data.get("result", {}).get("events", [])
+                events = [
+                    Event(
+                        entity=e["entity"], tool=e["tool"],
+                        data=e["data"], raw_ref=e.get("raw_ref"),
+                    )
+                    for e in event_dicts
+                ]
+                if emit:
+                    emit("adapter_done", phase=phase, tool=adapter_name,
+                         events=len(events), duration=0.0)
+                results.append((adapter_name, events))
+            else:
+                error = result_data.get("error", "unknown error")
+                if emit:
+                    emit("adapter_error", phase=phase, tool=adapter_name,
+                         error=error[:200], duration=0.0)
+                results.append((adapter_name, []))
+
+        return results
 
     # ── chaining: read discovered assets back as next-phase inputs ─────────
     def _seed_asset(self, scan_id, seed: str, seed_type: str, scope: Scope) -> None:

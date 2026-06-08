@@ -24,12 +24,45 @@ services:
       - .env
     environment:
       RECON_ARTIFACT_DIR: /app/artifacts
+      RECON_REDIS_URL: redis://redis:6379/0
     volumes:
       - ./config:/app/config
       - ./artifacts:/app/artifacts
       - ./output:/app/output
+    depends_on:
+      redis:
+        condition: service_healthy
     # default command: run the zero-network demo so a fresh `up` proves the stack
     command: ["demo", "recontool.local"]
+
+  # ── Redis for task queue and rate-limit buckets ───────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Worker service for distributed adapter execution ──────────────────────
+  worker:
+    build: .
+    image: recontool:latest
+    env_file:
+      - .env
+    environment:
+      RECON_ARTIFACT_DIR: /app/artifacts
+      RECON_REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./config:/app/config
+      - ./artifacts:/app/artifacts
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: ["worker", "--concurrency", "4"]
 
   # ── Optional: PostgreSQL canonical store (profile: full) ──────────────────
   postgres:
@@ -47,19 +80,6 @@ services:
       test: ["CMD-SHELL", "pg_isready -U recon"]
       interval: 5s
       timeout: 5s
-      retries: 5
-
-  # ── Optional: Redis for distributed rate-limit buckets (profile: full) ────
-  redis:
-    image: redis:7-alpine
-    profiles: ["full"]
-    ports:
-      - "6379:6379"
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
       retries: 5
 
   # ── Optional: local mock provider service for demo/test (profile: mock) ───

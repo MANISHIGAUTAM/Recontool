@@ -32,6 +32,40 @@ console = Console()
 
 
 @app.command()
+def worker(
+    concurrency: int = typer.Option(4, "--concurrency", "-n",
+                                    help="Number of concurrent task executors."),
+    queue_backend: str = typer.Option("auto", "--queue-backend", "-q",
+                                      help="Queue backend: auto | redis | memory"),
+):
+    """Start a queue worker that pulls and executes adapter tasks."""
+    from recontool.config import settings
+    from recontool.queue import InMemoryQueue, get_queue
+    from recontool.queue.worker import TaskWorker, run_worker
+
+    if queue_backend == "auto":
+        redis_url = settings.redis_url
+    elif queue_backend == "redis":
+        redis_url = settings.redis_url
+        if not redis_url:
+            console.print("[red]RECON_REDIS_URL not set but redis backend requested.[/red]")
+            raise typer.Exit(1)
+    else:
+        redis_url = None
+
+    queue = get_queue(redis_url)
+    backend_name = "redis" if redis_url else "memory"
+    console.print(Panel.fit(
+        f"[bold]Worker[/bold] concurrency=[cyan]{concurrency}[/cyan] "
+        f"backend=[yellow]{backend_name}[/yellow]",
+        title="worker", border_style="green",
+    ))
+
+    run_worker(queue, concurrency=concurrency)
+    console.print("[green]Worker exited cleanly.[/green]")
+
+
+@app.command()
 def scan(
     seed: str = typer.Argument(..., help="domain / ip / cidr / asn (e.g. www.xyz.com)"),
     profile: str = typer.Option(settings.profile_name, "--profile", "-p",
