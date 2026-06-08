@@ -240,7 +240,46 @@ GITHUB_TOKEN=...                         # optional: unlocks code search
 CENSYS_API_ID=... / CENSYS_API_SECRET=...
 ```
 
-All 29 provider keys are documented in `.env.example`. The tool works with zero keys (passive sources like crt.sh, hackertarget, urlscan are keyless).
+All provider keys are documented in `.env.example`. The tool works with **zero keys** (35+ adapters are keyless).
+
+---
+
+## API Keys Guide
+
+**Where to add keys**: Edit `.env` file (copy from `.env.example`).
+
+**What each key unlocks**:
+
+| Key | Provider | What you get | Free tier |
+|-----|----------|-------------|-----------|
+| `SHODAN_API_KEY` | [shodan.io](https://shodan.io) | IPs, ports, banners, CVEs, services | Yes (limited) |
+| `CENSYS_API_ID` + `CENSYS_API_SECRET` | [censys.io](https://censys.io) | Hosts, certs, services, SANs | Yes (250 queries/month) |
+| `SECURITYTRAILS_API_KEY` | [securitytrails.com](https://securitytrails.com) | Historical DNS, all subdomains ever | Yes (50 queries/month) |
+| `GITHUB_TOKEN` | [github.com](https://github.com/settings/tokens) | Code search (leaked secrets, endpoints in repos) | Free (personal token) |
+| `GITLAB_TOKEN` | [gitlab.com](https://gitlab.com/-/profile/personal_access_tokens) | Same as GitHub but for GitLab | Free |
+| `VIRUSTOTAL_API_KEY` | [virustotal.com](https://virustotal.com) | Subdomain enum, malware/IOC correlation | Yes (500 lookups/day) |
+| `GREYNOISE_API_KEY` | [greynoise.io](https://greynoise.io) | IP noise/threat classification | Yes (community) |
+| `URLSCAN_API_KEY` | [urlscan.io](https://urlscan.io) | Rendered page intel, technology detection | Yes (keyless works) |
+| `HUNTER_API_KEY` | [hunter.io](https://hunter.io) | Email addresses for a domain | Yes (25 searches/month) |
+| `GRAYHATWARFARE_API_KEY` | [grayhatwarfare.com](https://grayhatwarfare.com) | Exposed cloud buckets (S3/GCS/Azure) | Yes (limited) |
+| `BRAVE_SEARCH_API_KEY` | [brave.com/search/api](https://brave.com/search/api) | Search engine dorking | Yes (2000 queries/month) |
+| `NVD_API_KEY` | [nvd.nist.gov](https://nvd.nist.gov/developers/request-an-api-key) | CVE/vulnerability data (higher rate) | Free |
+| `CERTSPOTTER_API_KEY` | [certspotter.com](https://sslmate.com/certspotter) | Certificate transparency (higher limits) | Works keyless |
+| `HIBP_API_KEY` | [haveibeenpwned.com](https://haveibeenpwned.com/API/Key) | Breach/paste data | Paid ($3.50/month) |
+| `WIGLE_API_KEY` | [wigle.net](https://wigle.net) | WiFi/geo OSINT | Yes (free account) |
+
+**AI Supervisor keys** (optional — works with heuristic fallback):
+
+| Key | What it does |
+|-----|-------------|
+| `RECON_AI_BASE_URL` | OpenAI-compatible endpoint (OpenAI, Ollama, vLLM, LM Studio) |
+| `RECON_AI_API_KEY` | API key for the LLM |
+| `RECON_AI_MODEL_LIGHT` | Fast model for triage (default: `gpt-4o-mini`) |
+| `RECON_AI_MODEL_HEAVY` | Deep model for final analysis (default: `gpt-4o`) |
+
+**Adapters that work WITHOUT any key** (35+ always available):
+
+crtsh, hackertarget, alienvault_otx, internetdb, urlscan, certspotter, subfinder, assetfinder, gau, waybackurls, wayback, dns_resolve, httpx_probe, naabu, tlsx, cero, katana, nuclei, asnmap, pycrawl, pydirb, js_analyze, param_miner, wordlist_learner, email_pattern_enum, social_check, searchcode_recon, cloud_bucket_enum, http_metadata, http_fingerprint, tech_fingerprint, ip_geo_lookup, otx_pulse_search, api_endpoint_probe, app_store_check, threatfox, ahmia_onion
 
 ---
 
