@@ -1,0 +1,36 @@
+# gotator
+
+> Provenance: **recommended_addition** · canonical slug `gotator` · not in the source spreadsheet (closes a real gap).
+
+**Purpose.** Permutation generator with depth/number controls for subdomain wordlists.
+
+| Field | Value |
+|-------|-------|
+| Category | 2 — Passive DNS & Subdomain Enum |
+| Classification | **passive** |
+| Integration | cli (`gotator`) |
+| Requires key | no |
+| Consumes | `domain, subdomain` |
+| Produces | `subdomain` |
+| Supersedes | altdns |
+
+## Why it was added
+
+Permutation engine redundancy; pairs with alterx/dnsgen for brute-DNS prep.
+
+**Best use.** Higher-control alternative to dnsgen; candidates feed resolvers.
+
+## Capabilities → typed output files
+
+  - **permute** → produces `subdomain` → writes `subdomain_candidates`
+
+## Inputs / outputs
+
+- **Consumes:** `domain, subdomain`.
+- **Produces:** `subdomain` → normalized to the common schema in [`docs/D3-data-schema.md`](../D3-data-schema.md).
+- **Typed output:** each capability writes its own file under `artifacts/<scan_id>/by-type/<type>/` so multi-mode output never mixes (see [`docs/arch-v2/03-output-file-contract.md`](../arch-v2/03-output-file-contract.md)).
+
+## Operational behavior
+
+- **If the binary is missing:** adapter reports unavailable (graceful skip); install via `docker/install_tools.sh`.
+- **Scope safety:** active tools re-check scope/liveness before egress; out-of-scope targets are stored but never probed (see `docs/D6-opsec.md`).

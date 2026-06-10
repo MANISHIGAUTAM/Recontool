@@ -160,6 +160,8 @@ python -m recontool.inventory.build_inventory
 | [`data/recontools_raw.tsv`](data/recontools_raw.tsv) | **Source of truth** — every spreadsheet row, verbatim (614 rows, 19 sections). |
 | [`data/tool_rows_raw.json`](data/tool_rows_raw.json) | All raw rows with stable row ids (machine-readable). |
 | [`data/tool_inventory.json`](data/tool_inventory.json) | Canonical deduplicated tools (532) + derived tags + provenance. |
+| [`data/recontool_state_matrix.xlsx`](data/recontool_state_matrix.xlsx) | **Entity × Tool state matrix** (the "Excel database"): routing matrix, root-domain seed, output-file map, long+wide state model. Regenerate: `python -m recontool.inventory.build_state_matrix`. See [`docs/arch-v2/`](docs/arch-v2/). |
+| [`data/added_tools.json`](data/added_tools.json) | 11 recommended tool additions (gap-closing) beyond the extracted inventory. |
 | [`docs/inventory/TOOL-INVENTORY.md`](docs/inventory/TOOL-INVENTORY.md) | Human-readable inventory: summary, per-section index, master table, duplicates, aliases. |
 | [`docs/tools/`](docs/tools/) | One capability doc per canonical tool (purpose, classification, invocation, I/O, failure modes, confidence, pipeline position). |
 

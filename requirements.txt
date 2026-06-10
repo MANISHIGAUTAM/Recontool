@@ -14,6 +14,7 @@ pyyaml>=6.0
 # psycopg[binary]>=3.1   # PostgreSQL backend
 # redis>=5.0             # distributed rate-limit buckets + cache
 # openai>=1.30           # AI supervisor (OpenAI-compatible endpoints incl. local)
+# openpyxl>=3.1          # only for `recontool.inventory.build_state_matrix` (Excel export)
 
 # Dev / test
 pytest>=8.0
