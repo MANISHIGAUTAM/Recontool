@@ -1,0 +1,217 @@
+{
+  "note": "Tools recommended as ADDITIONS beyond the extracted spreadsheet inventory. These close concrete gaps (param fuzzing, GraphQL introspection, service fingerprinting, favicon pivots, DNS permutation, passive ports, alt content discovery, fuzz-prep glue). Kept separate from data/tool_inventory.json (which is verbatim-extracted). Consumed by recontool.inventory.build_state_matrix to render docs/tools/<slug>.md and the state-matrix workbook.",
+  "provenance": "recommended_addition",
+  "tools": [
+    {
+      "slug": "dirsearch",
+      "name": "dirsearch",
+      "category": 20,
+      "section": 20,
+      "classification": "active",
+      "integration": "cli",
+      "binary": "dirsearch",
+      "requires_key": false,
+      "consumes": ["live_host", "url"],
+      "produces": ["url", "endpoint"],
+      "capabilities": [
+        {"mode": "dir", "produces": ["url", "endpoint"], "output_file": "paths"}
+      ],
+      "purpose": "Recursive web path/file brute-forcer with rich extension handling and 404 calibration.",
+      "best_use": "Content/directory discovery on live hosts; complements ffuf/feroxbuster.",
+      "rationale": "Cat-20 alternative engine; some targets behave differently across fuzzers, dirsearch's extension/recursion model finds paths the others miss.",
+      "supersedes": []
+    },
+    {
+      "slug": "qsreplace",
+      "name": "qsreplace",
+      "category": 25,
+      "section": 25,
+      "classification": "passive",
+      "integration": "cli",
+      "binary": "qsreplace",
+      "requires_key": false,
+      "consumes": ["url"],
+      "produces": ["url"],
+      "capabilities": [
+        {"mode": "rewrite", "produces": ["url"], "output_file": "urls"}
+      ],
+      "purpose": "Rewrite query-string values across a URL list (fuzz-prep glue).",
+      "best_use": "Normalize/seed URL variants for parameter probing; pairs with gf/arjun/x8.",
+      "rationale": "Core pipeline plumbing referenced in the gap analysis but never listed as a tool; needed to turn harvested URLs into tuned fuzz inputs.",
+      "supersedes": []
+    },
+    {
+      "slug": "fingerprintx",
+      "name": "fingerprintx",
+      "category": 21,
+      "section": 5,
+      "classification": "active",
+      "integration": "cli",
+      "binary": "fingerprintx",
+      "requires_key": false,
+      "consumes": ["service", "host_port", "ip"],
+      "produces": ["service", "tech"],
+      "capabilities": [
+        {"mode": "fp", "produces": ["service", "tech"], "output_file": "services"}
+      ],
+      "purpose": "Service fingerprinting for NON-HTTP services (databases, RDP, SSH, etc.).",
+      "best_use": "Run after naabu/nmap to identify protocol/product on open non-web ports.",
+      "rationale": "httpx/whatweb only fingerprint web; non-HTTP services had no dedicated identifier.",
+      "supersedes": []
+    },
+    {
+      "slug": "gospider",
+      "name": "gospider",
+      "category": 22,
+      "section": 6,
+      "classification": "active",
+      "integration": "cli",
+      "binary": "gospider",
+      "requires_key": false,
+      "consumes": ["live_host", "url"],
+      "produces": ["url", "js_file"],
+      "capabilities": [
+        {"mode": "crawl", "produces": ["url"], "output_file": "urls"},
+        {"mode": "js", "produces": ["js_file"], "output_file": "js_files"}
+      ],
+      "purpose": "Fast Go web crawler (links, forms, JS, robots/sitemap, archive sources).",
+      "best_use": "Alternative/parallel crawler to katana/pycrawl for endpoint + JS harvesting.",
+      "rationale": "Crawler redundancy improves coverage; gospider's source aggregation differs from katana.",
+      "supersedes": []
+    },
+    {
+      "slug": "x8",
+      "name": "x8",
+      "category": 25,
+      "section": 4,
+      "classification": "active",
+      "integration": "cli",
+      "binary": "x8",
+      "requires_key": false,
+      "consumes": ["url", "endpoint"],
+      "produces": ["param"],
+      "capabilities": [
+        {"mode": "param", "produces": ["param"], "output_file": "params"}
+      ],
+      "purpose": "Hidden HTTP parameter discovery via response-difference analysis.",
+      "best_use": "Deep param mining where Arjun misses; high-signal for fuzz prep.",
+      "rationale": "Modern, fast parameter brute-forcer; strengthens Cat-25 beyond Arjun/ParamSpider.",
+      "supersedes": []
+    },
+    {
+      "slug": "clairvoyance",
+      "name": "clairvoyance",
+      "category": 23,
+      "section": 5,
+      "classification": "active",
+      "integration": "cli",
+      "binary": "clairvoyance",
+      "requires_key": false,
+      "consumes": ["live_host", "url", "endpoint"],
+      "produces": ["endpoint", "finding"],
+      "capabilities": [
+        {"mode": "graphql", "produces": ["endpoint"], "output_file": "endpoints"},
+        {"mode": "graphql", "produces": ["finding"], "output_file": "findings"}
+      ],
+      "purpose": "Recover GraphQL schema even when introspection is disabled (suggestion-based).",
+      "best_use": "Map GraphQL attack surface after graphw00f detects an engine.",
+      "rationale": "Cat-23 had graphw00f (detection) but no schema-recovery; clairvoyance completes the GraphQL flow.",
+      "supersedes": []
+    },
+    {
+      "slug": "dnsgen",
+      "name": "dnsgen",
+      "category": 2,
+      "section": 2,
+      "classification": "passive",
+      "integration": "cli",
+      "binary": "dnsgen",
+      "requires_key": false,
+      "consumes": ["domain", "subdomain"],
+      "produces": ["subdomain"],
+      "capabilities": [
+        {"mode": "permute", "produces": ["subdomain"], "output_file": "subdomain_candidates"}
+      ],
+      "purpose": "Generate subdomain permutation/mutation candidates from known names.",
+      "best_use": "Feed puredns/shuffledns/dnsx resolution (candidates, not confirmed assets).",
+      "rationale": "Referenced in gap analysis but unlisted; candidates feed active resolution, not the asset store directly.",
+      "supersedes": ["altdns"]
+    },
+    {
+      "slug": "gotator",
+      "name": "gotator",
+      "category": 2,
+      "section": 2,
+      "classification": "passive",
+      "integration": "cli",
+      "binary": "gotator",
+      "requires_key": false,
+      "consumes": ["domain", "subdomain"],
+      "produces": ["subdomain"],
+      "capabilities": [
+        {"mode": "permute", "produces": ["subdomain"], "output_file": "subdomain_candidates"}
+      ],
+      "purpose": "Permutation generator with depth/number controls for subdomain wordlists.",
+      "best_use": "Higher-control alternative to dnsgen; candidates feed resolvers.",
+      "rationale": "Permutation engine redundancy; pairs with alterx/dnsgen for brute-DNS prep.",
+      "supersedes": ["altdns"]
+    },
+    {
+      "slug": "smap",
+      "name": "smap",
+      "category": 21,
+      "section": 1,
+      "classification": "passive",
+      "integration": "cli",
+      "binary": "smap",
+      "requires_key": false,
+      "consumes": ["ip", "subdomain", "cidr"],
+      "produces": ["service"],
+      "capabilities": [
+        {"mode": "passive-ports", "produces": ["service"], "output_file": "services"}
+      ],
+      "purpose": "nmap-compatible output using Shodan InternetDB data — ports WITHOUT scanning.",
+      "best_use": "Passive port/service picture before (or instead of) active naabu/nmap.",
+      "rationale": "Lets the port-scan category produce results in passive-only mode (no target contact).",
+      "supersedes": []
+    },
+    {
+      "slug": "favfreak",
+      "name": "favfreak",
+      "category": 1,
+      "section": 1,
+      "classification": "passive",
+      "integration": "cli",
+      "binary": "favfreak",
+      "requires_key": false,
+      "consumes": ["live_host", "url"],
+      "produces": ["ip", "subdomain"],
+      "capabilities": [
+        {"mode": "favicon-hash", "produces": ["ip", "subdomain"], "output_file": "ips"}
+      ],
+      "purpose": "Compute favicon mmh3 hashes and pivot to related hosts via Shodan/ZoomEye.",
+      "best_use": "Find sibling infrastructure (incl. origin behind CDN) sharing a favicon.",
+      "rationale": "Underrated correlation pivot called out in the gap analysis; feeds Cat-1/Cat-2 recursion.",
+      "supersedes": []
+    },
+    {
+      "slug": "fav-up",
+      "name": "fav-up",
+      "category": 1,
+      "section": 1,
+      "classification": "hybrid",
+      "integration": "cli",
+      "binary": "fav-up",
+      "requires_key": false,
+      "consumes": ["live_host", "url"],
+      "produces": ["ip"],
+      "capabilities": [
+        {"mode": "favicon-realip", "produces": ["ip"], "output_file": "ips"}
+      ],
+      "purpose": "Resolve real origin IP from favicon hash via Shodan (CDN-bypass discovery).",
+      "best_use": "Recover origin IPs to re-enter port scanning / network intel.",
+      "rationale": "Complements favfreak for origin-IP discovery; origin IPs re-enter Cat-21/Cat-3.",
+      "supersedes": []
+    }
+  ]
+}
