@@ -88,6 +88,39 @@ async def test_no_item_processed_twice(tmp_path, monkeypatch):
     assert pool.processed == total
 
 
+def test_enqueue_scales_and_dedupes(tmp_path):
+    """Enqueue at volume: distinct keys create work, repeats add nothing, and the
+    candidate-only dedupe query keeps it bounded (no full-scan blowup)."""
+    db.init_engine(f"sqlite:///{tmp_path / 'scale.db'}")
+    db.create_all()
+    from recontool.engine.worker import RouteIndex, enqueue_key
+    reg = _registry()
+    apply_selection(reg, "all")
+    route = RouteIndex(reg)
+
+    scan_id = "scale"
+    # 300 distinct in-scope subdomains -> each routes to subdomain-consumers
+    per_key = len(route.for_key_type("subdomain"))
+    assert per_key >= 1
+    with db.session_scope() as s:
+        total_new = sum(
+            enqueue_key(s, scan_id, f"h{i}.example.com", "subdomain", reg, route=route)
+            for i in range(300)
+        )
+    assert total_new == 300 * per_key                 # every (key,tool) created once
+    # re-enqueue the same keys -> dedupe drops all of them
+    with db.session_scope() as s:
+        again = sum(
+            enqueue_key(s, scan_id, f"h{i}.example.com", "subdomain", reg, route=route)
+            for i in range(300)
+        )
+    assert again == 0
+    with db.session_scope() as s:
+        n = s.execute(select(func.count(WorkItem.id)).where(
+            WorkItem.scan_id == scan_id)).scalar_one()
+    assert n == 300 * per_key
+
+
 def test_selection_default_vs_excessive():
     inv = _echo("inv_tool", ["domain"], ["subdomain"], "x.example.com")
     inv.source = "inventory"                    # inventory-derived runnable tool

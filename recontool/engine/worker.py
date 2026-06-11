@@ -80,29 +80,58 @@ def claim_one(session, scan_id: str) -> Optional[ClaimedItem]:
                        tool_slug=it.tool_slug, depth=it.depth)
 
 
+class RouteIndex:
+    """Precomputed `input_type -> [enabled tool specs]` map, built once per scan.
+
+    Avoids scanning the whole (560+ tool) registry on every discovered entity —
+    routing becomes a dict lookup proportional to the matches, not the registry.
+    """
+
+    def __init__(self, registry: ToolRegistry) -> None:
+        self._by_type: dict[str, list] = {}
+        for spec in registry.all_tools().values():
+            if not spec.enabled:
+                continue
+            for t in set(spec.supported_input_types) | set(spec.consumes):
+                self._by_type.setdefault(t, []).append(spec)
+
+    def for_key_type(self, key_type: str) -> list:
+        out, seen = [], set()
+        for t in _eligible_types(key_type):
+            for spec in self._by_type.get(t, ()):
+                if spec.name not in seen:
+                    seen.add(spec.name)
+                    out.append(spec)
+        return out
+
+
 def enqueue_key(
     session, scan_id: str, key: str, key_type: str, registry: ToolRegistry, *,
-    depth: int = 0, parent: str | None = None,
+    depth: int = 0, parent: str | None = None, route: RouteIndex | None = None,
 ) -> int:
     """Create pending work items for every ENABLED tool that consumes `key_type`
-    (with type subsumption). Deduped on `(scan, key, tool)`. Returns new count."""
-    wanted = _eligible_types(key_type)
+    (with type subsumption). Deduped on `(scan, key, tool)`. Returns new count.
+
+    Performance: only the small set of CANDIDATE dedupe keys for *this* entity is
+    checked against the DB (indexed `dedupe_key IN (...)`), not the whole scan's
+    key space — so enqueue stays O(eligible tools), not O(total keys discovered).
+    """
+    specs = (route or RouteIndex(registry)).for_key_type(key_type)
+    if not specs:
+        return 0
+    candidates = {work_dedupe_key(key_type, key, s.name): s for s in specs}
     existing = {
         dk for (dk,) in session.execute(
-            select(WorkItem.dedupe_key).where(WorkItem.scan_id == scan_id)
+            select(WorkItem.dedupe_key).where(
+                WorkItem.scan_id == scan_id,
+                WorkItem.dedupe_key.in_(list(candidates)),
+            )
         )
     }
     created = 0
-    for spec in registry.all_tools().values():
-        if not spec.enabled:
-            continue
-        consumes = set(spec.supported_input_types) | set(spec.consumes)
-        if not (wanted & consumes):
-            continue
-        dk = work_dedupe_key(key_type, key, spec.name)
+    for dk, spec in candidates.items():
         if dk in existing:
             continue
-        existing.add(dk)
         session.add(WorkItem(
             scan_id=scan_id, key=key, key_type=key_type, tool_slug=spec.name,
             dedupe_key=dk, status="pending", parent_key=parent, depth=depth,
@@ -124,6 +153,7 @@ class WorkerPool:
         self.noise = noise
         self.max_depth = max_depth
         self._stores: dict[str, ArtifactStore] = {}
+        self._route = RouteIndex(registry)   # built once; reused for every enqueue
         self.processed = 0
 
     def _store(self, scan_id: str) -> ArtifactStore:
@@ -160,6 +190,7 @@ class WorkerPool:
                             new_keys += enqueue_key(
                                 s, scan_id, evalue, etype, self.registry,
                                 depth=item.depth + 1, parent=item.key,
+                                route=self._route,
                             )
         with session_scope() as s:
             row = s.get(WorkItem, item.id)
@@ -220,12 +251,13 @@ async def run_queue_scan(
     apply_selection(registry, tools)
     noise = build_noise(scope, noise_control, wildcard_filter)
 
-    scan_id = uuid.uuid4().hex[:16]
-    with session_scope() as s:
-        enqueue_key(s, scan_id, seed, seed_type, registry, depth=0)
-
     pool = WorkerPool(registry, scope=scope, profile=profile, http=http,
                       api_keys=api_keys, noise=noise, max_depth=max_depth)
+
+    scan_id = uuid.uuid4().hex[:16]
+    with session_scope() as s:
+        enqueue_key(s, scan_id, seed, seed_type, registry, depth=0, route=pool._route)
+
     await pool.run(scan_id, workers=workers)
 
     with session_scope() as s:
