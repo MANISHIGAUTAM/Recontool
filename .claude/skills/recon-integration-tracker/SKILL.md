@@ -44,7 +44,10 @@ python -m recontool.inventory.suggested_tools    # docs/tools/*.md + SUGGESTED-A
 The runtime matrix lives in two tables: `tool_row` (registry, `engine/models.py`,
 seeded above) and `work_item` (WorkQueue). Routing + dedupe-on-enqueue are in
 `engine/router.py` (`tools_for_key_type`, `enqueue`); `catalog.load_all_tools()`
-is the single source both the seeder and the Excel read.
+is the single source both the seeder and the Excel read. The engine is wired to
+real execution in `engine/runner.py` (`make_execute_fn` / `run_engine_scan`) —
+adapters run, results normalize to the DB, and `EntityDiscovered` re-feeds the
+scheduler to recurse.
 
 ## The one rule
 

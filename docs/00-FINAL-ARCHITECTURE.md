@@ -157,7 +157,7 @@ component, not a filter bolted on later.
 
 | # | Gap | Current state | Target |
 |---|-----|---------------|--------|
-| **G1** | **Two disconnected orchestrators** | CLI runs the linear `ReconPipeline` (P1–P6); the recursive `engine/` runs a no-op `_default_execute` and is never invoked by the CLI | One engine: wire `EventDrivenOrchestrator.execute_fn` to the real generic adapters via `engine/execution.py`; retire the linear loop |
+| **G1** | **Two disconnected orchestrators** | CLI runs the linear `ReconPipeline`; the recursive `engine/` ran a no-op `_default_execute` | ✅ **engine now alive** — `engine/runner.py` (`make_execute_fn` / `run_engine_scan`) runs real generic adapters, normalizes to the DB, and re-feeds `EntityDiscovered` to recurse; proven end-to-end in `tests/integration/test_engine_runner.py`. Remaining: expose via CLI + retire the linear loop |
 | **G2** | **~9% of tools runnable** | 53 runnable; rest are stubs. ✅ **all 563 tools now persisted** to `tool_row` (incl. 88 web-only, kept & flagged) via `inventory/seed_matrix.py` | Wire **all** tools (overlap is free via idempotent keys); ship a `default_on` recommended profile; user picks the rest in the UI. Track with the `recon-integration-tracker` skill |
 | **G3** | **Recursion is shallow** | `ReconPipeline.max_recursion=1`, passive-only, `_has_unprobed_growth` is a stub returning True | Frontier-driven convergence (already built in `frontier.py`) backing the live loop |
 | **G4** | **No noise control** | no wildcard/CDN/cross-scan filtering | Section 5 layer wired into the re-feed path |
@@ -199,6 +199,14 @@ The default vs available split is a **column in the Tools registry**
 (`default_on: true|false`), not a deletion. Changing it is a config/UI concern,
 never a code change.
 
+**Demotion rule (strict):** a tool is moved off `default_on` only when it is an
+**exact-output duplicate** of a superset tool — i.e. we are certain it returns the
+same data. That tool stays *available*, just off by default. Overlapping-but-
+different sources (crt-sh vs certspotter, subfinder vs amass, dnsx vs massdns) are
+**kept on** because they corroborate each other and raise confidence. The current
+exact-overlap demotions live in `catalog.EXACT_OVERLAP` (e.g. `gauplus → gau`, an
+unmaintained fork querying the identical Wayback/CommonCrawl/OTX/URLScan sources).
+
 ### 7b. The gaps to ADD (now documented)
 All 32 are documented in [`tools/SUGGESTED-ADDITIONS.md`](tools/SUGGESTED-ADDITIONS.md),
 each with a `suggested_addition` capability doc. They are kept **separate from the
@@ -239,8 +247,8 @@ extracted inventory** to preserve its provenance. Highlights:
 **P0 — Make the engine alive (unblocks everything)**
 1. ✅ **done** — `ToolRow` + `WorkItem` tables (`engine/models.py`); seeded from the full catalog (`inventory/seed_matrix.py`, all 563 tools).
 2. ✅ **done** — deterministic **Router** with subsumption + dedupe-on-enqueue (`engine/router.py`); tested (`tests/atomic/test_matrix_router.py`).
-3. Wire `EventDrivenOrchestrator.execute_fn` to real generic adapters (`engine/execution.py`). ← **next**
-4. One vertical slice end-to-end: `domain → subfinder/crt-sh → subdomain → dns_resolve → ip → naabu → live_host → katana → url → converge`.
+3. ✅ **done** — `EventDrivenOrchestrator.execute_fn` wired to real generic adapters (`engine/runner.py`); runs, normalizes, and recurses on `EntityDiscovered`. Tested end-to-end.
+4. One vertical slice with real tools installed: `domain → subfinder/crt-sh → subdomain → dns_resolve → ip → naabu → live_host → katana → url → converge`. ← **next** (expose `run_engine_scan` via the CLI).
 
 **P1 — Make recursion safe**
 5. Typed output writer + extractor (Section 3).

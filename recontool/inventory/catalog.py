@@ -56,6 +56,14 @@ RECOMMENDED = {
     "katana", "nuclei", "waymore", "gowitness", "alterx",
 }
 
+# EXACT-output duplicates: kept AVAILABLE but forced OFF by default because a
+# superset tool produces the same data. Demote ONLY when certain the output is
+# identical — overlapping-but-different sources (crt-sh vs certspotter, subfinder
+# vs amass, dnsx vs massdns) corroborate each other and stay on. slug -> superset.
+EXACT_OVERLAP = {
+    "gauplus": "gau",  # unmaintained fork of gau; identical Wayback/CC/OTX/URLScan sources
+}
+
 
 def normalize(raw: str) -> list[str]:
     """Turn a raw consumes/produces string into canonical types."""
@@ -113,7 +121,7 @@ def _from_flow(t: dict) -> ToolRecord:
         consumes=normalize(t.get("consumes", "")),
         produces=normalize(t.get("produces", "")),
         runnable=runnable, web_only=web_only,
-        default_on=runnable or slug in RECOMMENDED,
+        default_on=(runnable or slug in RECOMMENDED) and slug not in EXACT_OVERLAP,
         source="extracted", feeds=t.get("feeds", ""),
         store_db=t.get("store_db", ""),
     )
@@ -125,8 +133,8 @@ def _from_suggested(s) -> ToolRecord:
         classification=s.klass, integration=[s.integration],
         consumes=normalize(s.consumes), produces=normalize(s.produces),
         runnable=False, web_only=False,
-        default_on=s.slug in RECOMMENDED, source="suggested",
-        feeds="", store_db="", modes=list(s.modes),
+        default_on=s.slug in RECOMMENDED and s.slug not in EXACT_OVERLAP,
+        source="suggested", feeds="", store_db="", modes=list(s.modes),
     )
 
 
