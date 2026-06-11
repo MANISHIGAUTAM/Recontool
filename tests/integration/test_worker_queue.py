@@ -58,6 +58,27 @@ async def test_queue_scan_drains_and_recurses(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_worker_emits_structured_logs(tmp_path, monkeypatch):
+    """Each processed item produces correlated start+complete debug log entries."""
+    db.init_engine(f"sqlite:///{tmp_path / 'qlog.db'}")
+    db.create_all()
+    monkeypatch.setattr(settings, "artifact_dir", tmp_path / "artifacts")
+
+    reg = _registry()
+    apply_selection(reg, "all")
+    profile, scope, http, api_keys = build_scan_infra("example.com", "domain", None)
+    pool = WorkerPool(reg, scope=scope, profile=profile, http=http, api_keys=api_keys)
+    from recontool.engine.worker import enqueue_key
+    with db.session_scope() as s:
+        enqueue_key(s, "logscan", "example.com", "domain", reg, route=pool._route)
+    await pool.run("logscan", workers=2)
+
+    events = [e["event"] for e in pool.log.entries]
+    assert "tool_start" in events and "tool_complete" in events
+    assert all("timestamp" in e and "correlation_id" in e for e in pool.log.entries)
+
+
+@pytest.mark.asyncio
 async def test_no_item_processed_twice(tmp_path, monkeypatch):
     """Atomic claim: with many workers, processed == number of work items."""
     db.init_engine(f"sqlite:///{tmp_path / 'q2.db'}")

@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import logging
+import time
 import uuid
 from dataclasses import dataclass
 from typing import Optional
@@ -24,6 +25,7 @@ from sqlalchemy import func, select, update
 
 from recontool.core.artifacts import ArtifactStore
 from recontool.core.db import create_all, session_scope
+from recontool.engine.logging import EngineLogger
 from recontool.engine.models import WorkItem
 from recontool.engine.registry import ToolRegistry
 from recontool.engine.router import _eligible_types, work_dedupe_key
@@ -154,6 +156,7 @@ class WorkerPool:
         self.max_depth = max_depth
         self._stores: dict[str, ArtifactStore] = {}
         self._route = RouteIndex(registry)   # built once; reused for every enqueue
+        self.log = EngineLogger("recontool.worker")  # structured, correlated debug logs
         self.processed = 0
 
     def _store(self, scan_id: str) -> ArtifactStore:
@@ -166,8 +169,14 @@ class WorkerPool:
         store = self._store(scan_id)
         new_keys = 0
         status = "completed"
+        reason = ""
+        events: list = []
+        run_id = f"{scan_id}:{item.id}"
+        t0 = time.monotonic()
+        self.log.log_tool_start(run_id, scan_id, item.tool_slug,
+                                inputs={item.key_type: [item.key]})
         if spec is None:
-            status = "failed"
+            status, reason = "failed", "unknown tool"
         else:
             outcome = await run_tool_spec(
                 spec, scan_id, {item.key_type: [item.key]}, scope=self.scope,
@@ -175,7 +184,7 @@ class WorkerPool:
                 artifacts=store,
             )
             if outcome.status == "error":
-                status = "failed"
+                status, reason = "failed", outcome.reason
             events = outcome.events
             if events:
                 with session_scope() as s:
@@ -198,6 +207,12 @@ class WorkerPool:
                 row.status = status
                 row.finished_at = _now()
                 row.new_keys_found = new_keys
+        dur_ms = int((time.monotonic() - t0) * 1000)
+        if status == "failed":
+            self.log.log_tool_fail(run_id, scan_id, item.tool_slug, reason)
+        else:
+            self.log.log_tool_complete(run_id, scan_id, item.tool_slug,
+                                       duration_ms=dur_ms, entity_count=len(events))
         self.processed += 1
 
     async def _worker(self, scan_id: str) -> None:
