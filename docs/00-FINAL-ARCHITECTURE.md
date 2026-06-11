@@ -158,7 +158,7 @@ component, not a filter bolted on later.
 | # | Gap | Current state | Target |
 |---|-----|---------------|--------|
 | **G1** | **Two disconnected orchestrators** | CLI runs the linear `ReconPipeline`; the recursive `engine/` ran a no-op `_default_execute` | ✅ **engine now alive** — `engine/runner.py` (`make_execute_fn` / `run_engine_scan`) runs real generic adapters, normalizes to the DB, and re-feeds `EntityDiscovered` to recurse; proven end-to-end in `tests/integration/test_engine_runner.py`. Remaining: expose via CLI + retire the linear loop |
-| **G2** | **~9% of tools runnable** | 53 runnable; rest are stubs. ✅ **all 563 tools now persisted** to `tool_row` (incl. 88 web-only, kept & flagged) via `inventory/seed_matrix.py` | Wire **all** tools (overlap is free via idempotent keys); ship a `default_on` recommended profile; user picks the rest in the UI. Track with the `recon-integration-tracker` skill |
+| **G2** | **runnable count** | `runnable` now reads **actual contracts** (not a stale flag) → **72** runnable & climbing; all 563 persisted to `tool_row` (88 web-only kept & flagged). `stdin: true` spec support added → unlocks the stdin-driven CLI class (metabigor, dnsgen, …) | Keep wiring toward the **honest ceiling** (see §7b): ~200–250 keyless+binary tools are runnable unattended; ~146 need user keys; ~100 are GUI/manual/reference and stay available-but-not-runnable. Track with the `recon-integration-tracker` skill |
 | **G3** | **Recursion is shallow** | `ReconPipeline.max_recursion=1`, passive-only, `_has_unprobed_growth` is a stub returning True | Frontier-driven convergence (already built in `frontier.py`) backing the live loop |
 | **G4** | **No noise control** | no wildcard/CDN/cross-scan filtering | Section 5 layer wired into the re-feed path |
 | **G5** | **Frontier/checkpoint/policy built but unwired** | `frontier.py`, `core/policy.py` tested standalone | consumed by the live `run_scan` (gate, iterate, checkpoint, dead-letter) |
@@ -221,6 +221,28 @@ extracted inventory** to preserve its provenance. Highlights:
 - **Favicon pivot:** `favfreak`, `fav-up`. **Cert pivot:** `cero`.
 - **Active vuln:** `dalfox`. **Port:** `nmap`, `masscan`. **ASN OSINT:** `metabigor`.
 - **Code-platform subdomains:** `github-subdomains`, `gitlab-subdomains`.
+
+### 7b. The honest integration ceiling (why it is not "all 500 runnable")
+
+"Runnable unattended" is bounded by what the tools physically are — measured from
+`data/flow_plan.json`:
+
+| Bucket | Count | Runs E2E without user action? |
+|--------|------:|-------------------------------|
+| `web/manual` (GUI portals, browser-only) | **81** | No — no programmatic interface |
+| Reference indexes + workflow presets (§18/§19) | **20** | No — they are *lists of tools*, not tools |
+| API requiring a **key per config** (Shodan, Censys, IntelX, BinaryEdge…) | **146** | Only when the user supplies the (often paid) key |
+| **Keyless** APIs | **107** | Yes ✅ |
+| Installable **binaries** | **199** | Yes once installed ✅ (overlaps keyless) |
+
+So **~100 tools cannot be runnable** (GUI/manual/reference) and **~146 only run with
+the user's keys**. The achievable unattended universe is the keyless + binary set
+(~200–250). They are all **kept available** in `tool_row` (nothing eliminated); the
+non-runnable ones simply carry `runnable=false` and a reason, and a future UI can
+still surface them (manual/assisted, or "enter a key to enable"). Each remaining
+wire-up is genuine per-tool work (real endpoint/flags + correct parse), which is
+why honest progress is incremental — the `runnable` metric now reflects real
+contracts and climbs as specs land.
 
 ---
 

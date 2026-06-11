@@ -52,6 +52,21 @@ tools:
       emit:
         - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
 
+  - name: anubis-jldc
+    phase: p1_seed
+    category: 2
+    integration: api
+    is_active: false
+    consumes: [domain]
+    produces: [subdomain]
+    endpoint: "https://jldc.me/anubis/subdomains/{domain}"   # keyless; returns a JSON array of subdomains
+    bucket: jldc
+    max_inputs: 1
+    parse:
+      format: json
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
   - name: assetfinder
     phase: p2_expansion
     category: 2
@@ -125,6 +140,36 @@ tools:
       list_path: "data.prefixes"
       emit:
         - {entity: asset, value: "{prefix}", type: cidr}
+
+  - name: mapcidr
+    phase: p3_enrichment
+    category: 3
+    integration: cli
+    is_active: false
+    consumes: [cidr]
+    produces: [ip]
+    binary: mapcidr
+    invocation: "mapcidr -cidr {value} -silent"   # expands a CIDR to one IP per line
+    max_inputs: 50
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: ip}
+
+  - name: metabigor
+    phase: p3_enrichment
+    category: 3
+    integration: cli
+    is_active: false
+    consumes: [asn]
+    produces: [cidr]
+    binary: metabigor
+    stdin: true                                   # reads the ASN from stdin
+    invocation: "metabigor net --asn -q"          # keyless; prints CIDRs one per line
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: cidr}
 
   # ── Cat 4 / 6: URL & archive harvesting ────────────────────────────────────
   - name: gau

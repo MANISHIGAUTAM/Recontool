@@ -14,11 +14,51 @@ never drift apart. Pure: stdlib + json, no network, no DB.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 FLOW = ROOT / "data" / "flow_plan.json"
+CONFIG = ROOT / "config"
+ADAPTERS = ROOT / "recontool" / "adapters"
+
+
+def _norm(slug: str) -> str:
+    """Match key so crt-sh == crtsh == crt_sh across sources."""
+    return re.sub(r"[^a-z0-9]", "", str(slug).lower())
+
+
+def contracted_slugs() -> set[str]:
+    """Normalized slugs that have a REAL executable contract today: a curated
+    entry in config/tools.yaml or config/tools_generic.yaml, or a hand-written
+    adapter (`name = "..."`). This is the honest source for `runnable` — it grows
+    the moment a spec is added, instead of a stale static flag."""
+    out: set[str] = set()
+    ty = CONFIG / "tools.yaml"
+    if ty.exists():
+        in_tools = False
+        for line in ty.read_text().splitlines():
+            if re.match(r"^tools:\s*$", line):
+                in_tools = True
+                continue
+            if in_tools:
+                if line and not line[0].isspace() and not line.startswith("#"):
+                    in_tools = False
+                    continue
+                m = re.match(r"^  ([A-Za-z0-9_\-]+):\s*$", line)
+                if m:
+                    out.add(_norm(m.group(1)))
+    tg = CONFIG / "tools_generic.yaml"
+    if tg.exists():
+        for m in re.finditer(r"^\s*-\s*name:\s*([A-Za-z0-9_\-]+)", tg.read_text(), re.M):
+            out.add(_norm(m.group(1)))
+    if ADAPTERS.is_dir():
+        for py in ADAPTERS.glob("*.py"):
+            for m in re.finditer(r'^\s+name\s*=\s*["\']([A-Za-z0-9_\-]+)["\']',
+                                 py.read_text(), re.M):
+                out.add(_norm(m.group(1)))
+    return out
 
 # Canonical entity vocabulary (the WorkQueue key types).
 CANON = [
@@ -157,6 +197,16 @@ def load_all_tools() -> list[ToolRecord]:
             existing.modes = existing.modes or rec.modes
             continue
         by_slug[rec.slug] = rec
+
+    # Honest, live runnable: a tool is runnable if it has an actual contract
+    # (curated yaml or adapter), regardless of the stale flow_plan flag. As specs
+    # are added the count climbs truthfully. default_on follows runnable.
+    contracts = contracted_slugs()
+    for rec in by_slug.values():
+        if _norm(rec.slug) in contracts:
+            rec.runnable = True
+            if rec.slug not in EXACT_OVERLAP:
+                rec.default_on = True
     return sorted(by_slug.values(), key=lambda r: (r.source != "extracted", r.name.lower()))
 
 

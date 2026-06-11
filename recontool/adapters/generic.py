@@ -263,17 +263,22 @@ class GenericCliAdapter(Adapter):
         inputs = _input_values(ctx, self.consumes, cap=spec.get("max_inputs", 50))
         sem = asyncio.Semaphore(max(2, ctx.profile.global_concurrency or 10))
 
+        use_stdin = bool(spec.get("stdin"))
+
         async def one(v: str) -> list[Event]:
             cmd = render_template(spec["invocation"], {},
                                   {"value": v, "domain": v, "ip": v, "host": v})
             async with sem:
                 try:
                     proc = await asyncio.create_subprocess_exec(
-                        *cmd.split(), stdout=asyncio.subprocess.PIPE,
+                        *cmd.split(),
+                        stdin=asyncio.subprocess.PIPE if use_stdin else None,
+                        stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.DEVNULL,
                     )
                     out, _ = await asyncio.wait_for(
-                        proc.communicate(), timeout=spec.get("timeout", 120))
+                        proc.communicate(input=v.encode() if use_stdin else None),
+                        timeout=spec.get("timeout", 120))
                 except Exception:  # noqa: BLE001
                     return []
             text = out.decode(errors="ignore")

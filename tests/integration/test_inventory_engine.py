@@ -216,7 +216,7 @@ def test_curated_contracts_not_downgraded():
 
 def test_curated_count_is_preserved():
     reg = ToolRegistry.load()
-    assert len(reg.curated_tools()) == 75
+    assert len(reg.curated_tools()) == 76
 
 
 def test_generic_spec_roundtrip_for_curated_cli():

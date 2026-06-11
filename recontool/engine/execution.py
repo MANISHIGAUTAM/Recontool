@@ -96,6 +96,7 @@ def to_generic_spec(tool_spec: ToolSpec) -> Optional[dict[str, Any]]:
             "invocation": invocation,
             "max_inputs": tool_spec.max_inputs,
             "parse": tool_spec.parse or _default_parse(produces),
+            "stdin": tool_spec.stdin,
         })
         return base
 

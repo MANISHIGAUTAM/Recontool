@@ -77,6 +77,7 @@ class ToolSpec(BaseModel):
     parse: Optional[dict[str, Any]] = None
     enabled: bool = True
     key_optional: bool = False
+    stdin: bool = False  # CLI: pipe the input value to the tool's stdin
     # Canonical-inventory ingestion fields (data/tool_inventory.json)
     slug: str = ""
     source: str = "curated"           # "curated" | "inventory"
@@ -327,7 +328,7 @@ class ToolRegistry:
             "name", "phase", "category", "integration", "is_active",
             "consumes", "produces", "requires_key", "key_optional",
             "endpoint", "headers", "bucket", "max_inputs", "timeout",
-            "binary", "invocation", "parse", "enabled",
+            "binary", "invocation", "parse", "enabled", "stdin",
         ):
             if key in raw:
                 result[key] = raw[key]

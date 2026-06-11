@@ -61,6 +61,32 @@ async def test_engine_runs_and_recurses(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_engine_stdin_tool(tmp_path, monkeypatch):
+    """A stdin-driven CLI tool receives its input via stdin (using `cat`)."""
+    db.init_engine(f"sqlite:///{tmp_path / 'engine_stdin.db'}")
+    db.create_all()
+    monkeypatch.setattr(settings, "artifact_dir", tmp_path / "artifacts")
+
+    cat_tool = ToolSpec(
+        name="cat_tool", integration="cli", binary="cat", invocation="cat",
+        stdin=True, category=3,
+        consumes=["asn"], supported_input_types=["asn"],
+        produces=["cidr"], output_types=["cidr"],
+        parse={"format": "text",
+               "emit": [{"entity": "asset", "value": "{_value}", "type": "cidr"}]},
+    )
+    registry = ToolRegistry(tools={"cat_tool": cat_tool})
+
+    result = await run_engine_scan(
+        "64500", seed_type="asn", registry=registry, max_iterations=5,
+    )
+    assert result.total_tools_run >= 1
+    with db.session_scope() as s:
+        values = {a.value for a in s.execute(select(Asset)).scalars()}
+    assert "64500" in values   # the seed reached the tool via stdin and was emitted back
+
+
+@pytest.mark.asyncio
 async def test_engine_skips_nonrunnable_tools_cleanly(tmp_path, monkeypatch):
     """A web-only / no-contract tool must not crash the scan — it's skipped."""
     db.init_engine(f"sqlite:///{tmp_path / 'engine2.db'}")
