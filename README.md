@@ -1,5 +1,10 @@
 # Recontool
 
+> 📐 **Start here:** [`docs/00-FINAL-ARCHITECTURE.md`](docs/00-FINAL-ARCHITECTURE.md)
+> is the single source of truth for the architecture, tools vision, and roadmap.
+> It states the real implementation status (not all docs do) and supersedes the
+> older scattered roadmaps. Read it before relying on any other design doc.
+
 > Modular, AI-supervised **reconnaissance & attack-surface mapping** platform.
 > Give it a domain — it chains 200+-tool-class recon together, stores everything
 > in a database, harvests artifacts (JS, response bodies) to the filesystem,
