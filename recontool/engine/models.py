@@ -11,6 +11,7 @@ from typing import Any, Optional
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Index,
     Integer,
     JSON,
     String,
@@ -63,6 +64,10 @@ class WorkItem(Base):
     __tablename__ = "work_item"
     __table_args__ = (
         UniqueConstraint("scan_id", "dedupe_key", name="uq_workitem_dedupe"),
+        # Composite index for the worker claim path: filter (scan_id, status)
+        # then order by (depth, id) becomes an index range scan, so claiming the
+        # next pending item stays fast even with a large queue.
+        Index("ix_workitem_claim", "scan_id", "status", "depth", "id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

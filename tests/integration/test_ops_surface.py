@@ -61,6 +61,13 @@ def test_catalog_and_db_seed_agree():
     assert any(t.web_only for t in tools)                    # nothing eliminated
 
 
+def test_workitem_has_claim_index():
+    """The worker claim path depends on a composite index for fast claims at scale."""
+    from recontool.engine.models import WorkItem
+    names = {ix.name for ix in WorkItem.__table__.indexes}
+    assert "ix_workitem_claim" in names
+
+
 def test_engine_logger_emits_structured_entries():
     from recontool.engine.logging import EngineLogger
     log = EngineLogger("test", correlation_id="cid-123")
