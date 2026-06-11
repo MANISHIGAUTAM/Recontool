@@ -324,6 +324,7 @@ detail only.
 
 | Area | Docs |
 |------|------|
+| **Competitive research & next-gen design** | [`research/00-competitive-landscape-and-design.md`](research/00-competitive-landscape-and-design.md) — landscape (BBOT/reconFTW/Osmedeus/SpiderFoot/Amass/Axiom), the four recon pillars, anti-blocking stack, UI, build order |
 | Tool capability docs (532 extracted) | [`tools/`](tools/) · [`tools/README.md`](tools/README.md) |
 | **Suggested additions (32)** | [`tools/SUGGESTED-ADDITIONS.md`](tools/SUGGESTED-ADDITIONS.md) |
 | Execution matrix (planning view) | [`../data/recon_matrix.xlsx`](../data/recon_matrix.xlsx) (gen: `build_matrix.py`) |
