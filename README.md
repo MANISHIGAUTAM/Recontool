@@ -389,6 +389,11 @@ Key capabilities:
   attach more via `recontool worker <scan_id>`.
 - **Tool profiles** (`engine/selection.py`) — `default` (curated) vs `all`
   (everything runnable), gated by `--tools`; every tool stays registered.
+- **Live JS-render crawler** (`recontool/tools/jsrender.py`, tool `js-render`) —
+  headless-browser render captures the XHR/fetch/GraphQL endpoints, JS-injected
+  routes, and secrets a static crawl misses, then recurses on them. Uses Playwright
+  if installed, else degrades to a static fetch. This is the dynamic-application
+  data layer that sets the engine apart from classic recon.
 - **Deterministic router** — `engine/router.py` answers "which tools consume this
   key type?" by a plain query over the persisted tool registry (`tool_row`), with
   type subsumption (a subdomain is also valid input to domain-consuming tools).

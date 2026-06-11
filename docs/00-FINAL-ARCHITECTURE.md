@@ -262,6 +262,11 @@ contracts and climbs as specs land.
 11. **Incremental scans** — SHA-256 fingerprinting to skip unchanged inputs.
 12. **Horizontal multi-worker** — atomic-claim queue (`pending→running` CAS),
     flag-gated tool profiles (`--tools default|all`), structured per-item logging.
+13. **Live JS-render crawling** — `recontool/tools/jsrender.py` (`js-render`):
+    headless-browser render captures the XHR/fetch/GraphQL the page actually makes
+    + JS-injected routes + secrets, recursing on the dynamic surface a static crawl
+    can't see. Degrades to static fetch if Playwright is absent. The differentiator
+    that makes this more than fast classic recon. (`tests/atomic/test_jsrender.py`)
 
 ### 8a. Performance (built-in, verified)
 

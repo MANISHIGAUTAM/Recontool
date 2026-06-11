@@ -155,7 +155,7 @@ def test_registry_covers_full_canonical_slug_set():
 def test_registry_loads_far_more_than_curated():
     reg = ToolRegistry.load()
     stats = reg.stats()
-    assert stats["curated"] == 76
+    assert stats["curated"] == 77
     assert stats["inventory_derived"] >= 450
     assert stats["total"] >= 530
     assert stats["total"] == stats["curated"] + stats["inventory_derived"]

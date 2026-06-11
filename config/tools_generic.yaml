@@ -233,6 +233,26 @@ tools:
       emit:
         - {entity: endpoint, url: "{_value}"}
 
+  # ── Cat 22: LIVE JS-rendering crawl (active) — the next-gen data source ────
+  - name: js-render
+    phase: p5_deep
+    category: 22
+    integration: cli
+    is_active: true
+    consumes: [live_host, url, subdomain]
+    produces: [url, subdomain, finding]   # secrets are emitted as `finding` events
+    binary: python3
+    invocation: "python3 -m recontool.tools.jsrender {value}"
+    timeout: 60
+    max_inputs: 50
+    parse:
+      format: jsonl
+      emit:
+        - {entity: endpoint, url: "{value}", when: {type: url}}
+        - {entity: asset, value: "{value}", type: subdomain, scope_filter: subdomain, when: {type: subdomain}}
+        - {entity: finding, kind: secret, title: "Secret in rendered page ({kind})",
+           severity: high, detector: js-render, asset_value: "{source}", when: {type: secret}}
+
   # ── Cat 24: TLS / cert pivots (active) ─────────────────────────────────────
   - name: tlsx
     phase: p4_verify

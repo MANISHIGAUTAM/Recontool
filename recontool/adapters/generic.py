@@ -135,6 +135,13 @@ def _scope_ok(rule: dict, value: str, seed_domain: str | None) -> bool:
 
 
 def _emit_one(rule: dict, rec: dict, tool: str, seed_domain: str | None) -> list[Event]:
+    # Conditional emit: a rule with `when: {field: value, ...}` fires only for
+    # records matching every condition — lets one tool's mixed JSONL output
+    # (e.g. {"type":"url"} vs {"type":"secret"}) map to different entity types.
+    when = rule.get("when")
+    if when and any(str(_get(rec, f)) != str(v) for f, v in when.items()):
+        return []
+
     entity = rule.get("entity")
     out: list[Event] = []
 
