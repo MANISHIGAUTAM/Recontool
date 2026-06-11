@@ -62,3 +62,14 @@ class ArtifactStore:
         p = self._path(tool, name)
         p.write_text(text)
         return str(p.relative_to(settings.artifact_dir))
+
+    def save_typed(self, tool: str, entity_type: str, values: list[str]) -> str:
+        """Append discovered entities to a typed, append-only output file:
+        out/<tool>.<entity_type>.jsonl — one JSON object per line. This is the
+        per-tool, per-output-type record (a multi-mode tool gets one file per
+        type, e.g. ffuf.subdomain.jsonl and ffuf.url.jsonl)."""
+        p = self._path("out", f"{tool}.{entity_type}.jsonl")
+        with open(p, "a") as fh:
+            for v in values:
+                fh.write(json.dumps({"value": v, "type": entity_type, "tool": tool}) + "\n")
+        return str(p.relative_to(settings.artifact_dir))

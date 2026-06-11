@@ -59,6 +59,11 @@ async def test_engine_runs_and_recurses(tmp_path, monkeypatch):
     assert "api.example.com" in values            # domain -> subdomain
     assert "deep.api.example.com" in values       # subdomain -> deeper subdomain (recursion)
 
+    # Every tool that ran left a typed output file (G7): out/<tool>.<type>.jsonl
+    typed = list((tmp_path / "artifacts").rglob("out/sub_echo.subdomain.jsonl"))
+    assert typed, "expected a typed output file for sub_echo"
+    assert "api.example.com" in typed[0].read_text()
+
 
 @pytest.mark.asyncio
 async def test_engine_stdin_tool(tmp_path, monkeypatch):
@@ -84,6 +89,48 @@ async def test_engine_stdin_tool(tmp_path, monkeypatch):
     with db.session_scope() as s:
         values = {a.value for a in s.execute(select(Asset)).scalars()}
     assert "64500" in values   # the seed reached the tool via stdin and was emitted back
+
+
+def _emit_tool(name, consumes, produces, emit_value, scope_filter=True):
+    """Echo tool whose emit rule optionally omits scope_filter (to exercise the
+    re-feed noise gate, which is the second line of defense after adapter parse)."""
+    rule = {"entity": "asset", "value": "{_value}", "type": produces[0]}
+    if scope_filter:
+        rule["scope_filter"] = "subdomain"
+    return ToolSpec(
+        name=name, integration="cli", binary="echo",
+        invocation=f"echo {emit_value}",
+        consumes=consumes, supported_input_types=consumes,
+        produces=produces, output_types=produces,
+        category=2, is_active=False, enabled=True, non_executable=False,
+        parse={"format": "text", "emit": [rule]},
+    )
+
+
+@pytest.mark.asyncio
+async def test_noise_gate_stops_out_of_scope_recursion(tmp_path, monkeypatch):
+    """With noise control ON, an out-of-scope discovery is not re-fed, so the
+    subdomain-consuming tool never runs. With it OFF, it does. Proves G4 wiring."""
+    monkeypatch.setattr(settings, "artifact_dir", tmp_path / "artifacts")
+    registry = ToolRegistry(tools={
+        # emits an OUT-OF-SCOPE subdomain with NO adapter-level scope_filter
+        "leak": _emit_tool("leak", ["domain"], ["subdomain"], "x.evil.com", scope_filter=False),
+        "downstream": _emit_tool("downstream", ["subdomain"], ["subdomain"],
+                                 "deep.example.com", scope_filter=False),
+    })
+
+    db.init_engine(f"sqlite:///{tmp_path / 'noise_off.db'}")
+    db.create_all()
+    off = await run_engine_scan("example.com", registry=registry,
+                                noise_control=False, max_iterations=10)
+
+    db.init_engine(f"sqlite:///{tmp_path / 'noise_on.db'}")
+    db.create_all()
+    on = await run_engine_scan("example.com", registry=registry,
+                               noise_control=True, max_iterations=10)
+
+    assert off.total_tools_run >= 2          # out-of-scope lead re-fed -> downstream ran
+    assert on.total_tools_run == 1           # gate dropped it -> downstream never scheduled
 
 
 @pytest.mark.asyncio

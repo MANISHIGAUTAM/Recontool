@@ -92,6 +92,12 @@ def engine(
     max_iterations: int = typer.Option(50, "--max-iterations",
                                        help="hard cap on scheduling iterations (convergence guard)."),
     max_depth: int = typer.Option(3, "--max-depth", help="max recursion depth from the seed."),
+    noise_control: bool = typer.Option(
+        False, "--noise-control",
+        help="drop duplicate / out-of-scope leads before re-feeding (optional, G4)."),
+    wildcard_filter: bool = typer.Option(
+        False, "--wildcard-filter",
+        help="also drop wildcard-DNS subdomains (implies --noise-control; does DNS lookups)."),
     export: Path = typer.Option(None, "--export", "-o", help="Write full JSON results here."),
 ):
     """Run the EVENT-DRIVEN recursive engine (parallel, convergence-based).
@@ -115,6 +121,8 @@ def engine(
     with console.status("[bold]running event-driven scan…[/bold]"):
         result = asyncio.run(run_engine_scan(
             seed, seed_type=seed_type, profile_name=profile,
+            noise_control=noise_control or wildcard_filter,
+            wildcard_filter=wildcard_filter,
             max_iterations=max_iterations, max_depth=max_depth,
         ))
 

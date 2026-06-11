@@ -17,7 +17,7 @@ going. `run_engine_scan` wires the whole thing (infra + registry + orchestrator)
 from __future__ import annotations
 
 import logging
-from typing import Any, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
 
 from recontool.adapters.base import AdapterContext
 from recontool.core.artifacts import ArtifactStore
@@ -29,6 +29,9 @@ from recontool.engine.executor import ExecutionResult
 from recontool.engine.registry import ToolRegistry
 from recontool.engine.scheduler import ScheduledJob
 from recontool.normalize.engine import Normalizer
+
+if TYPE_CHECKING:
+    from recontool.engine.noise import NoiseFilter
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +46,14 @@ def make_execute_fn(
     profile: Any,
     http: Any,
     api_keys: Optional[dict[str, str | None]] = None,
+    noise: Optional["NoiseFilter"] = None,
     persist: bool = True,
 ) -> ExecuteFn:
     """Build the execute_fn closure shared across all jobs in a scan.
 
     Artifacts are written under ``settings.artifact_dir``; set that (or
-    ``RECON_ARTIFACT_DIR``) to redirect output, e.g. for tests.
+    ``RECON_ARTIFACT_DIR``) to redirect output, e.g. for tests. Pass ``noise`` to
+    gate the re-feed path (G4); ``None`` (default) means no filtering.
     """
     api_keys = api_keys or {}
     _stores: dict[str, ArtifactStore] = {}
@@ -99,6 +104,26 @@ def make_execute_fn(
             with session_scope() as s:
                 Normalizer(s, job.scan_id, scope=scope).ingest(events)
 
+        # Typed output files (G7): one append-only JSONL per (tool, output type),
+        # so every tool that runs leaves a per-type record alongside raw/<tool>/.
+        if events:
+            store = _artifacts(job.scan_id)
+            by_type: dict[str, list[str]] = {}
+            for ev in events:
+                if ev.entity == "asset":
+                    by_type.setdefault(ev.data.get("type", "asset"), []).append(ev.data.get("value", ""))
+                elif ev.entity == "endpoint":
+                    by_type.setdefault("url", []).append(ev.data.get("url", ""))
+                elif ev.entity == "service":
+                    by_type.setdefault("service", []).append(
+                        f"{ev.data.get('host', '')}:{ev.data.get('port', '')}")
+                elif ev.entity == "finding":
+                    by_type.setdefault("finding", []).append(ev.data.get("title", ""))
+            for etype, vals in by_type.items():
+                vals = [v for v in vals if v]
+                if vals:
+                    store.save_typed(job.tool_name, etype, vals)
+
         # Fan out: publish each unique discovered asset so the scheduler can
         # select tools that consume the new entity type (the recursion).
         seen: set[tuple[str, str]] = set()
@@ -109,6 +134,10 @@ def make_execute_fn(
             if not etype or not evalue or (etype, evalue) in seen:
                 continue
             seen.add((etype, evalue))
+            # Optional noise gate (G4): drop dup / out-of-scope / wildcard / CDN
+            # leads before they spawn more work. No-op when `noise` is None.
+            if noise is not None and not await noise.keep(job.scan_id, etype, evalue):
+                continue
             await bus.publish(EntityDiscovered(
                 scan_id=job.scan_id, entity_type=etype, entity_value=evalue,
                 tool_name=job.tool_name,
@@ -127,6 +156,8 @@ async def run_engine_scan(
     seed_type: str = "domain",
     profile_name: str | None = None,
     registry: ToolRegistry | None = None,
+    noise_control: bool = False,
+    wildcard_filter: bool = False,
     max_iterations: int = 50,
     max_depth: int = 3,
 ):
@@ -163,10 +194,19 @@ async def run_engine_scan(
         )
     }
 
+    noise = None
+    if noise_control:
+        from recontool.engine.noise import NoiseConfig, NoiseFilter, build_default_resolver
+        noise = NoiseFilter(
+            scope=scope,
+            config=NoiseConfig(enabled=True, wildcard=wildcard_filter),
+            resolver=build_default_resolver() if wildcard_filter else None,
+        )
+
     bus = EventBus()
     execute_fn = make_execute_fn(
         bus, registry, scope=scope, profile=profile, http=http,
-        api_keys=api_keys,
+        api_keys=api_keys, noise=noise,
     )
     orchestrator = EventDrivenOrchestrator(bus=bus, registry=registry, execute_fn=execute_fn)
     return await orchestrator.run_scan(

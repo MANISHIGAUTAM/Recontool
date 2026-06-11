@@ -76,8 +76,10 @@ bash docker/install_tools.sh core     # or `all` for the full set
 cp config/recontool.example.yaml config/recontool.yaml   # everything works WITHOUT this
 
 # 4. RUN — the platform is driven by a single scope domain
-recontool scan www.xyz.com                               # passive (safe, default)
-recontool scan xyz.com --authorize-active -o results.json # full pipeline (authorised)
+recontool scan www.xyz.com                               # linear pipeline (passive, default)
+recontool scan xyz.com --authorize-active -o results.json # full linear pipeline (authorised)
+recontool engine www.xyz.com                             # recursive event-driven engine
+recontool engine xyz.com --noise-control -o out.json     # recursive + noise filtering
 ```
 
 If you don't `pip install -e .`, run it as a module: `python -m recontool.cli scan www.xyz.com`.
@@ -339,27 +341,49 @@ artifacts/<scan_id>/
 
 ---
 
-## Event-Driven Engine
+## Event-Driven Engine (recursive)
 
 The platform includes an event-driven orchestration engine that provides parallel,
 dependency-aware tool scheduling. Instead of fixed phase ordering (P1-P6), tools
-execute as soon as their input dependencies are satisfied.
+execute as soon as their input dependencies are satisfied, and **every discovery
+re-feeds the frontier** until no eligible tools remain (convergence).
+
+```bash
+# run the recursive engine (parallel, convergence-based)
+recontool engine www.xyz.com
+recontool engine xyz.com --noise-control            # drop dup / out-of-scope leads
+recontool engine xyz.com --wildcard-filter          # also drop wildcard-DNS noise (DNS lookups)
+recontool engine xyz.com --profile stealth --max-depth 4 -o out.json
+```
+
+Event flow:
 
 ```
 ScanRequested -> ToolSelected -> ToolRunning -> EntityDiscovered
-     -> PendingKeyCreated -> PendingKeyResolved -> (downstream ToolSelected)
-     -> ... -> ScanCompleted
+     -> (noise gate) -> downstream ToolSelected -> ... -> ScanCompleted
 ```
 
 Key capabilities:
-- **Event bus** - async pub/sub routing typed events between components
-- **Pending keys** - inter-tool dependency tracking (e.g., subdomain must be confirmed live before vuln scanning)
-- **Parallel executor** - layered concurrency control (global, per-tool, per-host)
-- **Incremental scans** - SHA-256 fingerprinting to skip unchanged inputs
-- **AI decisioning** - heuristic entity classification (persist/discard/trigger downstream)
+- **Real end-to-end execution** — `engine/runner.py` runs each scheduled tool through
+  the generic adapters, normalizes results into the DB (idempotent dedupe), and
+  re-feeds `EntityDiscovered` so discovery recurses (`recontool engine`).
+- **Parallel executor** — layered concurrency control (global, per-tool, per-host
+  asyncio semaphores). Recon is I/O-bound, so one node fans out hundreds of
+  concurrent lookups without lag; tune with the rate profile.
+- **Deterministic router** — `engine/router.py` answers "which tools consume this
+  key type?" by a plain query over the persisted tool registry (`tool_row`), with
+  type subsumption (a subdomain is also valid input to domain-consuming tools).
+- **Idempotent WorkQueue** — `(scan, key, tool)` items are deduped on enqueue, so a
+  re-discovered entity never triggers a rescan.
+- **Optional noise control** (`--noise-control`) — `engine/noise.py` gates the
+  re-feed path: dedupe + scope (free), wildcard-DNS + CDN (opt-in). Off by default.
+- **Pending keys** — inter-tool dependency tracking (e.g. confirm a host is live
+  before vuln scanning).
+- **Incremental scans** — SHA-256 fingerprinting to skip unchanged inputs.
 
-The engine is additive: the existing `ReconPipeline` continues to work for
-linear scans. Full documentation lives in [`docs/engine/`](docs/engine/):
+The engine is additive: the existing `ReconPipeline` (`recontool scan`) still runs
+linear scans. Full documentation lives in [`docs/engine/`](docs/engine/) and the
+single-source design in [`docs/00-FINAL-ARCHITECTURE.md`](docs/00-FINAL-ARCHITECTURE.md):
 
 | Doc | Topic |
 |-----|-------|
