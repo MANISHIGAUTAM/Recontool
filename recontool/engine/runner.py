@@ -17,6 +17,7 @@ going. `run_engine_scan` wires the whole thing (infra + registry + orchestrator)
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
 
 from recontool.adapters.base import AdapterContext
@@ -36,6 +37,73 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 ExecuteFn = Callable[[ScheduledJob], Awaitable[ExecutionResult]]
+
+
+@dataclass
+class ToolOutcome:
+    """Result of running one tool spec against one set of inputs."""
+
+    status: str          # "ok" | "skip" | "error"
+    events: list = field(default_factory=list)
+    reason: str = ""
+
+
+async def run_tool_spec(
+    spec, scan_id: str, inputs: dict, *,
+    scope: Scope, profile: Any, http: Any,
+    api_keys: dict, artifacts: ArtifactStore,
+) -> ToolOutcome:
+    """Build the generic adapter for a tool and run it once. Shared by the
+    event-bus runner and the multi-worker queue (single source of execution)."""
+    plan = plan_execution(spec)
+    adapter_cls = build_adapter_for(spec) if plan.runnable else None
+    if adapter_cls is None:
+        return ToolOutcome("skip", reason=plan.reason or "not runnable")
+    adapter = adapter_cls()
+    ctx = AdapterContext(
+        scan_id=scan_id, scope=scope, profile=profile, http=http,
+        artifacts=artifacts, inputs=inputs or {}, api_keys=api_keys,
+    )
+    if not adapter.available(ctx):
+        return ToolOutcome("skip", reason="unavailable (missing binary/key)")
+    try:
+        events = await adapter.run(ctx)
+    except Exception as exc:  # noqa: BLE001
+        return ToolOutcome("error", reason=str(exc)[:500])
+    return ToolOutcome("ok", events=events or [])
+
+
+def write_typed_outputs(store: ArtifactStore, tool: str, events: list) -> None:
+    """Append discovered entities to typed out/<tool>.<type>.jsonl files (G7)."""
+    by_type: dict[str, list[str]] = {}
+    for ev in events:
+        if ev.entity == "asset":
+            by_type.setdefault(ev.data.get("type", "asset"), []).append(ev.data.get("value", ""))
+        elif ev.entity == "endpoint":
+            by_type.setdefault("url", []).append(ev.data.get("url", ""))
+        elif ev.entity == "service":
+            by_type.setdefault("service", []).append(
+                f"{ev.data.get('host', '')}:{ev.data.get('port', '')}")
+        elif ev.entity == "finding":
+            by_type.setdefault("finding", []).append(ev.data.get("title", ""))
+    for etype, vals in by_type.items():
+        vals = [v for v in vals if v]
+        if vals:
+            store.save_typed(tool, etype, vals)
+
+
+def discovered_assets(events: list) -> list[tuple[str, str]]:
+    """Unique (entity_type, value) asset pairs from a tool's events."""
+    seen: set[tuple[str, str]] = set()
+    out: list[tuple[str, str]] = []
+    for ev in events:
+        if ev.entity != "asset":
+            continue
+        t, v = ev.data.get("type"), ev.data.get("value")
+        if t and v and (t, v) not in seen:
+            seen.add((t, v))
+            out.append((t, v))
+    return out
 
 
 def make_execute_fn(
@@ -66,76 +134,32 @@ def make_execute_fn(
     async def execute_fn(job: ScheduledJob) -> ExecutionResult:
         spec = registry.get(job.tool_name)
         if spec is None:
-            return ExecutionResult(
-                tool_name=job.tool_name, scan_id=job.scan_id,
-                success=False, error="unknown tool",
-            )
+            return ExecutionResult(tool_name=job.tool_name, scan_id=job.scan_id,
+                                   success=False, error="unknown tool")
 
-        plan = plan_execution(spec)
-        adapter_cls = build_adapter_for(spec) if plan.runnable else None
-        if adapter_cls is None:
-            # documented stub / web-only / no contract — skip cleanly, keep scanning
-            return ExecutionResult(
-                tool_name=job.tool_name, scan_id=job.scan_id,
-                success=True, error=f"skipped: {plan.reason or 'not runnable'}",
-            )
-
-        adapter = adapter_cls()
-        ctx = AdapterContext(
-            scan_id=job.scan_id, scope=scope, profile=profile, http=http,
-            artifacts=_artifacts(job.scan_id), inputs=job.inputs or {},
-            api_keys=api_keys,
+        outcome = await run_tool_spec(
+            spec, job.scan_id, job.inputs or {}, scope=scope, profile=profile,
+            http=http, api_keys=api_keys, artifacts=_artifacts(job.scan_id),
         )
-        if not adapter.available(ctx):
-            return ExecutionResult(
-                tool_name=job.tool_name, scan_id=job.scan_id,
-                success=True, error="unavailable (missing binary/key)",
-            )
+        if outcome.status == "skip":
+            return ExecutionResult(tool_name=job.tool_name, scan_id=job.scan_id,
+                                   success=True, error=f"skipped: {outcome.reason}")
+        if outcome.status == "error":
+            return ExecutionResult(tool_name=job.tool_name, scan_id=job.scan_id,
+                                   success=False, error=outcome.reason)
 
-        try:
-            events = await adapter.run(ctx)
-        except Exception as exc:  # noqa: BLE001
-            return ExecutionResult(
-                tool_name=job.tool_name, scan_id=job.scan_id,
-                success=False, error=str(exc)[:500],
-            )
-
+        events = outcome.events
         if persist and events:
             with session_scope() as s:
                 Normalizer(s, job.scan_id, scope=scope).ingest(events)
-
-        # Typed output files (G7): one append-only JSONL per (tool, output type),
-        # so every tool that runs leaves a per-type record alongside raw/<tool>/.
         if events:
-            store = _artifacts(job.scan_id)
-            by_type: dict[str, list[str]] = {}
-            for ev in events:
-                if ev.entity == "asset":
-                    by_type.setdefault(ev.data.get("type", "asset"), []).append(ev.data.get("value", ""))
-                elif ev.entity == "endpoint":
-                    by_type.setdefault("url", []).append(ev.data.get("url", ""))
-                elif ev.entity == "service":
-                    by_type.setdefault("service", []).append(
-                        f"{ev.data.get('host', '')}:{ev.data.get('port', '')}")
-                elif ev.entity == "finding":
-                    by_type.setdefault("finding", []).append(ev.data.get("title", ""))
-            for etype, vals in by_type.items():
-                vals = [v for v in vals if v]
-                if vals:
-                    store.save_typed(job.tool_name, etype, vals)
+            write_typed_outputs(_artifacts(job.scan_id), job.tool_name, events)
 
         # Fan out: publish each unique discovered asset so the scheduler can
-        # select tools that consume the new entity type (the recursion).
-        seen: set[tuple[str, str]] = set()
-        for ev in events:
-            if ev.entity != "asset":
-                continue
-            etype, evalue = ev.data.get("type"), ev.data.get("value")
-            if not etype or not evalue or (etype, evalue) in seen:
-                continue
-            seen.add((etype, evalue))
-            # Optional noise gate (G4): drop dup / out-of-scope / wildcard / CDN
-            # leads before they spawn more work. No-op when `noise` is None.
+        # select tools that consume the new entity type (the recursion). The
+        # optional noise gate (G4) drops dup / out-of-scope / wildcard / CDN
+        # leads before they spawn more work.
+        for etype, evalue in discovered_assets(events):
             if noise is not None and not await noise.keep(job.scan_id, etype, evalue):
                 continue
             await bus.publish(EntityDiscovered(
@@ -143,11 +167,47 @@ def make_execute_fn(
                 tool_name=job.tool_name,
             ))
 
-        return ExecutionResult(
-            tool_name=job.tool_name, scan_id=job.scan_id, success=True,
-        )
+        return ExecutionResult(tool_name=job.tool_name, scan_id=job.scan_id, success=True)
 
     return execute_fn
+
+
+_API_KEY_ENVS = (
+    "SHODAN_API_KEY", "VIRUSTOTAL_API_KEY", "SECURITYTRAILS_API_KEY",
+    "GITHUB_TOKEN", "CENSYS_API_ID", "CENSYS_API_SECRET", "CHAOS_API_KEY",
+    "NETLAS_API_KEY", "GREYNOISE_API_KEY", "LEAKIX_API_KEY",
+    "URLSCAN_API_KEY", "FULLHUNT_API_KEY", "CRIMINALIP_API_KEY",
+    "CERTSPOTTER_API_KEY", "IPINFO_TOKEN",
+)
+
+
+def build_scan_infra(seed: str, seed_type: str, profile_name: str | None):
+    """Shared setup for both execution paths: (profile, scope, http, api_keys)."""
+    from recontool.config import PROFILES, settings
+    from recontool.core.scope import Scope as _Scope
+    from recontool.net.http_client import HttpClient
+    from recontool.net.proxy_pool import ProxyPool
+    from recontool.net.rate_limiter import RateLimiter
+
+    profile = PROFILES.get(profile_name, settings.profile()) if profile_name else settings.profile()
+    scope = _Scope.from_seed(seed, seed_type)
+    proxies = ProxyPool(settings.proxies, strategy=settings.proxy_strategy)
+    limiter = RateLimiter(default_rate=profile.requests_per_second)
+    http = HttpClient(profile=profile, proxy_pool=proxies, limiter=limiter)
+    api_keys = {k: settings.api_key(k) for k in _API_KEY_ENVS}
+    return profile, scope, http, api_keys
+
+
+def build_noise(scope, noise_control: bool, wildcard_filter: bool):
+    """Construct the optional NoiseFilter (or None when disabled)."""
+    if not (noise_control or wildcard_filter):
+        return None
+    from recontool.engine.noise import NoiseConfig, NoiseFilter, build_default_resolver
+    return NoiseFilter(
+        scope=scope,
+        config=NoiseConfig(enabled=True, wildcard=wildcard_filter),
+        resolver=build_default_resolver() if wildcard_filter else None,
+    )
 
 
 async def run_engine_scan(
@@ -156,52 +216,27 @@ async def run_engine_scan(
     seed_type: str = "domain",
     profile_name: str | None = None,
     registry: ToolRegistry | None = None,
+    tools: str = "default",
     noise_control: bool = False,
     wildcard_filter: bool = False,
     max_iterations: int = 50,
     max_depth: int = 3,
 ):
-    """Run a full event-driven scan with real tool execution.
+    """Run a single-process event-driven scan with real tool execution.
 
-    The complement to the linear ReconPipeline: discovery fans out as soon as a
-    tool's inputs are available, recurses on each new entity, and converges when
-    no eligible tools remain. Returns the orchestrator's ScanResult.
+    Discovery fans out as soon as a tool's inputs are available, recurses on each
+    new entity, and converges when no eligible tools remain. `tools` selects the
+    profile ("default" curated vs "all"/"excessive"). Returns a ScanResult.
     """
-    from recontool.config import PROFILES, settings
     from recontool.core.db import create_all
-    from recontool.core.scope import Scope as _Scope
     from recontool.engine.orchestrator import EventDrivenOrchestrator, ScanConfig
-    from recontool.net.http_client import HttpClient
-    from recontool.net.proxy_pool import ProxyPool
-    from recontool.net.rate_limiter import RateLimiter
+    from recontool.engine.selection import apply_selection
 
     create_all()
-    profile = PROFILES.get(profile_name, settings.profile()) if profile_name else settings.profile()
-    scope = _Scope.from_seed(seed, seed_type)
+    profile, scope, http, api_keys = build_scan_infra(seed, seed_type, profile_name)
     registry = registry or ToolRegistry.load()
-
-    proxies = ProxyPool(settings.proxies, strategy=settings.proxy_strategy)
-    limiter = RateLimiter(default_rate=profile.requests_per_second)
-    http = HttpClient(profile=profile, proxy_pool=proxies, limiter=limiter)
-
-    api_keys = {
-        k: settings.api_key(k) for k in (
-            "SHODAN_API_KEY", "VIRUSTOTAL_API_KEY", "SECURITYTRAILS_API_KEY",
-            "GITHUB_TOKEN", "CENSYS_API_ID", "CENSYS_API_SECRET", "CHAOS_API_KEY",
-            "NETLAS_API_KEY", "GREYNOISE_API_KEY", "LEAKIX_API_KEY",
-            "URLSCAN_API_KEY", "FULLHUNT_API_KEY", "CRIMINALIP_API_KEY",
-            "CERTSPOTTER_API_KEY", "IPINFO_TOKEN",
-        )
-    }
-
-    noise = None
-    if noise_control:
-        from recontool.engine.noise import NoiseConfig, NoiseFilter, build_default_resolver
-        noise = NoiseFilter(
-            scope=scope,
-            config=NoiseConfig(enabled=True, wildcard=wildcard_filter),
-            resolver=build_default_resolver() if wildcard_filter else None,
-        )
+    apply_selection(registry, tools)
+    noise = build_noise(scope, noise_control, wildcard_filter)
 
     bus = EventBus()
     execute_fn = make_execute_fn(

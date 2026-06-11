@@ -165,6 +165,7 @@ component, not a filter bolted on later.
 | **G6** | **Routing not registry-driven at runtime** | eligibility computed ad hoc | ✅ **done** — deterministic Router (`engine/router.py`) over `tool_row` with type subsumption (subdomain → domain consumers) + dedupe-on-enqueue; tested in `tests/atomic/test_matrix_router.py` |
 | **G7** | **Output files not typed per mode** | raw under `raw/<tool>/` only | ✅ **done** — `ArtifactStore.save_typed` + runner write an append-only `out/<tool>.<type>.jsonl` per output type (multi-mode tools get one file per type); raw still under `raw/<tool>/`. Tested in `tests/integration/test_engine_runner.py` |
 | **G8** | **Doc sprawl** | 600+ md files, overlapping roadmaps | this doc is the single source; others are subsidiary (Section 10) |
+| **G9** | **Single-process only / no tool profiles** | engine ran in-process; all tools or nothing | ✅ **done** — `engine/selection.py` flag-gated profiles (`--tools default` curated vs `all`/`excessive`); `engine/worker.py` DB-backed multi-worker queue with atomic `pending→running` claim (resumable, multi-process/host safe) via `engine --workers N` / `recontool worker <scan_id>`. Tested in `tests/integration/test_worker_queue.py` (drain, recursion, no-double-process, selection) |
 
 ---
 

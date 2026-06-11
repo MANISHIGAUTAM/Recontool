@@ -1,0 +1,239 @@
+"""Multi-worker, queue-driven execution over the persisted `work_item` table.
+
+This is the horizontally-scalable execution path (complement to the in-process
+`run_engine_scan`). Workers atomically **claim** a pending item (status
+`pending -> running` via a compare-and-set UPDATE that is safe both across the
+async pool and across separate processes/hosts), run the tool through the SAME
+`run_tool_spec` used by the event engine, persist + write typed outputs, then
+enqueue downstream work for each new in-scope entity. Because all state lives in
+the DB, a scan is resumable and you can run `recontool worker` on N processes
+against one `RECON_DB_URL` for real parallelism.
+
+Selection (`tools=default|all`) and the optional noise gate are honored here too.
+"""
+from __future__ import annotations
+
+import asyncio
+import datetime as dt
+import logging
+import uuid
+from dataclasses import dataclass
+from typing import Optional
+
+from sqlalchemy import func, select, update
+
+from recontool.core.artifacts import ArtifactStore
+from recontool.core.db import create_all, session_scope
+from recontool.engine.models import WorkItem
+from recontool.engine.registry import ToolRegistry
+from recontool.engine.router import _eligible_types, work_dedupe_key
+from recontool.engine.runner import (
+    build_noise, build_scan_infra, discovered_assets, run_tool_spec, write_typed_outputs,
+)
+from recontool.engine.selection import apply_selection
+from recontool.normalize.engine import Normalizer
+
+logger = logging.getLogger(__name__)
+
+
+def _now() -> dt.datetime:
+    return dt.datetime.now(dt.timezone.utc)
+
+
+@dataclass
+class ClaimedItem:
+    """A detached snapshot of a claimed work item (safe to use post-session)."""
+
+    id: int
+    key: str
+    key_type: str
+    tool_slug: str
+    depth: int
+
+
+def claim_one(session, scan_id: str) -> Optional[ClaimedItem]:
+    """Atomically claim one pending item: pending -> running. Returns None if
+    none are pending OR another worker won the race (caller simply retries).
+
+    Correctness: the UPDATE's `WHERE status='pending'` is a compare-and-set —
+    only one worker's commit can flip a given row, so no item is processed twice.
+    On Postgres this also takes a row lock; on SQLite the write lock + CAS suffice.
+    """
+    row = session.execute(
+        select(WorkItem.id)
+        .where(WorkItem.scan_id == scan_id, WorkItem.status == "pending")
+        .order_by(WorkItem.depth, WorkItem.id)
+        .limit(1)
+    ).first()
+    if not row:
+        return None
+    item_id = row[0]
+    res = session.execute(
+        update(WorkItem)
+        .where(WorkItem.id == item_id, WorkItem.status == "pending")
+        .values(status="running", started_at=_now())
+    )
+    if res.rowcount != 1:
+        return None  # lost the race
+    it = session.get(WorkItem, item_id)
+    return ClaimedItem(id=it.id, key=it.key, key_type=it.key_type,
+                       tool_slug=it.tool_slug, depth=it.depth)
+
+
+def enqueue_key(
+    session, scan_id: str, key: str, key_type: str, registry: ToolRegistry, *,
+    depth: int = 0, parent: str | None = None,
+) -> int:
+    """Create pending work items for every ENABLED tool that consumes `key_type`
+    (with type subsumption). Deduped on `(scan, key, tool)`. Returns new count."""
+    wanted = _eligible_types(key_type)
+    existing = {
+        dk for (dk,) in session.execute(
+            select(WorkItem.dedupe_key).where(WorkItem.scan_id == scan_id)
+        )
+    }
+    created = 0
+    for spec in registry.all_tools().values():
+        if not spec.enabled:
+            continue
+        consumes = set(spec.supported_input_types) | set(spec.consumes)
+        if not (wanted & consumes):
+            continue
+        dk = work_dedupe_key(key_type, key, spec.name)
+        if dk in existing:
+            continue
+        existing.add(dk)
+        session.add(WorkItem(
+            scan_id=scan_id, key=key, key_type=key_type, tool_slug=spec.name,
+            dedupe_key=dk, status="pending", parent_key=parent, depth=depth,
+        ))
+        created += 1
+    return created
+
+
+class WorkerPool:
+    """Runs N concurrent async workers against the work_item queue for a scan."""
+
+    def __init__(self, registry, *, scope, profile, http, api_keys,
+                 noise=None, max_depth: int = 3):
+        self.registry = registry
+        self.scope = scope
+        self.profile = profile
+        self.http = http
+        self.api_keys = api_keys
+        self.noise = noise
+        self.max_depth = max_depth
+        self._stores: dict[str, ArtifactStore] = {}
+        self.processed = 0
+
+    def _store(self, scan_id: str) -> ArtifactStore:
+        if scan_id not in self._stores:
+            self._stores[scan_id] = ArtifactStore(scan_id)
+        return self._stores[scan_id]
+
+    async def _process(self, item: ClaimedItem, scan_id: str) -> None:
+        spec = self.registry.get(item.tool_slug)
+        store = self._store(scan_id)
+        new_keys = 0
+        status = "completed"
+        if spec is None:
+            status = "failed"
+        else:
+            outcome = await run_tool_spec(
+                spec, scan_id, {item.key_type: [item.key]}, scope=self.scope,
+                profile=self.profile, http=self.http, api_keys=self.api_keys,
+                artifacts=store,
+            )
+            if outcome.status == "error":
+                status = "failed"
+            events = outcome.events
+            if events:
+                with session_scope() as s:
+                    Normalizer(s, scan_id, scope=self.scope).ingest(events)
+                write_typed_outputs(store, item.tool_slug, events)
+                if item.depth + 1 <= self.max_depth:
+                    with session_scope() as s:
+                        for etype, evalue in discovered_assets(events):
+                            if self.noise is not None and not await self.noise.keep(
+                                    scan_id, etype, evalue):
+                                continue
+                            new_keys += enqueue_key(
+                                s, scan_id, evalue, etype, self.registry,
+                                depth=item.depth + 1, parent=item.key,
+                            )
+        with session_scope() as s:
+            row = s.get(WorkItem, item.id)
+            if row is not None:
+                row.status = status
+                row.finished_at = _now()
+                row.new_keys_found = new_keys
+        self.processed += 1
+
+    async def _worker(self, scan_id: str) -> None:
+        while True:
+            with session_scope() as s:
+                item = claim_one(s, scan_id)
+            if item is None:
+                if not _has_active(scan_id):
+                    return
+                await asyncio.sleep(0.02)
+                continue
+            await self._process(item, scan_id)
+
+    async def run(self, scan_id: str, workers: int = 8) -> None:
+        await asyncio.gather(*(self._worker(scan_id) for _ in range(max(1, workers))))
+
+
+def _has_active(scan_id: str) -> bool:
+    """True if any pending or running items remain for the scan."""
+    with session_scope() as s:
+        n = s.execute(
+            select(func.count(WorkItem.id)).where(
+                WorkItem.scan_id == scan_id,
+                WorkItem.status.in_(("pending", "running")),
+            )
+        ).scalar_one()
+    return n > 0
+
+
+@dataclass
+class QueueScanResult:
+    scan_id: str
+    items_processed: int
+    completed: int
+    failed: int
+    entities: int
+
+
+async def run_queue_scan(
+    seed: str, *, seed_type: str = "domain", profile_name: str | None = None,
+    registry: ToolRegistry | None = None, tools: str = "default",
+    workers: int = 8, noise_control: bool = False, wildcard_filter: bool = False,
+    max_depth: int = 3,
+) -> QueueScanResult:
+    """Seed the work queue and drain it with `workers` concurrent workers."""
+    from recontool.core.models import Asset
+
+    create_all()
+    profile, scope, http, api_keys = build_scan_infra(seed, seed_type, profile_name)
+    registry = registry or ToolRegistry.load()
+    apply_selection(registry, tools)
+    noise = build_noise(scope, noise_control, wildcard_filter)
+
+    scan_id = uuid.uuid4().hex[:16]
+    with session_scope() as s:
+        enqueue_key(s, scan_id, seed, seed_type, registry, depth=0)
+
+    pool = WorkerPool(registry, scope=scope, profile=profile, http=http,
+                      api_keys=api_keys, noise=noise, max_depth=max_depth)
+    await pool.run(scan_id, workers=workers)
+
+    with session_scope() as s:
+        completed = s.execute(select(func.count(WorkItem.id)).where(
+            WorkItem.scan_id == scan_id, WorkItem.status == "completed")).scalar_one()
+        failed = s.execute(select(func.count(WorkItem.id)).where(
+            WorkItem.scan_id == scan_id, WorkItem.status == "failed")).scalar_one()
+        entities = s.execute(select(func.count(Asset.id)).where(
+            Asset.scan_id == scan_id)).scalar_one()
+    return QueueScanResult(scan_id=scan_id, items_processed=pool.processed,
+                           completed=completed, failed=failed, entities=entities)

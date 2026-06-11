@@ -350,11 +350,24 @@ re-feeds the frontier** until no eligible tools remain (convergence).
 
 ```bash
 # run the recursive engine (parallel, convergence-based)
-recontool engine www.xyz.com
+recontool engine www.xyz.com                        # default profile (curated tools)
+recontool engine xyz.com --tools all                # excessive: every runnable tool
+recontool engine xyz.com --workers 8                # DB-backed multi-worker queue
 recontool engine xyz.com --noise-control            # drop dup / out-of-scope leads
 recontool engine xyz.com --wildcard-filter          # also drop wildcard-DNS noise (DNS lookups)
 recontool engine xyz.com --profile stealth --max-depth 4 -o out.json
+
+# scale horizontally: point more workers at the same scan + RECON_DB_URL
+recontool worker <scan_id> --workers 8
 ```
+
+**Tool profiles (flag-gated, nothing eliminated):** `--tools default` runs the
+curated/recommended set (correct parsers); `--tools all` (a.k.a. excessive) runs
+*every* tool the engine can execute. Tools with no programmatic interface stay in
+the registry and skip cleanly. **Workers:** `--workers 1` uses the in-process
+event engine; `--workers N` drains a persisted `work_item` queue with N concurrent
+workers that **atomically claim** items — so it's resumable and safe to run across
+multiple processes/hosts (`recontool worker <scan_id>`).
 
 Event flow:
 
@@ -370,6 +383,12 @@ Key capabilities:
 - **Parallel executor** — layered concurrency control (global, per-tool, per-host
   asyncio semaphores). Recon is I/O-bound, so one node fans out hundreds of
   concurrent lookups without lag; tune with the rate profile.
+- **Multi-worker queue** (`engine/worker.py`) — N workers atomically claim pending
+  `work_item`s (`pending→running` compare-and-set), so execution is resumable and
+  scales across processes/hosts against one DB. Run with `engine --workers N` or
+  attach more via `recontool worker <scan_id>`.
+- **Tool profiles** (`engine/selection.py`) — `default` (curated) vs `all`
+  (everything runnable), gated by `--tools`; every tool stays registered.
 - **Deterministic router** — `engine/router.py` answers "which tools consume this
   key type?" by a plain query over the persisted tool registry (`tool_row`), with
   type subsumption (a subdomain is also valid input to domain-consuming tools).
