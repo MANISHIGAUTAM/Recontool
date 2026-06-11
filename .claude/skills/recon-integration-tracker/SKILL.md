@@ -36,9 +36,15 @@ getting re-litigated; do not invent a different model. Non-negotiables from it:
 ## Regenerate the planning artifacts when the tool set changes
 
 ```bash
+python -m recontool.inventory.seed_matrix        # seed/refresh the tool_row DB registry (all 563 tools)
 python -m recontool.inventory.build_matrix       # data/recon_matrix.xlsx (Tools/Routing/WorkQueue views)
 python -m recontool.inventory.suggested_tools    # docs/tools/*.md + SUGGESTED-ADDITIONS.md for gap closers
 ```
+
+The runtime matrix lives in two tables: `tool_row` (registry, `engine/models.py`,
+seeded above) and `work_item` (WorkQueue). Routing + dedupe-on-enqueue are in
+`engine/router.py` (`tools_for_key_type`, `enqueue`); `catalog.load_all_tools()`
+is the single source both the seeder and the Excel read.
 
 ## The one rule
 

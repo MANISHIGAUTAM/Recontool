@@ -158,11 +158,11 @@ component, not a filter bolted on later.
 | # | Gap | Current state | Target |
 |---|-----|---------------|--------|
 | **G1** | **Two disconnected orchestrators** | CLI runs the linear `ReconPipeline` (P1–P6); the recursive `engine/` runs a no-op `_default_execute` and is never invoked by the CLI | One engine: wire `EventDrivenOrchestrator.execute_fn` to the real generic adapters via `engine/execution.py`; retire the linear loop |
-| **G2** | **~9% of tools runnable** | 53 of 531 documented tools have a real contract; the rest are inventory stubs (`runnable=False`) | Wire **all** tools (overlap is free via idempotent keys); ship a `default_on` recommended profile; user picks the rest in the UI. Track with the `recon-integration-tracker` skill |
+| **G2** | **~9% of tools runnable** | 53 runnable; rest are stubs. ✅ **all 563 tools now persisted** to `tool_row` (incl. 88 web-only, kept & flagged) via `inventory/seed_matrix.py` | Wire **all** tools (overlap is free via idempotent keys); ship a `default_on` recommended profile; user picks the rest in the UI. Track with the `recon-integration-tracker` skill |
 | **G3** | **Recursion is shallow** | `ReconPipeline.max_recursion=1`, passive-only, `_has_unprobed_growth` is a stub returning True | Frontier-driven convergence (already built in `frontier.py`) backing the live loop |
 | **G4** | **No noise control** | no wildcard/CDN/cross-scan filtering | Section 5 layer wired into the re-feed path |
 | **G5** | **Frontier/checkpoint/policy built but unwired** | `frontier.py`, `core/policy.py` tested standalone | consumed by the live `run_scan` (gate, iterate, checkpoint, dead-letter) |
-| **G6** | **Routing not registry-driven at runtime** | eligibility computed ad hoc | deterministic `key_type → tools` join from the Tools table (Section 2) |
+| **G6** | **Routing not registry-driven at runtime** | eligibility computed ad hoc | ✅ **done** — deterministic Router (`engine/router.py`) over `tool_row` with type subsumption (subdomain → domain consumers) + dedupe-on-enqueue; tested in `tests/atomic/test_matrix_router.py` |
 | **G7** | **Output files not typed per mode** | raw under `raw/<tool>/` only | typed `out/<key>/<slug>.<type>.jsonl` per Section 3 |
 | **G8** | **Doc sprawl** | 600+ md files, overlapping roadmaps | this doc is the single source; others are subsidiary (Section 10) |
 
@@ -237,10 +237,10 @@ extracted inventory** to preserve its provenance. Highlights:
 > Phases are ordered so each builds on the last; do not jump ahead.
 
 **P0 — Make the engine alive (unblocks everything)**
-1. Create `Tools` + `WorkQueue` tables in `core/models.py`; seed `Tools` from `flow_plan.json`.
-2. Implement the deterministic **Router** (`key_type → tools`); test vs the `Routing` sheet.
-3. Wire `EventDrivenOrchestrator.execute_fn` to real generic adapters (`engine/execution.py`).
-4. One vertical slice end-to-end: `domain → subfinder/crtsh → subdomain → dns_resolve → ip → naabu → live_host → katana → url → converge`.
+1. ✅ **done** — `ToolRow` + `WorkItem` tables (`engine/models.py`); seeded from the full catalog (`inventory/seed_matrix.py`, all 563 tools).
+2. ✅ **done** — deterministic **Router** with subsumption + dedupe-on-enqueue (`engine/router.py`); tested (`tests/atomic/test_matrix_router.py`).
+3. Wire `EventDrivenOrchestrator.execute_fn` to real generic adapters (`engine/execution.py`). ← **next**
+4. One vertical slice end-to-end: `domain → subfinder/crt-sh → subdomain → dns_resolve → ip → naabu → live_host → katana → url → converge`.
 
 **P1 — Make recursion safe**
 5. Typed output writer + extractor (Section 3).

@@ -1,90 +1,41 @@
-"""Generate the recon execution matrix workbook from data/flow_plan.json.
+"""Generate the recon execution matrix workbook from the full tool catalog.
 
-This is the *planning* representation of the architecture, not a runtime DB.
-It produces data/recon_matrix.xlsx with sheets:
+This is the *planning* mirror of the runtime DB matrix (`tool_row` + `work_item`,
+seeded by `seed_matrix.py`). Both read the SAME source — `catalog.load_all_tools()`
+— so the spreadsheet and the database can never drift. It produces
+data/recon_matrix.xlsx with sheets:
 
-  Legend       — how to read the workbook + the corrected data model
-  Tools        — capability registry: one row per canonical tool (532),
-                 with normalized consumes/produces, wired flag, storage,
-                 and the typed-output-file convention
-  EntityTypes  — canonical entity vocabulary + how the messy compound
-                 `consumes` strings normalize onto it
-  Routing      — entity_type -> tools that accept it (the DETERMINISTIC
-                 router that replaces "AI sets a flag per key")
-  WorkQueue    — the runtime task-table SCHEMA + a worked grow.in example
-                 (this, not a 532-column sheet, is the live database shape)
+  Legend       — how to read the workbook + the data model
+  Tools        — capability registry: one row per canonical tool (ALL of them,
+                 incl. web-only / suggested), with integration method, source,
+                 runnable / default_on flags, and the typed-output-file convention
+  EntityTypes  — canonical entity vocabulary
+  Routing      — entity_type -> tools that accept it, using the SAME subsumption
+                 as the runtime Router (subdomain also matches domain consumers)
+  WorkQueue    — the runtime task-table schema + a worked grow.in example
 
 Run:  python -m recontool.inventory.build_matrix
-Pure: reads data/flow_plan.json, writes data/recon_matrix.xlsx. No network.
+Pure: reads data/flow_plan.json (via catalog) + suggested_tools, writes the xlsx.
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from recontool.engine.router import _eligible_types
+from recontool.inventory.catalog import CANON, load_all_tools
+
 ROOT = Path(__file__).resolve().parents[2]
-FLOW = ROOT / "data" / "flow_plan.json"
 OUT = ROOT / "data" / "recon_matrix.xlsx"
 
-# Canonical entity vocabulary (the keys that can appear in the work queue).
-CANON = [
-    "domain", "subdomain", "live_host", "url", "endpoint", "ip", "cidr", "asn",
-    "service", "host_port", "cert", "tech", "js_file", "secret", "bucket",
-    "repo", "email", "username", "org", "keyword", "coords", "cpe", "file",
-    "finding", "screenshot", "tag", "seed",
-]
-
-# Map a raw consumes/produces token onto canonical types. Compound forms like
-# "domain_or_email" or "ip_domain_service" expand to several canonical types.
-TOKEN = {
-    "domain": ["domain"], "subdomain": ["subdomain"], "live": ["live_host"],
-    "host": ["live_host"], "url": ["url"], "endpoint": ["endpoint"],
-    "ip": ["ip"], "cidr": ["cidr"], "asn": ["asn"], "service": ["service"],
-    "cert": ["cert"], "tech": ["tech"], "js": ["js_file"], "secret": ["secret"],
-    "bucket": ["bucket"], "repo": ["repo"], "email": ["email"],
-    "username": ["username"], "org": ["org"], "keyword": ["keyword"],
-    "coords": ["coords"], "cpe": ["cpe"], "file": ["file"],
-    "finding": ["finding"], "screenshot": ["screenshot"], "tag": ["tag"],
-    "any": ["any"], "none": ["seed"], "resolver": [],
-}
-
-
-def normalize(raw: str) -> list[str]:
-    """Turn a raw consumes/produces string into canonical types."""
-    if not raw:
-        return []
-    out: list[str] = []
-    # split compound separators: _or_, _, /
-    parts = raw.replace("/", "_").replace("_or_", "_").split("_")
-    i = 0
-    while i < len(parts):
-        p = parts[i]
-        # "js_file" / "host_port" two-token forms
-        if p == "js" and i + 1 < len(parts) and parts[i + 1] == "file":
-            out.append("js_file"); i += 2; continue
-        if p == "host" and i + 1 < len(parts) and parts[i + 1] == "port":
-            out.append("host_port"); i += 2; continue
-        if p == "live" and i + 1 < len(parts) and parts[i + 1] == "host":
-            out.append("live_host"); i += 2; continue
-        out += TOKEN.get(p, [])
-        i += 1
-    # dedupe, keep order
-    seen, res = set(), []
-    for t in out:
-        if t not in seen:
-            seen.add(t); res.append(t)
-    return res
-
-
-# ── styling helpers ──────────────────────────────────────────────────────────
 HEAD = Font(bold=True, color="FFFFFF")
 HEAD_FILL = PatternFill("solid", fgColor="1F4E79")
 WIRED_FILL = PatternFill("solid", fgColor="C6EFCE")
 STUB_FILL = PatternFill("solid", fgColor="FFF2CC")
+WEB_FILL = PatternFill("solid", fgColor="D9D9D9")
 WRAP = Alignment(vertical="top", wrap_text=True)
 
 
@@ -103,114 +54,105 @@ def autowidth(ws, widths: dict[int, int]) -> None:
 
 
 def build() -> None:
-    tools = json.loads(FLOW.read_text())["tools"]
+    tools = load_all_tools()
     wb = Workbook()
 
     # ── Legend ───────────────────────────────────────────────────────────────
     ws = wb.active
     ws.title = "Legend"
+    n_run = sum(t.runnable for t in tools)
+    n_web = sum(t.web_only for t in tools)
+    n_sug = sum(t.source == "suggested" for t in tools)
     legend = [
         ["Recon Execution Matrix", ""],
-        ["Generated from", "data/flow_plan.json (source of truth: data/tool_inventory.json)"],
+        ["Generated from", "catalog.load_all_tools() — same source as the DB seeder"],
+        ["Totals", f"{len(tools)} tools | {n_run} runnable | {n_web} web-only (kept) | "
+                   f"{n_sug} suggested additions"],
         ["", ""],
         ["READ THIS FIRST", ""],
-        ["This workbook is the PLANNING view, not the runtime database.",
-         "A 532-column 'keys x tools' sheet is the wrong shape for a live DB "
-         "(wide, sparse, mostly N/A). The runtime store is TWO normalized tables:"],
-        ["  1. Tools (capability registry)",
-         "static: tool -> input types it consumes -> output types it produces. "
-         "Defines the recursion GRAPH. See the 'Tools' sheet."],
-        ["  2. WorkQueue (entity x tool jobs)",
-         "dynamic: one row per (key, tool) job with a status. Grows at runtime. "
-         "See the 'WorkQueue' sheet for the schema + a worked example."],
-        ["", ""],
+        ["This workbook is the PLANNING mirror of the runtime DB matrix.",
+         "The live database is two tables: tool_row (this 'Tools' sheet) + "
+         "work_item (the 'WorkQueue' sheet). Seed/query with "
+         "`python -m recontool.inventory.seed_matrix`."],
+        ["Nothing is eliminated.",
+         "Web-only / no-integration tools are KEPT and flagged (grey rows), never "
+         "removed — a later UI can still surface them."],
         ["Routing is deterministic, not AI.",
-         "Which tools apply to a new subdomain is a JOIN: entity_type -> tools "
-         "whose consumes includes that type (see 'Routing' sheet). AI is for "
-         "EXTRACTING/classifying entities from messy tool output and for "
-         "prioritization, NOT for re-deriving routing per key."],
-        ["Wired vs stub",
-         "Green rows in 'Tools' have a real runnable contract today (53). "
-         "Yellow rows are documented stubs (479) needing a contract."],
+         "entity_type -> tools whose consumes includes it, WITH subsumption: a "
+         "subdomain also matches domain-consuming tools (that is how recursion "
+         "fans out). See the 'Routing' sheet — it matches the runtime Router."],
+        ["Runnable vs available",
+         "Green = real runnable contract today. Yellow = documented stub awaiting "
+         "a contract. Grey = web-only/manual. All are available; default_on marks "
+         "the recommended profile that runs out of the box."],
         ["Typed output files",
-         "Every run writes raw/<slug>/ AND one typed file per produced type: "
-         "out/<key>/<slug>.<produced_type>.jsonl. A multi-mode tool (e.g. a "
-         "brute-forcer used for subdomains AND paths) writes to BOTH "
-         "<slug>.subdomain.jsonl and <slug>.url.jsonl."],
+         "Every run writes raw/<slug>/ AND out/<key>/<slug>.<produced_type>.jsonl. "
+         "Multi-mode tools write one typed file per produced type."],
     ]
     for r in legend:
         ws.append(r)
     ws["A1"].font = Font(bold=True, size=14)
-    for row in ws.iter_rows(min_row=4, max_row=ws.max_row, min_col=1, max_col=1):
+    for row in ws.iter_rows(min_row=5, max_row=ws.max_row, min_col=1, max_col=1):
         row[0].font = Font(bold=True)
     for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=2, max_col=2):
         row[0].alignment = WRAP
-    autowidth(ws, {1: 34, 2: 95})
+    autowidth(ws, {1: 36, 2: 95})
 
     # ── Tools ────────────────────────────────────────────────────────────────
     ws = wb.create_sheet("Tools")
-    headers = ["#", "name", "slug", "category", "class", "method",
-               "consumes (raw)", "consumes (canonical)", "produces (canonical)",
-               "wired?", "web_only", "feeds_next", "store_db",
-               "output_files (convention)"]
+    headers = ["#", "name", "slug", "category", "class", "integration", "source",
+               "consumes (canonical)", "produces (canonical)", "runnable",
+               "default_on", "web_only", "output_files (convention)"]
     ws.append(headers)
     for i, t in enumerate(tools, 1):
-        cons_canon = normalize(t.get("consumes", ""))
-        prod_canon = normalize(t.get("produces", ""))
-        out_files = ", ".join(f"{t['slug']}.{p}.jsonl" for p in prod_canon if p not in ("none", "seed", "any")) or "raw/<slug>/"
-        wired = "yes" if t.get("real_contract") else "stub"
+        out_files = ", ".join(
+            f"{t.slug}.{p}.jsonl" for p in t.produces
+            if p not in ("none", "seed", "any")
+        ) or "raw/<slug>/"
         ws.append([
-            i, t.get("name", ""), t.get("slug", ""),
-            t.get("primary_section", ""), t.get("classification", ""),
-            t.get("method", ""), t.get("consumes", ""),
-            ", ".join(cons_canon), ", ".join(prod_canon),
-            wired, "yes" if t.get("web_only") else "",
-            t.get("feeds", ""), t.get("store_db", ""), out_files,
+            i, t.name, t.slug, t.category, t.classification,
+            ", ".join(t.integration), t.source,
+            ", ".join(t.consumes), ", ".join(t.produces),
+            "yes" if t.runnable else "", "yes" if t.default_on else "",
+            "yes" if t.web_only else "", out_files,
         ])
-        fill = WIRED_FILL if t.get("real_contract") else STUB_FILL
+        if t.runnable:
+            fill = WIRED_FILL
+        elif t.web_only:
+            fill = WEB_FILL
+        else:
+            fill = STUB_FILL
         ws.cell(row=i + 1, column=10).fill = fill
     style_header(ws, len(headers))
-    autowidth(ws, {1: 5, 2: 22, 3: 22, 4: 9, 5: 8, 6: 11, 7: 20,
-                   8: 22, 9: 20, 10: 8, 11: 9, 12: 26, 13: 24, 14: 40})
+    autowidth(ws, {1: 5, 2: 24, 3: 22, 4: 16, 5: 8, 6: 12, 7: 10,
+                   8: 24, 9: 22, 10: 9, 11: 10, 12: 9, 13: 40})
 
     # ── EntityTypes ──────────────────────────────────────────────────────────
     ws = wb.create_sheet("EntityTypes")
-    ws.append(["canonical entity type", "is a primary key?", "notes"])
-    notes = {
-        "domain": "apex/root domain — the usual seed",
-        "subdomain": "rescan target; resolve -> ip, probe -> live_host",
-        "live_host": "confirmed-live host:port; gate for active/web tools",
-        "url": "page/endpoint; crawl + param mine",
-        "endpoint": "API route; feeds fuzzing",
-        "ip": "resolve target; port scan, reverse DNS, shodan",
-        "cidr": "expand to ips",
-        "asn": "expand to cidrs",
-        "subdomain+path": "COMPOSITE key — a site living under a path; "
-                           "worth its own recursive rescan (your grow.in/<path> case)",
-    }
+    ws.append(["canonical entity type", "is a primary key?", "subsumes (input)"])
     pk = {"domain", "subdomain", "live_host", "url", "ip", "cidr", "asn"}
+    from recontool.engine.router import SUBSUMES
     for t in CANON + ["subdomain+path"]:
         ws.append([t, "yes" if t in pk or t == "subdomain+path" else "",
-                   notes.get(t, "")])
+                   ", ".join(SUBSUMES.get(t, []))])
     style_header(ws, 3)
-    autowidth(ws, {1: 22, 2: 16, 3: 70})
+    autowidth(ws, {1: 22, 2: 16, 3: 40})
 
-    # ── Routing ──────────────────────────────────────────────────────────────
+    # ── Routing (matches the runtime Router, incl. subsumption) ──────────────
     ws = wb.create_sheet("Routing")
-    ws.append(["entity_type", "# tools", "wired tools (run now)", "all tools (incl. stubs)"])
-    route: dict[str, list[tuple[str, bool]]] = {}
-    for t in tools:
-        for ct in normalize(t.get("consumes", "")):
-            route.setdefault(ct, []).append((t["slug"], bool(t.get("real_contract"))))
-    for et in sorted(route):
-        entries = route[et]
-        wired = [s for s, w in entries if w]
-        allt = [s for s, _ in entries]
-        ws.append([et, len(allt), ", ".join(sorted(wired)),
-                   ", ".join(sorted(allt))])
-    style_header(ws, 4)
-    autowidth(ws, {1: 14, 2: 8, 3: 60, 4: 90})
-    for row in ws.iter_rows(min_row=2, min_col=3, max_col=4):
+    ws.append(["entity_type", "# tools (all)", "# default_on", "# runnable",
+               "runnable tools (run now)"])
+    for et in [k for k in CANON if k not in ("none", "any", "seed")]:
+        wanted = _eligible_types(et)
+        elig = [t for t in tools if wanted & set(t.consumes)]
+        if not elig:
+            continue
+        runnable = sorted(t.slug for t in elig if t.runnable)
+        ws.append([et, len(elig), sum(t.default_on for t in elig),
+                   len(runnable), ", ".join(runnable)])
+    style_header(ws, 5)
+    autowidth(ws, {1: 14, 2: 12, 3: 12, 4: 11, 5: 90})
+    for row in ws.iter_rows(min_row=2, min_col=5, max_col=5):
         for c in row:
             c.alignment = WRAP
 
@@ -222,17 +164,15 @@ def build() -> None:
     example = [
         ["1", "grow.in", "domain", "", 0, "subfinder", "completed",
          "out/grow.in/subfinder.subdomain.jsonl", "10:00:01", "10:00:14", "37"],
-        ["2", "grow.in", "domain", "", 0, "crtsh", "completed",
-         "out/grow.in/crtsh.subdomain.jsonl", "10:00:01", "10:00:09", "12"],
+        ["2", "grow.in", "domain", "", 0, "crt-sh", "completed",
+         "out/grow.in/crt-sh.subdomain.jsonl", "10:00:01", "10:00:09", "12"],
         ["3", "api.grow.in", "subdomain", "grow.in", 1, "dns_resolve", "in_progress",
          "out/api.grow.in/dns_resolve.ip.jsonl", "10:00:20", "", ""],
-        ["4", "api.grow.in", "subdomain", "grow.in", 1, "httpx_probe", "pending",
+        ["4", "api.grow.in", "subdomain", "grow.in", 1, "httpx", "pending",
          "", "", "", ""],
-        ["5", "api.grow.in", "subdomain", "grow.in", 1, "katana", "pending",
+        ["5", "20.40.11.7", "ip", "api.grow.in", 2, "naabu", "pending",
          "", "", "", ""],
-        ["6", "20.40.11.7", "ip", "api.grow.in", 2, "naabu", "pending",
-         "", "", "", ""],
-        ["7", "api.grow.in/admin", "subdomain+path", "api.grow.in", 2, "pydirb",
+        ["6", "api.grow.in/admin", "subdomain+path", "api.grow.in", 2, "ffuf",
          "pending", "", "", "", ""],
     ]
     for r in example:
@@ -241,21 +181,19 @@ def build() -> None:
     autowidth(ws, {1: 7, 2: 22, 3: 14, 4: 16, 5: 6, 6: 14, 7: 12,
                    8: 40, 9: 11, 10: 11, 11: 14})
     note = ws.cell(row=len(example) + 3, column=1,
-                   value="Status lifecycle: pending -> in_progress -> completed | failed. "
-                         "A worker pulls the next 'pending' row, sets in_progress, runs the "
-                         "tool, writes the typed output file, sets completed, and emits any "
-                         "new_keys back as fresh rows (the recursion). 'pending' rows are "
-                         "created by the deterministic Router (see Routing sheet) the moment "
-                         "a key is discovered.")
+                   value="Lifecycle: pending -> in_progress -> completed | failed. A worker "
+                         "pulls the next 'pending' row, runs the tool, writes the typed "
+                         "output, sets completed, and emits new keys as fresh rows (the "
+                         "recursion). enqueue() dedupes on (scan_id, key, tool), so a "
+                         "re-discovered key is never rescanned.")
     note.alignment = WRAP
     ws.merge_cells(start_row=len(example) + 3, start_column=1,
                    end_row=len(example) + 3, end_column=11)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     wb.save(OUT)
-    print(f"wrote {OUT.relative_to(ROOT)}  "
-          f"({len(tools)} tools, "
-          f"{sum(1 for t in tools if t.get('real_contract'))} wired)")
+    print(f"wrote {OUT.relative_to(ROOT)}  ({len(tools)} tools, "
+          f"{n_run} runnable, {n_web} web-only kept, {n_sug} suggested)")
 
 
 if __name__ == "__main__":
