@@ -83,6 +83,70 @@ def scan(
 
 
 @app.command()
+def engine(
+    seed: str = typer.Argument(..., help="domain / ip / cidr / asn (e.g. www.xyz.com)"),
+    seed_type: str = typer.Option("domain", "--type", "-t",
+                                  help="seed type: domain | subdomain | ip | cidr | asn"),
+    profile: str = typer.Option(settings.profile_name, "--profile", "-p",
+                                help="passive_only | stealth | normal | aggressive"),
+    max_iterations: int = typer.Option(50, "--max-iterations",
+                                       help="hard cap on scheduling iterations (convergence guard)."),
+    max_depth: int = typer.Option(3, "--max-depth", help="max recursion depth from the seed."),
+    export: Path = typer.Option(None, "--export", "-o", help="Write full JSON results here."),
+):
+    """Run the EVENT-DRIVEN recursive engine (parallel, convergence-based).
+
+    Unlike `scan` (linear P1→P6), tools fire as soon as their inputs exist and
+    every discovery re-feeds the frontier until no eligible tools remain.
+    """
+    if profile not in PROFILES:
+        console.print(f"[red]Unknown profile {profile!r}. Choose: {list(PROFILES)}[/red]")
+        raise typer.Exit(1)
+
+    from recontool.engine.runner import run_engine_scan
+
+    console.print(Panel.fit(
+        f"[bold]Recontool engine[/bold]  seed=[cyan]{seed}[/cyan]  "
+        f"type=[cyan]{seed_type}[/cyan]  profile=[yellow]{profile}[/yellow]  "
+        f"depth≤{max_depth}  iters≤{max_iterations}",
+        title="engine", border_style="blue",
+    ))
+
+    with console.status("[bold]running event-driven scan…[/bold]"):
+        result = asyncio.run(run_engine_scan(
+            seed, seed_type=seed_type, profile_name=profile,
+            max_iterations=max_iterations, max_depth=max_depth,
+        ))
+
+    # Persist a Scan row so the run shows up in `recontool scans` / `report`.
+    create_all()
+    with session_scope() as s:
+        if not s.get(Scan, result.scan_id):
+            s.add(Scan(id=result.scan_id, seed=seed, seed_type=seed_type,
+                       profile=profile, status=result.status, scope_json="{}",
+                       active_authorized=False))
+
+    console.print(
+        f"\n[bold]tools run:[/bold] {result.total_tools_run}   "
+        f"[bold]entities:[/bold] {result.total_entities}   "
+        f"[bold]status:[/bold] {result.status}   "
+        f"[bold]elapsed:[/bold] {result.duration_ms} ms"
+    )
+    if result.errors:
+        console.print(f"[dim]{len(result.errors)} tool errors (first 3): "
+                      f"{'; '.join(result.errors[:3])}[/dim]")
+
+    _print_summary(result.scan_id)
+    _print_findings(result.scan_id)
+
+    if export:
+        path = rpt.export_json(result.scan_id, export)
+        console.print(f"\n[green]Exported[/green] full results → {path}")
+    console.print(f"\nScan id: [bold cyan]{result.scan_id}[/bold cyan] "
+                  f"(artifacts in {settings.artifact_dir}/{result.scan_id})")
+
+
+@app.command()
 def tools():
     """List registered adapters and which are currently available."""
     load_builtin()
