@@ -260,6 +260,24 @@ contracts and climbs as specs land.
 9. **AI supervisor (token-frugal)** — light model for triage, heavy for narrative.
 10. **IP rotation** (deferred) — proxy pool to avoid rate-limit bans.
 11. **Incremental scans** — SHA-256 fingerprinting to skip unchanged inputs.
+12. **Horizontal multi-worker** — atomic-claim queue (`pending→running` CAS),
+    flag-gated tool profiles (`--tools default|all`), structured per-item logging.
+
+### 8a. Performance (built-in, verified)
+
+A self-expanding engine must stay fast as the queue grows. The hot paths are
+designed to be sub-linear and are regression-tested:
+
+- **Bounded enqueue** — dedupe checks only the *candidate* keys for one entity
+  (`dedupe_key IN (...)`, indexed), never the whole scan's key space. O(eligible
+  tools), not O(total discovered). (`test_enqueue_scales_and_dedupes`)
+- **Precomputed `RouteIndex`** — `input_type → tools` built once per scan; routing
+  is a dict lookup, not a 560-tool scan per discovery.
+- **Covering claim index** — `ix_workitem_claim (scan_id, status, depth, id)`;
+  SQLite confirms `USING COVERING INDEX` (no table access, no sort) so claiming the
+  next item stays fast under load. (`test_workitem_has_claim_index`)
+- **Parallelism** — N async workers per process (layered tool/host semaphores),
+  scaled horizontally across processes/hosts by the atomic claim.
 
 ---
 
