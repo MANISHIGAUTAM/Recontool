@@ -286,10 +286,19 @@ class GenericCliAdapter(Adapter):
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.DEVNULL,
                     )
+                except Exception:  # noqa: BLE001
+                    return []
+                try:
                     out, _ = await asyncio.wait_for(
                         proc.communicate(input=v.encode() if use_stdin else None),
                         timeout=spec.get("timeout", 120))
                 except Exception:  # noqa: BLE001
+                    # Timeout (or any other failure) leaves the subprocess running
+                    # under asyncio.wait_for — kill + reap it so long-running CLI
+                    # tools (gau/amass/etc.) on slow targets never orphan.
+                    if proc.returncode is None:
+                        proc.kill()
+                        await proc.wait()
                     return []
             text = out.decode(errors="ignore")
             ctx.artifacts.save_text(spec["name"], f"{v}.out", text)
