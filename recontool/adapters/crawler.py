@@ -31,6 +31,9 @@ _JS_RE = re.compile(r"\.js(\?|$)", re.I)
 _PAGE_BUDGET = {"stealth": 25, "normal": 120, "aggressive": 400}
 _MAX_DEPTH = {"stealth": 2, "normal": 3, "aggressive": 4}
 _MAX_JS = 60
+# Hard cap on events emitted per crawl run — JS endpoint-mining on big bundles can
+# otherwise emit 100k+ low-value path fragments (the "firehose"), bloating the DB.
+_MAX_EVENTS = 8000
 
 
 class _LinkExtractor(HTMLParser):
@@ -139,7 +142,7 @@ class PyCrawler(Adapter):
             events.append(Event.endpoint(self.name, url, source="pycrawl", js_artifact=ref))
             events.extend(self._mine_js(host, resp.text, ref, seed_dom=seed_dom))
 
-        while frontier and len(visited) < budget:
+        while frontier and len(visited) < budget and len(events) < _MAX_EVENTS:
             level = [(u, d) for (u, d) in frontier if u not in visited][:concurrency]
             frontier = frontier[len(level):]
             if not level:

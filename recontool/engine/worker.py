@@ -15,10 +15,12 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import functools
 import json
 import logging
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Optional
 
@@ -208,6 +210,24 @@ class WorkerPool:
         self.router = router or ModelRouter()
         self.processed = 0
         self.skipped = 0
+        # Serialize DB I/O through a dedicated executor: ONE thread for SQLite so
+        # it never sees concurrent writers from the worker pool (the recurring
+        # 'database is locked' cause); a small pool for Postgres, which handles
+        # concurrent writes natively. The event loop stays free for async I/O.
+        from recontool.config import settings as _settings
+        _sqlite = (_settings.db_url or "").startswith("sqlite")
+        self._db_pool = ThreadPoolExecutor(
+            max_workers=1 if _sqlite else 8, thread_name_prefix="recon-db")
+
+    async def _db(self, fn, *args, **kwargs):
+        """Run a synchronous DB unit-of-work on the dedicated DB executor.
+
+        Serializing DB ops (for SQLite) eliminates concurrent writers while
+        keeping the event loop free for the workers' async HTTP/DNS.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            self._db_pool, functools.partial(fn, *args, **kwargs))
 
     def _store(self, scan_id: str) -> ArtifactStore:
         if scan_id not in self._stores:
@@ -233,8 +253,8 @@ class WorkerPool:
         if self.incremental and spec is not None:
             reused = await self._try_incremental(item, scan_id, fp)
             if reused is not None:
-                await asyncio.to_thread(self._finish_item, item.id, "completed", reused)
-                await asyncio.to_thread(
+                await self._db(self._finish_item, item.id, "completed", reused)
+                await self._db(
                     self._record_run, scan_id, item.tool_slug, fp, "skipped", 0, [])
                 self.log.log_tool_complete(
                     run_id, scan_id, item.tool_slug, duration_ms=0,
@@ -264,17 +284,17 @@ class WorkerPool:
                                          tool_name=item.tool_slug)
                 dropped = discarded_asset_pairs(decision)
                 persist_events = decision.persist or events
-                await asyncio.to_thread(self._ingest, scan_id, persist_events)
+                await self._db(self._ingest, scan_id, persist_events)
                 out_paths = await asyncio.to_thread(
                     write_typed_outputs, store, item.tool_slug, persist_events)
                 new_keys = await self._enqueue_discovered(
                     scan_id, events, item.depth + 1, item.key, item.tool_slug, dropped)
 
-        await asyncio.to_thread(self._finish_item, item.id, status, new_keys)
+        await self._db(self._finish_item, item.id, status, new_keys)
         dur_ms = int((time.monotonic() - t0) * 1000)
         # ALWAYS record a ToolRun — real per-tool execution history + the
         # input fingerprint that powers incremental delta-only reruns.
-        await asyncio.to_thread(self._record_run, scan_id, item.tool_slug, fp, status,
+        await self._db(self._record_run, scan_id, item.tool_slug, fp, status,
                                 len(events), out_paths, dur_ms=dur_ms, error=reason)
         if status == "failed":
             self.log.log_tool_fail(run_id, scan_id, item.tool_slug, reason)
@@ -293,9 +313,16 @@ class WorkerPool:
                 row.new_keys_found = new_keys
 
     def _ingest(self, scan_id: str, events: list) -> None:
-        """Sync DB unit-of-work (run in a thread): normalize events into the DB."""
-        with session_scope() as s:
-            Normalizer(s, scan_id, scope=self.scope).ingest(events)
+        """Sync DB unit-of-work (run in a thread): normalize events into the DB.
+
+        Chunked into short transactions so a huge batch (e.g. a crawl that emits
+        100k+ endpoints) never holds the SQLite write lock for minutes — each
+        chunk commits and releases the lock so other workers can interleave.
+        """
+        chunk = 1000
+        for i in range(0, len(events), chunk):
+            with session_scope() as s:
+                Normalizer(s, scan_id, scope=self.scope).ingest(events[i:i + chunk])
 
     def _find_prior(self, tool: str, fp: str, scan_id: str):
         """Sync DB unit-of-work (run in a thread): find a reusable prior run's paths."""
@@ -338,7 +365,7 @@ class WorkerPool:
         if not survivors:
             return 0
         # Offload the enqueue transaction to a thread (DB-bound); log on the loop.
-        results = await asyncio.to_thread(
+        results = await self._db(
             self._enqueue_batch, scan_id, survivors, depth, parent)
         new_keys = 0
         for etype, evalue, n in results:
@@ -367,12 +394,12 @@ class WorkerPool:
         tool. Returns new_keys enqueued, or None if there's nothing to reuse (the
         caller then executes the tool normally).
         """
-        paths = await asyncio.to_thread(self._find_prior, item.tool_slug, fp, scan_id)
+        paths = await self._db(self._find_prior, item.tool_slug, fp, scan_id)
         if paths is None:
             return None
         events = await asyncio.to_thread(_load_typed_events, paths, item.tool_slug)
         if events:
-            await asyncio.to_thread(self._ingest, scan_id, events)
+            await self._db(self._ingest, scan_id, events)
         new_keys = await self._enqueue_discovered(
             scan_id, events, item.depth + 1, item.key, item.tool_slug, set())
         self.log.log_concurrency_decision(
@@ -389,16 +416,19 @@ class WorkerPool:
         while True:
             # Offload the synchronous DB claim to a thread so the event loop stays
             # free for other workers' async HTTP/DNS I/O (no blocking on DB).
-            item = await asyncio.to_thread(self._claim, scan_id)
+            item = await self._db(self._claim, scan_id)
             if item is None:
-                if not await asyncio.to_thread(_has_active, scan_id):
+                if not await self._db(_has_active, scan_id):
                     return
                 await asyncio.sleep(0.02)
                 continue
             await self._process(item, scan_id)
 
     async def run(self, scan_id: str, workers: int = 8) -> None:
-        await asyncio.gather(*(self._worker(scan_id) for _ in range(max(1, workers))))
+        try:
+            await asyncio.gather(*(self._worker(scan_id) for _ in range(max(1, workers))))
+        finally:
+            self._db_pool.shutdown(wait=True)   # flush any pending DB writes
 
 
 def _has_active(scan_id: str) -> bool:

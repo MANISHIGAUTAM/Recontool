@@ -73,6 +73,7 @@ class ToolSpec(BaseModel):
     headers: dict[str, str] = Field(default_factory=dict)
     bucket: str = ""
     max_inputs: Optional[int] = None
+    max_records: Optional[int] = None
     is_active: bool = False
     parse: Optional[dict[str, Any]] = None
     enabled: bool = True
@@ -328,7 +329,7 @@ class ToolRegistry:
             "name", "phase", "category", "integration", "is_active",
             "consumes", "produces", "requires_key", "key_optional",
             "endpoint", "headers", "bucket", "max_inputs", "timeout",
-            "binary", "invocation", "parse", "enabled", "stdin",
+            "binary", "invocation", "parse", "enabled", "stdin", "max_records",
         ):
             if key in raw:
                 result[key] = raw[key]
