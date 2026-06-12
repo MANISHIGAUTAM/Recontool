@@ -233,7 +233,10 @@ class GenericApiAdapter(Adapter):
 
         async def one(v: str) -> list[Event]:
             iv = re.sub(r"[^0-9]", "", v) if (self.consumes and self.consumes[0] == "asn") else v
-            extra = {"value": iv, "domain": iv, "ip": iv, "asn": iv, "host": iv, "key": key}
+            # Alias every consumed type name (e.g. {cve}, {cpe}, {keyword}, {org})
+            # to the single input value too, on top of the fixed aliases below.
+            extra = {t: iv for t in self.consumes}
+            extra.update({"value": iv, "domain": iv, "ip": iv, "asn": iv, "host": iv, "key": key})
             url = render_template(spec["endpoint"], {}, extra)
             headers = {}
             for k, val in (spec.get("headers") or {}).items():
@@ -276,8 +279,11 @@ class GenericCliAdapter(Adapter):
         use_stdin = bool(spec.get("stdin"))
 
         async def one(v: str) -> list[Event]:
-            cmd = render_template(spec["invocation"], {},
-                                  {"value": v, "domain": v, "ip": v, "host": v})
+            # Alias every consumed type name (e.g. {url}, {subdomain}, {cidr})
+            # to the single input value too, on top of the fixed aliases below.
+            extra = {t: v for t in self.consumes}
+            extra.update({"value": v, "domain": v, "ip": v, "host": v})
+            cmd = render_template(spec["invocation"], {}, extra)
             async with sem:
                 try:
                     proc = await asyncio.create_subprocess_exec(

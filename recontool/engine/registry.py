@@ -305,6 +305,18 @@ class ToolRegistry:
         if raw.get("type") == "active":
             result["is_active"] = True
 
+        # integration: api tools author their HTTP contract as
+        # invocation: "GET https://...{token}..." rather than `endpoint:`.
+        # to_generic_spec() requires `endpoint` (GenericApiAdapter.run reads
+        # spec["endpoint"]) -- without this every such tool is runnable=False
+        # ("no API endpoint contract"), including default_on:true tools like
+        # ripestat/bgpview/wayback_cdx/epss/certspotter.
+        if raw.get("integration") == "api" and "endpoint" not in result:
+            inv = result.get("invocation", "")
+            method, _, url = inv.partition(" ")
+            if method.upper() in ("GET", "POST", "PUT", "DELETE", "HEAD") and url:
+                result["endpoint"] = url
+
         # install -> install_method
         install = raw.get("install")
         if isinstance(install, dict):
