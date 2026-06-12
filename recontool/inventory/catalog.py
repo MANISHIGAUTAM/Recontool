@@ -115,17 +115,24 @@ def normalize(raw: str) -> list[str]:
     while i < len(parts):
         p = parts[i]
         if p == "js" and i + 1 < len(parts) and parts[i + 1] == "file":
-            out.append("js_file"); i += 2; continue
+            out.append("js_file")
+            i += 2
+            continue
         if p == "host" and i + 1 < len(parts) and parts[i + 1] == "port":
-            out.append("host_port"); i += 2; continue
+            out.append("host_port")
+            i += 2
+            continue
         if p == "live" and i + 1 < len(parts) and parts[i + 1] == "host":
-            out.append("live_host"); i += 2; continue
+            out.append("live_host")
+            i += 2
+            continue
         out += TOKEN.get(p, [])
         i += 1
     seen, res = set(), []
     for t in out:
         if t not in seen:
-            seen.add(t); res.append(t)
+            seen.add(t)
+            res.append(t)
     return res
 
 

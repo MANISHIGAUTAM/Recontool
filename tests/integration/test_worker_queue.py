@@ -110,7 +110,7 @@ async def test_ai_decision_keeps_in_scope_estate(tmp_path, monkeypatch):
 
     # Seed is example.com (a noise pattern). Its own subdomain api.example.com
     # must still be persisted and recursed, because it is in scope.
-    result = await run_queue_scan("example.com", registry=_registry(),
+    await run_queue_scan("example.com", registry=_registry(),
                                   tools="all", workers=4, max_depth=3)
     with db.session_scope() as s:
         values = {a.value for a in s.execute(select(Asset)).scalars()}

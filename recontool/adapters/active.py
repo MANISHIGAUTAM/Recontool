@@ -9,8 +9,6 @@ import hashlib
 import json
 import re
 import shutil
-from pathlib import Path
-from urllib.parse import urlsplit
 
 from recontool.adapters.base import Adapter, AdapterContext, Event
 from recontool.adapters.registry import register
