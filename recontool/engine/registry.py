@@ -299,6 +299,12 @@ class ToolRegistry:
             if key in raw:
                 result[key] = raw[key]
 
+        # type: active -> is_active=True, the field apply_selection() actually
+        # gates on. Without this, the --authorize-active passive/active safety
+        # gate (docs/D6-opsec.md) is a no-op for every tools.yaml-curated tool.
+        if raw.get("type") == "active":
+            result["is_active"] = True
+
         # install -> install_method
         install = raw.get("install")
         if isinstance(install, dict):

@@ -335,7 +335,7 @@ tools:
   dnsx:
     category: 2
     phase: p4_verify
-    type: active
+    type: passive
     integration: cli
     binary: dnsx
     install: {method: go, ref: "github.com/projectdiscovery/dnsx/cmd/dnsx@latest"}
@@ -360,7 +360,7 @@ tools:
   puredns:
     category: 2
     phase: p4_verify
-    type: active
+    type: passive
     integration: cli
     binary: puredns
     install: {method: go, ref: "github.com/d3mondev/puredns/v2@latest"}
@@ -376,7 +376,7 @@ tools:
   massdns:
     category: 2
     phase: p4_verify
-    type: active
+    type: passive
     integration: cli
     binary: massdns
     install: {method: git, ref: "https://github.com/blechschmidt/massdns"}
@@ -391,7 +391,7 @@ tools:
   dnsvalidator:
     category: 2
     phase: p4_verify
-    type: active
+    type: passive
     integration: cli
     binary: dnsvalidator
     install: {method: pip, ref: "dnsvalidator"}
@@ -640,7 +640,7 @@ tools:
   cdncheck:
     category: 5
     phase: p4_verify
-    type: active
+    type: passive
     integration: cli
     binary: cdncheck
     install: {method: go, ref: "github.com/projectdiscovery/cdncheck/cmd/cdncheck@latest"}
