@@ -13,8 +13,15 @@
 # go-install layer silently skips those tools (failures are non-fatal by design).
 FROM golang:1.24-bookworm AS base
 
+# The base golang image pins GOTOOLCHAIN=local (no auto-download, for
+# reproducibility). Several ProjectDiscovery @latest modules (e.g. httpx
+# v1.9.0) now require a newer Go than this image ships — GOTOOLCHAIN=auto
+# lets `go install` fetch the toolchain a module needs on demand instead of
+# silently failing (install_tools.sh treats go-install failures as non-fatal,
+# so a version-mismatched tool would otherwise just be missing).
 ENV DEBIAN_FRONTEND=noninteractive \
     GOBIN=/usr/local/bin \
+    GOTOOLCHAIN=auto \
     PYTHONUNBUFFERED=1 \
     PIP_BREAK_SYSTEM_PACKAGES=1
 
