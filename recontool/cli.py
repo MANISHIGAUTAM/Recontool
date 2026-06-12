@@ -71,12 +71,20 @@ def scan(
     no_ai: bool = typer.Option(False, "--no-ai", help="Disable the AI supervisor."),
     category: str = typer.Option(None, "--category", "-c",
                                  help="Comma-separated category numbers to run ONLY (e.g. '2' or '1,2,3')."),
+    verbose: int = typer.Option(0, "--verbose", "-v", count=True,
+                                help="-v streams per-phase/adapter logs (INFO); -vv adds DEBUG (per HTTP request)."),
+    log_level: str = typer.Option(None, "--log-level",
+                                  help="explicit log level (DEBUG|INFO|WARNING|ERROR); overrides -v."),
     export: Path = typer.Option(None, "--export", "-o", help="Write full JSON results here."),
 ):
     """Run a recon scan on SEED."""
     if profile not in PROFILES:
         console.print(f"[red]Unknown profile {profile!r}. Choose: {list(PROFILES)}[/red]")
         raise typer.Exit(1)
+
+    # Stream pipeline/adapter logs on demand (default WARNING keeps the result
+    # tables clean; -v shows per-adapter progress, -vv adds per-request DEBUG).
+    _configure_logging(verbose, log_level)
 
     router = ModelRouter() if not no_ai else None
     supervisor = Supervisor(router) if router else None

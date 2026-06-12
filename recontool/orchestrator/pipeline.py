@@ -13,6 +13,7 @@ An optional AI supervisor is consulted at phase boundaries for runtime decisions
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import time
 import uuid
@@ -31,6 +32,8 @@ from recontool.net.http_client import HttpClient
 from recontool.net.proxy_pool import ProxyPool
 from recontool.net.rate_limiter import RateLimiter
 from recontool.normalize.engine import Normalizer
+
+logger = logging.getLogger("recontool.pipeline")
 
 PASSIVE_PHASES = ["p1_seed", "p2_expansion", "p3_enrichment"]
 ACTIVE_PHASES = ["p4_verify", "p5_deep", "p6_vuln"]
@@ -111,6 +114,8 @@ class ReconPipeline:
                            target=seed, profile=profile.name,
                            detail={"scope": scope.to_json(), "authorize_active": authorize_active}))
 
+        logger.info("scan start id=%s seed=%s type=%s profile=%s active=%s",
+                    scan_id, seed, seed_type, profile.name, authorize_active)
         # Inject the SEED as the first canonical asset so it flows to adapters as
         # input (without this, the first phase has nothing to consume).
         self._seed_asset(scan_id, seed, seed_type, scope)
@@ -140,14 +145,18 @@ class ReconPipeline:
             if not self._has_unprobed_growth(scan_id):
                 break
             recursion += 1
+            logger.info("passive recursion: new surface found — starting pass %d", recursion + 1)
 
         # ── ACTIVE GATE (ADR-009) ───────────────────────────────────────────
         if not profile.active_enabled:
             result.gate_reason = f"profile '{profile.name}' is passive-only"
+            logger.info("active gate CLOSED: %s", result.gate_reason)
         elif not authorize_active:
             result.gate_reason = "active scanning not authorized (--authorize-active required)"
+            logger.info("active gate CLOSED: %s", result.gate_reason)
         else:
             result.active_ran = True
+            logger.info("active gate OPEN — running active phases on in-scope hosts")
             for phase in ACTIVE_PHASES:
                 inputs = self._gather_inputs(scan_id, scope, active=True)
                 pr = await self._run_phase(phase, base_ctx(inputs), scan_id, progress)
@@ -161,6 +170,8 @@ class ReconPipeline:
                 scan.finished_at = _dt.datetime.now(_dt.timezone.utc)
             s.add(AuditLog(scan_id=scan_id, action="scan.finish",
                            detail={"active_ran": result.active_ran, "gate": result.gate_reason}))
+        logger.info("scan %s finished: phases=%d active_ran=%s gate=%s",
+                    scan_id, len(result.phases), result.active_ran, result.gate_reason or "open")
         return result
 
     # ── phase execution ──────────────────────────────────────────────────
@@ -187,14 +198,22 @@ class ReconPipeline:
                 pr.adapters_skipped += dropped
                 instances = [i for i in instances if i.name in keep]
 
+        logger.info("phase %s: run=%s skip=%s", phase,
+                    [i.name for i in instances], pr.adapters_skipped)
         if progress:
             progress(phase, [i.name for i in instances], pr.adapters_skipped)
 
         # PARALLEL fan-out across adapters in this phase
         async def run_one(inst):
+            t = time.time()
+            logger.info("\u25b6 %s \u00b7 %s", phase, inst.name)
             try:
-                return inst.name, await inst.run(ctx)
+                events = await inst.run(ctx)
+                logger.info("\u2713 %s \u00b7 %s \u2014 %d events (%dms)", phase, inst.name,
+                            len(events), int((time.time() - t) * 1000))
+                return inst.name, events
             except Exception as exc:  # noqa: BLE001
+                logger.warning("\u2717 %s \u00b7 %s failed: %s", phase, inst.name, str(exc)[:200])
                 with session_scope() as s:
                     s.add(AuditLog(scan_id=scan_id, action="adapter.error",
                                    tool=inst.name, detail={"error": str(exc)[:500]}))
@@ -223,6 +242,7 @@ class ReconPipeline:
             pr.counts = norm.ingest(all_events)
 
         pr.duration = round(time.time() - t0, 2)
+        logger.info("phase %s normalized %s in %.1fs", phase, pr.counts, pr.duration)
 
         # AI supervisor reviews the output of this phase
         if self.supervisor:

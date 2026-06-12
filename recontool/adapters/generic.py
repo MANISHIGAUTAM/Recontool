@@ -250,6 +250,9 @@ class GenericApiAdapter(Adapter):
             ctx.artifacts.save_raw(spec["name"], resp.json() if resp.json_ok else resp.text)
             recs = parse_records(spec["parse"],
                                  resp.text, json_obj=resp.json() if resp.json_ok else None)
+            cap = spec.get("max_records")
+            if cap:
+                recs = recs[: int(cap)]   # bound large API result sets
             return emit_events(spec["parse"], recs, spec["name"], seed)
 
         # PARALLEL fan-out across inputs (bounded by profile concurrency + rate limiter)
@@ -291,6 +294,9 @@ class GenericCliAdapter(Adapter):
             text = out.decode(errors="ignore")
             ctx.artifacts.save_text(spec["name"], f"{v}.out", text)
             recs = parse_records(spec["parse"], text)
+            cap = spec.get("max_records")
+            if cap:
+                recs = recs[: int(cap)]   # bound firehose tools (gau/waybackurls)
             return emit_events(spec["parse"], recs, spec["name"], seed)
 
         # PARALLEL fan-out across inputs (bounded by profile concurrency)

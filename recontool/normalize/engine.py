@@ -7,6 +7,8 @@ for services/endpoints and records relationship edges.
 """
 from __future__ import annotations
 
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -14,6 +16,8 @@ from recontool.adapters.base import Event
 from recontool.core import dedupe
 from recontool.core.confidence import confidence_from_tools, source_weight
 from recontool.core.models import Asset, AssetSource, Edge, Endpoint, Finding, Service
+
+logger = logging.getLogger("recontool.normalize")
 
 
 class Normalizer:
@@ -34,6 +38,8 @@ class Normalizer:
             if handler and handler(ev):
                 counts[ev.entity] += 1
         self.s.flush()
+        if any(counts.values()):
+            logger.debug("normalized %s into scan=%s", counts, self.scan_id)
         return counts
 
     # ── handlers ──────────────────────────────────────────────────────────

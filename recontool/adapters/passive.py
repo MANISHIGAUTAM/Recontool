@@ -249,7 +249,7 @@ class Subfinder(Adapter):
         events: list[Event] = []
         for domain in ctx.seeds_of("domain"):
             proc = await asyncio.create_subprocess_exec(
-                "subfinder", "-d", domain, "-silent", "-json",
+                "subfinder", "-d", domain, "-all", "-silent", "-json",
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
             )
             out, _ = await proc.communicate()
