@@ -149,6 +149,31 @@ class RouteIndex:
         return out
 
 
+# Host-like key types in order from most general to most specific, mirroring
+# router.SUBSUMES (domain <- subdomain <- live_host <- url). Used to normalize
+# the key_type component of a tool's dedupe_key — see _dedupe_key_type.
+_HOST_TYPES_BY_GENERALITY = ("domain", "subdomain", "live_host", "url")
+
+
+def _dedupe_key_type(spec, key_type: str) -> str:
+    """Pick ONE canonical key_type for a tool's dedupe_key, regardless of which
+    host-like entity type (domain/subdomain/live_host/url) triggered enqueueing it.
+
+    Without this, the apex hostname discovered as BOTH `domain` (the seed) and
+    `subdomain` (crtsh/urlscan return the apex itself as a cert SAN) gets two
+    different dedupe_keys for the same (tool, hostname) — every domain-consuming
+    tool then runs twice on an identical input. A tool is reachable from any
+    trigger type that SUBSUMES one of its declared `consumes` types, so picking
+    the most general declared type it consumes gives the same answer no matter
+    which trigger fired.
+    """
+    consumes = set(spec.consumes or []) | set(spec.supported_input_types or [])
+    for t in _HOST_TYPES_BY_GENERALITY:
+        if t in consumes:
+            return t
+    return key_type
+
+
 def enqueue_key(
     session, scan_id: str, key: str, key_type: str, registry: ToolRegistry, *,
     depth: int = 0, parent: str | None = None, route: RouteIndex | None = None,
@@ -163,7 +188,9 @@ def enqueue_key(
     specs = (route or RouteIndex(registry)).for_key_type(key_type)
     if not specs:
         return 0
-    candidates = {work_dedupe_key(key_type, key, s.name): s for s in specs}
+    candidates = {
+        work_dedupe_key(_dedupe_key_type(s, key_type), key, s.name): s for s in specs
+    }
     existing = {
         dk for (dk,) in session.execute(
             select(WorkItem.dedupe_key).where(
