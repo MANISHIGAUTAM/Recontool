@@ -339,10 +339,19 @@ tools:
     integration: cli
     binary: dnsx
     install: {method: go, ref: "github.com/projectdiscovery/dnsx/cmd/dnsx@latest"}
-    invocation: "dnsx -l {infile} -json -a -aaaa -cname -resp"
+    # No -l/{infile}: GenericCliAdapter only substitutes {value}/{domain}/{ip}/{host},
+    # so {infile} rendered to "" and -l consumed -json as a bogus filename, giving
+    # 0 results every run. dnsx reads hosts from stdin when -l is omitted.
+    invocation: "dnsx -json -a -aaaa -cname -resp -silent"
+    stdin: true
     input: subdomain
     output: ip
     output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - {entity: asset, value_each: a, type: ip, scope_filter: ip}
+        - {entity: asset, value_each: aaaa, type: ip, scope_filter: ip}
     requires_key: false
     default_on: true
     chains_to: [21, 24]
