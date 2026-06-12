@@ -499,7 +499,11 @@ tools:
     integration: cli
     binary: mapcidr
     install: {method: go, ref: "github.com/projectdiscovery/mapcidr/cmd/mapcidr@latest"}
-    invocation: "mapcidr -cidr {cidr} -o {outfile}"
+    # -cidr {cidr}/-o {outfile} both rendered to "" (unsupported template
+    # tokens) -> 0 results. mapcidr reads the CIDR from stdin and writes
+    # one IP per line to stdout when -o is omitted.
+    invocation: "mapcidr -silent"
+    stdin: true
     input: cidr
     output: ip
     output_format: text
