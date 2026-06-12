@@ -213,6 +213,10 @@ tools:
     input: domain
     output: subdomain
     output_format: json
+    parse:
+      format: json
+      emit:
+        - {entity: asset, value_each: dns_names, type: subdomain, scope_filter: subdomain}
     requires_key: CERTSPOTTER_API_KEY
     default_on: true
     chains_to: [2]
@@ -461,6 +465,11 @@ tools:
     input: asn
     output: cidr
     output_format: json
+    parse:
+      format: json
+      list_path: data.prefixes
+      emit:
+        - {entity: asset, value: "{prefix}", type: cidr}
     requires_key: false
     default_on: true
 
@@ -681,10 +690,17 @@ tools:
     phase: p3_enrichment
     type: passive
     integration: api
-    invocation: "GET http://web.archive.org/cdx/search/cdx?url=*.{domain}/*&output=json&fl=original&collapse=urlkey"
+    # output=json wraps every row (incl. a ["original"] header) in its own
+    # array, which the JSON parser can't cleanly map to a single url field.
+    # Drop output=json: the CDX API then returns one plain URL per line.
+    invocation: "GET http://web.archive.org/cdx/search/cdx?url=*.{domain}/*&fl=original&collapse=urlkey"
     input: domain
     output: url
-    output_format: json
+    output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: url}
     requires_key: false
     default_on: true
     chains_to: [22]
@@ -806,6 +822,15 @@ tools:
     input: cve
     output: finding
     output_format: json
+    parse:
+      format: json
+      list_path: data
+      emit:
+        - entity: finding
+          title: "EPSS {cve}: score {epss} (percentile {percentile})"
+          kind: epss_score
+          severity: info
+          cve_id: "{cve}"
     requires_key: false
     default_on: true
     notes: "Exploit probability -> drives priority_rank."
