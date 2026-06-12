@@ -294,7 +294,7 @@ class ToolRegistry:
         for key in (
             "category", "phase", "type", "integration", "binary",
             "invocation", "output_format", "requires_key", "default_on",
-            "chains_to", "notes", "timeout",
+            "chains_to", "notes", "timeout", "parse", "stdin", "max_records",
         ):
             if key in raw:
                 result[key] = raw[key]
