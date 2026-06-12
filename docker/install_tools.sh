@@ -32,6 +32,21 @@ go_install() {  # go_install <binary> <module@version>
   if go install "$mod" 2>/dev/null; then ok "installed $bin"; else warn "failed: $bin"; fi
 }
 
+# Like go_install, but for binary names that collide with a non-Go tool of the
+# same name already on PATH (e.g. the `httpx` console-script shipped by the
+# Python `httpx` HTTP-client library, a recontool dependency installed in an
+# earlier layer). have() alone can't tell them apart, so confirm the existing
+# binary actually prints `sig` via -version before skipping; otherwise install
+# (and overwrite) the real Go tool.
+go_install_verified() {  # go_install_verified <binary> <module@version> <version-signature>
+  local bin="$1" mod="$2" sig="$3"
+  if have "$bin" && "$bin" -version 2>&1 | grep -qi "$sig"; then
+    ok "$bin already installed"; return
+  fi
+  log "go install $mod"
+  if go install "$mod" 2>/dev/null; then ok "installed $bin"; else warn "failed: $bin"; fi
+}
+
 pip_install() { # pip_install <binary> <pkg>
   local bin="$1" pkg="$2"
   if have "$bin"; then ok "$bin already installed"; return; fi
@@ -53,7 +68,7 @@ install_core() {
   log "Installing CORE (default-on) tools..."
   go_install subfinder "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest"
   go_install dnsx      "github.com/projectdiscovery/dnsx/cmd/dnsx@latest"
-  go_install httpx     "github.com/projectdiscovery/httpx/cmd/httpx@latest"
+  go_install_verified httpx "github.com/projectdiscovery/httpx/cmd/httpx@latest" "projectdiscovery"
   go_install naabu     "github.com/projectdiscovery/naabu/v2/cmd/naabu@latest"
   go_install nuclei    "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
   go_install asnmap    "github.com/projectdiscovery/asnmap/cmd/asnmap@latest"
