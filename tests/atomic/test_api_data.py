@@ -81,7 +81,8 @@ def test_list_tools_and_summary():
     summ = data.tools_summary()
     assert summ["total"] == len(rows)
     assert summ["runnable"] == len(runnable)
-    assert summ["default_on"] >= summ["runnable"] >= 1 or summ["default_on"] >= 1
+    assert summ["runnable"] >= 1 and summ["default_on"] >= 1
+    assert summ["web_only"] >= 0 and summ["runnable"] <= summ["total"]
 
 
 def test_app_constructs_when_fastapi_present():
@@ -114,9 +115,11 @@ def test_ui_is_served(seeded, monkeypatch):
     assert "text/html" in r.headers["content-type"]
     body = r.text
     assert "RECON" in body and "control surface" in body
-    # self-contained: no external script/style/img sources (no CDN phone-home)
-    assert "http://" not in body.replace("http://127.0.0.1", "").replace("http://{", "")
-    assert "src=\"http" not in body and "href=\"http" not in body
+    # self-contained: no external resource references (no CDN phone-home),
+    # regardless of scheme (http/https) or mechanism (tag src/href, fetch, CSS url/@import).
+    for ext in ('src="http', "src='http", 'href="http', "href='http",
+                'fetch("http', "fetch('http", "url(http", "@import"):
+        assert ext not in body, f"UI must be self-contained; found external ref {ext!r}"
 
 
 def test_tools_route_auth_gated(seeded, monkeypatch):

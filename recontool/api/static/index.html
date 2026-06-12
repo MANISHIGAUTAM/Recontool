@@ -303,7 +303,8 @@ $("#launch").onclick = async () => {
   const body = {
     seed, seed_type: $("#f_type").value, tools: $("#f_tools").value,
     profile: $("#f_profile").value.trim() || "normal",
-    max_depth: +$("#f_depth").value, workers: +$("#f_workers").value,
+    max_depth: Math.max(1, parseInt($("#f_depth").value, 10) || 3),
+    workers: Math.max(1, parseInt($("#f_workers").value, 10) || 8),
     noise_control: $("#f_noise").checked, wildcard_filter: $("#f_wild").checked,
     authorize_active: $("#f_active").checked,
   };
@@ -327,10 +328,10 @@ async function loadScans() {
     <div class="scan ${s.scan_id===state.scan?'sel':''}" data-id="${s.scan_id}">
       <div class="seed">${esc(s.seed)}</div>
       <div class="meta">
-        <span class="pill">${s.seed_type}</span>
-        <span class="pill ${s.status==='done'?'ok':'run'}">${s.status}</span>
+        <span class="pill">${esc(s.seed_type)}</span>
+        <span class="pill ${s.status==='done'?'ok':'run'}">${esc(s.status)}</span>
         ${s.active_authorized?'<span class="pill warn">active</span>':''}
-        <span>${s.profile}</span>
+        <span>${esc(s.profile)}</span>
       </div>
     </div>`).join("");
   $$(".scan", box).forEach(el => el.onclick = () => selectScan(el.dataset.id));
@@ -360,14 +361,14 @@ async function loadOverview() {
   // populate asset-type filter
   const sel = $("#a_type"); const cur = sel.value;
   sel.innerHTML = '<option value="">all types</option>' +
-    Object.keys(o.assets_by_type).sort().map(t => `<option>${t}</option>`).join("");
+    Object.keys(o.assets_by_type).sort().map(t => `<option>${esc(t)}</option>`).join("");
   sel.value = cur;
 }
 function renderByType(byType) {
   const ents = Object.entries(byType).sort((a,b)=>b[1]-a[1]);
   const max = Math.max(1, ...ents.map(e=>e[1]));
   $("#ov-bytype").innerHTML = ents.length ? ents.map(([t,n]) => `
-    <div class="depthrow"><span class="lab" style="width:120px;color:var(--ink)">${t}</span>
+    <div class="depthrow"><span class="lab" style="width:120px;color:var(--ink)">${esc(t)}</span>
       <span class="bar"><i style="width:${100*n/max}%"></i></span><span class="ct">${n}</span></div>`).join("")
     : '<div class="muted">no assets yet</div>';
 }
@@ -377,13 +378,13 @@ function renderQueue(q) {
   $("#ov-queue").innerHTML =
     `<div class="bar" style="margin-bottom:6px"><i style="width:${pct}%"></i></div>` +
     Object.entries(q.by_status||{}).map(([k,v]) =>
-      `<span class="pill ${k==='completed'?'ok':k==='running'?'run':k==='failed'?'bad':''}">${k}: ${v}</span>`).join(" ") +
+      `<span class="pill ${k==='completed'?'ok':k==='running'?'run':k==='failed'?'bad':''}">${esc(k)}: ${v}</span>`).join(" ") +
     ` &nbsp;<span class="muted">${pct}% of ${total}</span>`;
   const depths = q.by_depth || {};
   const dmax = Math.max(1, ...Object.values(depths));
   $("#ov-depths").innerHTML = '<div class="muted" style="margin-bottom:4px">depth fan-out</div>' +
     Object.entries(depths).map(([d,n]) => `
-      <div class="depthrow"><span class="lab">${d}</span>
+      <div class="depthrow"><span class="lab">${esc(d)}</span>
         <span class="bar"><i style="width:${100*n/dmax}%"></i></span><span class="ct">${n}</span></div>`).join("");
 }
 function startStream(id) {
@@ -393,6 +394,10 @@ function startStream(id) {
   pill.className = "pill run"; pill.textContent = "● live";
   fetch("/scans/"+id+"/events", { headers: authHeaders(), signal: ctrl.signal })
     .then(async resp => {
+      if (resp.status === 401 || resp.status === 503) {
+        setAuth(false, resp.status === 503 ? "token not set on server" : "invalid token");
+        pill.className = "pill bad"; pill.textContent = "auth lost"; return;
+      }
       if (!resp.body) return;
       const reader = resp.body.getReader(), dec = new TextDecoder(); let buf = "";
       while (true) {
@@ -406,7 +411,7 @@ function startStream(id) {
             else if (l.startsWith("data:")) ds += l.slice(5).trim();
           });
           if (!ds) continue;
-          const d = JSON.parse(ds);
+          let d; try { d = JSON.parse(ds); } catch { continue; }
           if (state.scan === id) { renderQueue(d); if (activeTab==="overview") loadOverviewStats(); }
           if (ev === "done") { pill.className="pill ok"; pill.textContent="✓ converged";
             if (state.scan===id) { loadOverview(); loadScans(); } return; }
@@ -451,11 +456,11 @@ function renderAssets() {
   const rows = state.assets.filter(a => !q || a.value.toLowerCase().includes(q));
   $("#a_count").textContent = rows.length + " of " + state.assets.length;
   $("#a_rows").innerHTML = rows.slice(0,3000).map(a => `
-    <tr><td>${a.type}</td><td class="val">${esc(a.value)}</td>
+    <tr><td>${esc(a.type)}</td><td class="val">${esc(a.value)}</td>
       <td>${a.confidence}</td>
       <td>${a.is_live?'<span class="pill ok">live</span>':''}</td>
       <td>${a.in_scope?'in':'<span class="muted">out</span>'}</td>
-      <td class="muted">${(a.tech||[]).join(", ")}</td></tr>`).join("")
+      <td class="muted">${esc((a.tech||[]).join(", "))}</td></tr>`).join("")
     || '<tr><td colspan="6" class="empty">no assets</td></tr>';
 }
 
@@ -464,10 +469,10 @@ async function loadFindings() {
   if (!state.scan) return;
   let fs; try { fs = await api(`/scans/${state.scan}/findings`); } catch { return; }
   $("#f_rows").innerHTML = fs.map(f => `
-    <tr><td class="sev-${(f.severity||'info').toLowerCase()}">${f.severity||'-'}</td>
-      <td>${f.kind||''}</td><td>${esc(f.title||'')}</td>
-      <td class="val">${esc(f.asset||'')}</td><td class="muted">${f.detector||''}</td>
-      <td>${f.cve_id||''}</td><td>${f.status||''}</td></tr>`).join("")
+    <tr><td class="sev-${(f.severity||'info').toLowerCase().replace(/[^a-z]/g,'')}">${esc(f.severity||'-')}</td>
+      <td>${esc(f.kind||'')}</td><td>${esc(f.title||'')}</td>
+      <td class="val">${esc(f.asset||'')}</td><td class="muted">${esc(f.detector||'')}</td>
+      <td>${esc(f.cve_id||'')}</td><td>${esc(f.status||'')}</td></tr>`).join("")
     || '<tr><td colspan="7" class="empty">no findings</td></tr>';
 }
 
@@ -490,11 +495,11 @@ function renderTools() {
     return true;
   });
   $("#t_rows").innerHTML = rows.map(t => `
-    <tr><td>${esc(t.name)} <span class="muted mono">${t.slug}</span></td>
-      <td class="muted">${t.category||''}</td>
-      <td>${t.classification||''}</td>
-      <td class="muted">${(t.integration||[]).join(",")}</td>
-      <td class="muted mono">${(t.consumes||[]).join(",")||'·'} → ${(t.produces||[]).join(",")||'·'}</td>
+    <tr><td>${esc(t.name)} <span class="muted mono">${esc(t.slug)}</span></td>
+      <td class="muted">${esc(t.category||'')}</td>
+      <td>${esc(t.classification||'')}</td>
+      <td class="muted">${esc((t.integration||[]).join(","))}</td>
+      <td class="muted mono">${esc((t.consumes||[]).join(","))||'·'} → ${esc((t.produces||[]).join(","))||'·'}</td>
       <td>${t.runnable?'<span class="pill ok">runnable</span>':'<span class="pill">stub</span>'}
           ${t.default_on?'<span class="pill run">default</span>':''}
           ${t.web_only?'<span class="pill warn">web</span>':''}</td></tr>`).join("")
@@ -515,14 +520,14 @@ async function loadGraph() {
   const cv = $("#graph"); const W = cv.clientWidth||800, H = cv.clientHeight||600;
   const ids = new Map();
   G.nodes = g.nodes.slice(0, 600).map((n,idx) => {
-    ids.set(n.id, idx);
+    if (!ids.has(n.id)) ids.set(n.id, idx);
     return { ...n, x: W/2 + (Math.random()-.5)*W*0.6, y: H/2 + (Math.random()-.5)*H*0.6,
              vx:0, vy:0, r: 4 + (n.confidence||0.5)*6, pin:false };
   });
   G.edges = g.edges.filter(e => ids.has(e.source) && ids.has(e.target))
                    .map(e => ({ s: ids.get(e.source), t: ids.get(e.target), rel:e.rel }));
   G.tf = { x:0, y:0, k:1 };
-  buildLegend(g.nodes);
+  buildLegend(G.nodes, g.node_count);
   if (!G.nodes.length) { drawGraph(0); return; }
   let alpha = 1;
   const step = () => {
@@ -531,10 +536,11 @@ async function loadGraph() {
   };
   step();
 }
-function buildLegend(nodes){
+function buildLegend(nodes, total){
   const types=[...new Set(nodes.map(n=>n.type))].slice(0,12);
-  $("#glegend").innerHTML = types.map(t=>`<span><i style="background:${colorFor(t)}"></i>${t}</span>`).join("")
-    + `<span class="muted">${nodes.length} nodes</span>`;
+  const shown = (total && total > nodes.length) ? `${nodes.length} of ${total}` : `${nodes.length}`;
+  $("#glegend").innerHTML = types.map(t=>`<span><i style="background:${colorFor(t)}"></i>${esc(t)}</span>`).join("")
+    + `<span class="muted">${shown} nodes</span>`;
 }
 function simulate(alpha, W, H) {
   const N = G.nodes;
@@ -588,13 +594,15 @@ function drawGraph() {
   cv.addEventListener("mousedown", e=>{ const r=cv.getBoundingClientRect();
     const mx=e.clientX-r.left, my=e.clientY-r.top; const n=pick(mx,my);
     if (n){ G.drag={node:n}; n.pin=true; } else G.drag={pan:true, x:mx-G.tf.x, y:my-G.tf.y}; });
-  window.addEventListener("mousemove", e=>{ const r=cv.getBoundingClientRect();
+  window.addEventListener("mousemove", e=>{
+    if (!G.drag && (activeTab!=="graph" || !G.nodes.length)) return;  // no hover work off the graph tab
+    const r=cv.getBoundingClientRect();
     const mx=e.clientX-r.left, my=e.clientY-r.top;
     if (G.drag?.node){ const w=toWorld(mx,my); G.drag.node.x=w.x; G.drag.node.y=w.y; drawGraph(); }
     else if (G.drag?.pan){ G.tf.x=mx-G.drag.x; G.tf.y=my-G.drag.y; drawGraph(); }
     else { const n=pick(mx,my); G.hover=n;
       if (n){ tip.style.display="block"; tip.style.left=(mx+14)+"px"; tip.style.top=(my+10)+"px";
-        tip.innerHTML=`<b style="color:${colorFor(n.type)}">${n.type}</b> ${esc(n.id)}<br><span class="muted">conf ${n.confidence}${n.is_live?' · live':''}</span>`; }
+        tip.innerHTML=`<b style="color:${colorFor(n.type)}">${esc(n.type)}</b> ${esc(n.id)}<br><span class="muted">conf ${n.confidence}${n.is_live?' · live':''}</span>`; }
       else tip.style.display="none"; drawGraph(); } });
   window.addEventListener("mouseup", ()=>{ if (G.drag?.node) G.drag.node.pin=false; G.drag=null; });
 })();
