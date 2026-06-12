@@ -264,6 +264,7 @@ class WorkerPool:
                 self.processed += 1
                 return
 
+        tool_status, skip_reason = "ok", ""
         if spec is None:
             status, reason = "failed", "unknown tool"
         else:
@@ -271,8 +272,11 @@ class WorkerPool:
                 spec, scan_id, inputs, scope=self.scope, profile=self.profile,
                 http=self.http, api_keys=self.api_keys, artifacts=store,
             )
+            tool_status = outcome.status
             if outcome.status == "error":
                 status, reason = "failed", outcome.reason
+            elif outcome.status == "skip":
+                skip_reason = outcome.reason
             events = outcome.events
             if events:
                 # AI decisioning (model-augmented when a router is enabled, else
@@ -301,7 +305,8 @@ class WorkerPool:
         else:
             self.log.log_tool_complete(run_id, scan_id, item.tool_slug,
                                        duration_ms=dur_ms, entity_count=len(events),
-                                       key_type=item.key_type, artifact_paths=out_paths)
+                                       key_type=item.key_type, artifact_paths=out_paths,
+                                       status=tool_status, skip_reason=skip_reason)
         self.processed += 1
 
     def _finish_item(self, item_id: int, status: str, new_keys: int) -> None:

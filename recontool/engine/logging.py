@@ -38,6 +38,12 @@ def _format_human(entry: dict[str, Any]) -> str:
         ms = entry.get("duration_ms", 0)
         kt = entry.get("key_type", "")
         paths = entry.get("artifact_paths") or []
+        if entry.get("status") == "skip":
+            reason = entry.get("skip_reason", "")
+            line = f"⊘ skip   {tool}" + (f"  ({reason})" if reason else "")
+            if kt:
+                line += f"  [{kt}]"
+            return line
         line = f"✓ done   {tool}  {n} entities  {ms}ms"
         if kt:
             line += f"  [{kt}]"
@@ -133,8 +139,16 @@ class EngineLogger:
         command: str = "",
         retry_count: int = 0,
         key_type: str = "",
+        status: str = "ok",
+        skip_reason: str = "",
     ) -> None:
-        """Log the successful completion of a tool execution."""
+        """Log the successful completion of a tool execution.
+
+        ``status`` distinguishes a tool that actually ran and found nothing
+        ("ok", 0 entities) from one the engine never invoked ("skip" — e.g.
+        missing binary/API key, or not runnable for this input). Without this,
+        both render as indistinguishable "0 entities" lines.
+        """
         self._emit({
             "event": "tool_complete",
             "scan_id": scan_id,
@@ -149,6 +163,8 @@ class EngineLogger:
             "artifact_paths": artifact_paths or [],
             "command": command,
             "retry_count": retry_count,
+            "status": status,
+            "skip_reason": skip_reason,
         })
 
     def log_tool_fail(
