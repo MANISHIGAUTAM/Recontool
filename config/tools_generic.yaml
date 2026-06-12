@@ -281,3 +281,80 @@ tools:
       format: text
       emit:
         - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  # ── Cat 3: ORG-FOREST pivots (keyed) — fingerprint -> related (sibling) sites ─
+  # SCOPE SAFETY: siblings are emitted as `org` intelligence (no downstream
+  # consumer), so they are recorded + graphed but never auto-promoted to an
+  # in-scope active scan. Add a sibling to scope and re-seed to scan it.
+  - name: favicon-shodan
+    phase: p1_seed
+    category: 1
+    integration: api
+    is_active: false          # querying Shodan's index is passive (no target contact)
+    requires_key: SHODAN_API_KEY
+    consumes: [favicon]
+    produces: [org]
+    endpoint: "https://api.shodan.io/shodan/host/search?key={key}&query=http.favicon.hash:{value}"
+    bucket: shodan
+    max_inputs: 10
+    parse:
+      format: json
+      list_path: matches
+      emit:
+        - {entity: asset, value_each: domains, type: org}
+        - {entity: asset, value_each: hostnames, type: org}
+
+  - name: analytics-publicwww
+    phase: p1_seed
+    category: 1
+    integration: api
+    is_active: false          # querying publicwww's index is passive
+    requires_key: PUBLICWWW_API_KEY
+    consumes: [analytics_id]
+    produces: [org]
+    endpoint: "https://publicwww.com/websites/%22{value}%22/?export=urls&key={key}"
+    bucket: publicwww
+    max_inputs: 10
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: org}
+
+  # ── Cat 7: PEOPLE / EMAIL / BREACH-EXPOSURE OSINT (keyed, gated) ───────────
+  # Authorized-use only. Keyed so they never run without the operator's key.
+  # NOTE: breach lookups return EXPOSURE metadata (which breach), NOT plaintext
+  # credentials — no credential harvesting is wired.
+  - name: hunter-emails
+    phase: p3_enrichment
+    category: 7
+    integration: api
+    is_active: false          # queries hunter.io's index, not the target
+    requires_key: HUNTER_API_KEY
+    consumes: [domain]
+    produces: [email]
+    endpoint: "https://api.hunter.io/v2/domain-search?domain={domain}&api_key={key}"
+    bucket: hunter
+    max_inputs: 10
+    parse:
+      format: json
+      list_path: data.emails
+      emit:
+        - {entity: asset, value: "{value}", type: email}
+
+  - name: hibp-exposure
+    phase: p3_enrichment
+    category: 7
+    integration: api
+    is_active: false          # queries HIBP's index, not the target
+    requires_key: HIBP_API_KEY
+    consumes: [email]
+    produces: [finding]
+    endpoint: "https://haveibeenpwned.com/api/v3/breachedaccount/{value}?truncateResponse=true"
+    headers: {hibp-api-key: "{key}"}
+    bucket: hibp
+    max_inputs: 25
+    parse:
+      format: json
+      emit:
+        - {entity: finding, kind: exposure, title: "Email in breach: {Name}",
+           severity: medium, detector: hibp, asset_value: "{value}"}

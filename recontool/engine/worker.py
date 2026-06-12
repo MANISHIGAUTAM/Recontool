@@ -25,14 +25,17 @@ from sqlalchemy import func, select, update
 
 from recontool.core.artifacts import ArtifactStore
 from recontool.core.db import create_all, session_scope
+from recontool.engine.ai_decision import (
+    AIDecisionService, decide_on_events, discarded_asset_pairs,
+)
 from recontool.engine.logging import EngineLogger
 from recontool.engine.models import WorkItem
 from recontool.engine.registry import ToolRegistry
 from recontool.engine.router import _eligible_types, work_dedupe_key
 from recontool.engine.runner import (
-    build_noise, build_scan_infra, discovered_assets, run_tool_spec, write_typed_outputs,
+    build_noise, build_scan_infra, discovered_assets, load_engine_registry,
+    run_tool_spec, write_typed_outputs,
 )
-from recontool.engine.selection import apply_selection
 from recontool.normalize.engine import Normalizer
 
 logger = logging.getLogger(__name__)
@@ -146,7 +149,7 @@ class WorkerPool:
     """Runs N concurrent async workers against the work_item queue for a scan."""
 
     def __init__(self, registry, *, scope, profile, http, api_keys,
-                 noise=None, max_depth: int = 3):
+                 noise=None, max_depth: int = 3, ai_service=None):
         self.registry = registry
         self.scope = scope
         self.profile = profile
@@ -157,6 +160,11 @@ class WorkerPool:
         self._stores: dict[str, ArtifactStore] = {}
         self._route = RouteIndex(registry)   # built once; reused for every enqueue
         self.log = EngineLogger("recontool.worker")  # structured, correlated debug logs
+        # AI decisioning layer: classifies each tool's output (persist / discard
+        # noise / trigger downstream) before anything is re-fed into the loop.
+        # Heuristic by default; override `ai_service` for an AI-augmented path.
+        # Scope-aware so the target's own in-scope estate is never dropped.
+        self.ai = ai_service or AIDecisionService(scope=scope)
         self.processed = 0
 
     def _store(self, scan_id: str) -> ArtifactStore:
@@ -187,20 +195,37 @@ class WorkerPool:
                 status, reason = "failed", outcome.reason
             events = outcome.events
             if events:
+                # AI decisioning: classify entities (persist / discard noise /
+                # trigger downstream) BEFORE persisting or re-feeding. Visible in
+                # the logs so the operator can see what the engine decided.
+                decision = decide_on_events(events, item.tool_slug, service=self.ai)
+                self.log.log_ai_decision(scan_id, decision.reasoning,
+                                         tool_name=item.tool_slug)
+                dropped = discarded_asset_pairs(decision)
+                persist_events = decision.persist or events
                 with session_scope() as s:
-                    Normalizer(s, scan_id, scope=self.scope).ingest(events)
-                write_typed_outputs(store, item.tool_slug, events)
+                    Normalizer(s, scan_id, scope=self.scope).ingest(persist_events)
+                write_typed_outputs(store, item.tool_slug, persist_events)
                 if item.depth + 1 <= self.max_depth:
                     with session_scope() as s:
                         for etype, evalue in discovered_assets(events):
+                            if (etype, evalue) in dropped:
+                                continue  # AI decisioning flagged it as noise
                             if self.noise is not None and not await self.noise.keep(
                                     scan_id, etype, evalue):
                                 continue
-                            new_keys += enqueue_key(
+                            n = enqueue_key(
                                 s, scan_id, evalue, etype, self.registry,
                                 depth=item.depth + 1, parent=item.key,
                                 route=self._route,
                             )
+                            new_keys += n
+                            self.log.log_entity_discovered(
+                                scan_id, etype, evalue, tool_name=item.tool_slug)
+                            if n:
+                                self.log.log_enqueue(
+                                    scan_id, etype, evalue, n,
+                                    depth=item.depth + 1, tool_name=item.tool_slug)
         with session_scope() as s:
             row = s.get(WorkItem, item.id)
             if row is not None:
@@ -254,22 +279,40 @@ class QueueScanResult:
 async def run_queue_scan(
     seed: str, *, seed_type: str = "domain", profile_name: str | None = None,
     registry: ToolRegistry | None = None, tools: str = "default",
-    workers: int = 8, noise_control: bool = False, wildcard_filter: bool = False,
-    max_depth: int = 3,
+    workers: int = 8, authorize_active: bool = False,
+    noise_control: bool = False, wildcard_filter: bool = False,
+    max_depth: int = 3, scan_id: str | None = None,
 ) -> QueueScanResult:
-    """Seed the work queue and drain it with `workers` concurrent workers."""
-    from recontool.core.models import Asset
+    """Seed the work queue and drain it with `workers` concurrent workers.
+
+    The registry is loaded through ``load_engine_registry`` so the hand-written
+    Python adapters are bridged in (deep recursion works with no external
+    binaries) and the passive/active gate is honored (``authorize_active``).
+    Pass ``scan_id`` to use a known id (e.g. the API returns it before the scan
+    finishes); otherwise a fresh one is generated.
+    """
+    from recontool.core.models import Asset, Scan
 
     create_all()
     profile, scope, http, api_keys = build_scan_infra(seed, seed_type, profile_name)
-    registry = registry or ToolRegistry.load()
-    apply_selection(registry, tools)
+    registry = load_engine_registry(
+        tools, authorize_active=authorize_active, registry=registry
+    )
     noise = build_noise(scope, noise_control, wildcard_filter)
 
     pool = WorkerPool(registry, scope=scope, profile=profile, http=http,
                       api_keys=api_keys, noise=noise, max_depth=max_depth)
 
-    scan_id = uuid.uuid4().hex[:16]
+    scan_id = scan_id or uuid.uuid4().hex[:16]
+    # Create the Scan row UP FRONT so the DB is consistent while the queue drains
+    # (report/UI can read a live scan; assets have a valid parent scan).
+    with session_scope() as s:
+        if not s.get(Scan, scan_id):
+            s.add(Scan(
+                id=scan_id, seed=seed, seed_type=seed_type,
+                profile=profile_name or profile.name, status="running",
+                scope_json=scope.to_json(), active_authorized=authorize_active,
+            ))
     with session_scope() as s:
         enqueue_key(s, scan_id, seed, seed_type, registry, depth=0, route=pool._route)
 
@@ -282,5 +325,8 @@ async def run_queue_scan(
             WorkItem.scan_id == scan_id, WorkItem.status == "failed")).scalar_one()
         entities = s.execute(select(func.count(Asset.id)).where(
             Asset.scan_id == scan_id)).scalar_one()
+        sc = s.get(Scan, scan_id)
+        if sc is not None:
+            sc.status = "done"
     return QueueScanResult(scan_id=scan_id, items_processed=pool.processed,
                            completed=completed, failed=failed, entities=entities)

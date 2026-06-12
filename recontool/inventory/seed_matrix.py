@@ -42,6 +42,21 @@ def seed() -> dict[str, int]:
     return {"total": len(recs), "inserted": inserted, "updated": updated}
 
 
+def seed_if_empty() -> int:
+    """Seed the tool_row matrix only if it is currently empty.
+
+    Called at scan start so the static half of the matrix (the persisted tool
+    registry) is always present without forcing a manual seed step. Returns the
+    number of rows inserted (0 if the matrix was already populated).
+    """
+    create_all()
+    with session_scope() as s:
+        count = s.execute(select(ToolRow.slug)).first()
+    if count is not None:
+        return 0
+    return seed().get("inserted", 0)
+
+
 if __name__ == "__main__":
     stats = seed()
     print(f"seeded tool_row: total={stats['total']} "

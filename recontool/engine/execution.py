@@ -114,6 +114,16 @@ def plan_execution(tool_spec: ToolSpec) -> ExecutionPlan:
             or "non_executable: no programmatic interface",
         )
 
+    # Hand-written Python adapters (bridged via engine.adapters_bridge) carry
+    # integration="python". They are always runnable — the adapter's own
+    # available()/run() decide at runtime (e.g. a missing binary => clean skip).
+    if tool_spec.integration == "python":
+        return ExecutionPlan(
+            tool_name=tool_spec.name,
+            mode="python",
+            runnable=True,
+        )
+
     spec = to_generic_spec(tool_spec)
     if spec is None:
         # Only API stubs without an endpoint reach here.
@@ -140,12 +150,34 @@ def plan_execution(tool_spec: ToolSpec) -> ExecutionPlan:
     )
 
 
-def build_adapter_for(tool_spec: ToolSpec):
-    """Return a ready-to-run generic Adapter subclass for a tool, or None.
+def _handwritten_adapter(name: str):
+    """Return the hand-written (non-generic) adapter class for ``name``, or None.
 
-    Thin wrapper over ``recontool.adapters.generic.build_adapter_class`` so the
-    same declarative machinery powers both curated and inventory-derived tools.
+    Hand-written adapters always win on a name collision (canonical contract),
+    and this is also how the engine reaches the pure-Python tools (dns_resolve,
+    httpx_probe, pycrawl, naabu fallback, …) that have no generic spec.
     """
+    if not name:
+        return None
+    try:
+        from recontool.engine.adapters_bridge import python_adapter_classes
+
+        return python_adapter_classes().get(name)
+    except Exception:  # noqa: BLE001 — never let bridging break execution
+        return None
+
+
+def build_adapter_for(tool_spec: ToolSpec):
+    """Return a ready-to-run Adapter subclass for a tool, or None.
+
+    Precedence: a hand-written Python adapter of the same name wins; otherwise
+    the declarative ``recontool.adapters.generic.build_adapter_class`` powers the
+    curated/inventory-derived tools.
+    """
+    hand = _handwritten_adapter(tool_spec.name)
+    if hand is not None:
+        return hand
+
     spec = to_generic_spec(tool_spec)
     if spec is None:
         return None

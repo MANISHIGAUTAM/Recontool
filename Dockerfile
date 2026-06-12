@@ -33,6 +33,9 @@ WORKDIR /app
 COPY requirements.txt pyproject.toml ./
 COPY recontool ./recontool
 RUN pip3 install --no-cache-dir -r requirements.txt && pip3 install --no-cache-dir -e .
+# API server (recontool serve) + favicon-hash org-forest pivot. Light deps, so
+# the all-in-one image ships UI/API-ready; local users add these on demand.
+RUN pip3 install --no-cache-dir fastapi uvicorn mmh3
 
 # Install external recon tools (Go + pip + git). This is the heavy layer.
 COPY docker/install_tools.sh ./docker/install_tools.sh

@@ -10,10 +10,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
 
@@ -28,6 +30,34 @@ from recontool.orchestrator.pipeline import ReconPipeline
 
 app = typer.Typer(add_completion=False, help="Recontool — AI-supervised recon platform")
 console = Console()
+
+
+def _configure_logging(verbose: int = 0, log_level: str | None = None,
+                       *, quiet_level: int = logging.WARNING) -> None:
+    """Wire stdlib logging to a Rich handler so engine logs actually print.
+
+    Without this the engine's structured logs (tool start/complete, entity
+    discovery, AI decisions) go to a root logger with no handler and vanish.
+    Precedence: explicit ``--log-level`` > ``-v`` count > ``quiet_level`` default.
+      (no flag) → quiet_level   -v → INFO   -vv → DEBUG
+    The ``engine`` command raises ``quiet_level`` to INFO so a plain
+    ``recontool engine <seed>`` streams tool/recursion/AI logs by default.
+    """
+    if log_level:
+        level = getattr(logging, log_level.upper(), logging.INFO)
+    elif verbose >= 2:
+        level = logging.DEBUG
+    elif verbose == 1:
+        level = logging.INFO
+    else:
+        level = quiet_level
+    handler = RichHandler(console=console, show_time=True, show_path=False,
+                          rich_tracebacks=True, markup=False)
+    logging.basicConfig(level=level, format="%(message)s",
+                        datefmt="[%H:%M:%S]", handlers=[handler], force=True)
+    # httpx is chatty at INFO; keep it at WARNING unless DEBUG was asked for.
+    if level > logging.DEBUG:
+        logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 @app.command()
@@ -89,80 +119,86 @@ def engine(
                                   help="seed type: domain | subdomain | ip | cidr | asn"),
     profile: str = typer.Option(settings.profile_name, "--profile", "-p",
                                 help="passive_only | stealth | normal | aggressive"),
-    max_iterations: int = typer.Option(50, "--max-iterations",
-                                       help="hard cap on scheduling iterations (convergence guard)."),
-    max_depth: int = typer.Option(3, "--max-depth", help="max recursion depth from the seed."),
+    max_depth: int = typer.Option(3, "--max-depth", "-d",
+                                  help="max recursion depth from the seed (how far keys re-feed)."),
     tools: str = typer.Option("default", "--tools",
                               help="tool profile: 'default' (curated) or 'all'/'excessive' (everything runnable)."),
-    workers: int = typer.Option(1, "--workers", "-w",
-                                help="N>1 uses the DB-backed multi-worker queue (resumable, multi-process safe)."),
+    authorize_active: bool = typer.Option(
+        False, "--authorize-active",
+        help="DIVE DEEP: unlock active tools (DNS resolve, HTTP probe, port scan, "
+             "crawl, vuln). Required to touch the target; passive-only otherwise."),
+    workers: int = typer.Option(8, "--workers", "-w",
+                                help="concurrent async workers draining the DB queue (scale out with `recontool worker`)."),
     noise_control: bool = typer.Option(
         False, "--noise-control",
-        help="drop duplicate / out-of-scope leads before re-feeding (optional, G4)."),
+        help="drop duplicate / out-of-scope leads before re-feeding (recommended for --tools all)."),
     wildcard_filter: bool = typer.Option(
         False, "--wildcard-filter",
         help="also drop wildcard-DNS subdomains (implies --noise-control; does DNS lookups)."),
+    verbose: int = typer.Option(
+        0, "--verbose", "-v", count=True,
+        help="-v shows per-tool/entity/AI logs (INFO); -vv shows DEBUG."),
+    log_level: str = typer.Option(
+        None, "--log-level",
+        help="explicit log level (DEBUG|INFO|WARNING|ERROR); overrides -v."),
     export: Path = typer.Option(None, "--export", "-o", help="Write full JSON results here."),
 ):
-    """Run the EVENT-DRIVEN recursive engine (parallel, convergence-based).
+    """Run the EVENT-DRIVEN recursive engine (DB-backed, parallel, convergence-based).
 
-    Unlike `scan` (linear P1→P6), tools fire as soon as their inputs exist and
-    every discovery re-feeds the frontier until no eligible tools remain.
-    `--tools all` runs every runnable tool; `--workers N` drains a DB-backed queue
-    with N concurrent workers (run `recontool worker <scan_id>` on other hosts too).
+    Unlike `scan` (linear P1→P6), every tool fires as soon as its input key
+    exists and every discovered key re-feeds the matrix until nothing new is
+    in scope. State lives in the `work_item` queue (the dynamic matrix), so the
+    scan is resumable and you can attach more `recontool worker <scan_id>`
+    processes on other hosts. `--tools all` runs every runnable tool; pass
+    `-v` to watch tool runs, entity discovery, recursion, and AI decisions live.
     """
     if profile not in PROFILES:
         console.print(f"[red]Unknown profile {profile!r}. Choose: {list(PROFILES)}[/red]")
         raise typer.Exit(1)
 
+    # Engine streams its structured logs by default (quiet_level=INFO) so tool
+    # runs, entity discovery, enqueue/recursion and AI decisions are visible
+    # without any flag. -v adds DEBUG (per-request detail); --log-level overrides.
+    _configure_logging(verbose, log_level, quiet_level=logging.INFO)
+    create_all()
+
+    # Seed the static half of the matrix (tool_row registry) if it's empty, so
+    # the DB always reflects the full catalog before the dynamic queue fills.
+    from recontool.inventory.seed_matrix import seed_if_empty
+    seeded = seed_if_empty()
+
+    # Surface the AI decisioning mode (model-backed vs deterministic heuristic).
+    router = ModelRouter()
+    ai_mode = (f"[green]model[/green]:{router.stats()['light_model']}"
+               if router.enabled else "heuristic")
+
     console.print(Panel.fit(
         f"[bold]Recontool engine[/bold]  seed=[cyan]{seed}[/cyan]  "
         f"type=[cyan]{seed_type}[/cyan]  profile=[yellow]{profile}[/yellow]  "
-        f"tools=[magenta]{tools}[/magenta]  workers=[green]{workers}[/green]  depth≤{max_depth}",
+        f"tools=[magenta]{tools}[/magenta]  workers=[green]{workers}[/green]  depth≤{max_depth}\n"
+        f"active={'[green]yes[/green]' if authorize_active else '[red]no (passive)[/red]'}  "
+        f"AI={ai_mode}  noise={'on' if (noise_control or wildcard_filter) else 'off'}"
+        + (f"  [dim](seeded {seeded} tool rows)[/dim]" if seeded else ""),
         title="engine", border_style="blue",
     ))
-    create_all()
+    if not authorize_active:
+        console.print("[dim]passive mode — pass --authorize-active to dive deep "
+                      "(resolve/probe/port/crawl/vuln on an AUTHORISED target).[/dim]")
 
-    if workers > 1:
-        from recontool.engine.worker import run_queue_scan
-        with console.status(f"[bold]running queue scan with {workers} workers…[/bold]"):
-            qr = asyncio.run(run_queue_scan(
-                seed, seed_type=seed_type, profile_name=profile, tools=tools,
-                workers=workers, noise_control=noise_control or wildcard_filter,
-                wildcard_filter=wildcard_filter, max_depth=max_depth,
-            ))
-        with session_scope() as s:
-            if not s.get(Scan, qr.scan_id):
-                s.add(Scan(id=qr.scan_id, seed=seed, seed_type=seed_type, profile=profile,
-                           status="done", scope_json="{}", active_authorized=False))
-        console.print(
-            f"\n[bold]items processed:[/bold] {qr.items_processed}   "
-            f"[bold]completed:[/bold] {qr.completed}   [bold]failed:[/bold] {qr.failed}   "
-            f"[bold]entities:[/bold] {qr.entities}")
-        scan_id = qr.scan_id
-    else:
-        from recontool.engine.runner import run_engine_scan
-        with console.status("[bold]running event-driven scan…[/bold]"):
-            result = asyncio.run(run_engine_scan(
-                seed, seed_type=seed_type, profile_name=profile, tools=tools,
-                noise_control=noise_control or wildcard_filter,
-                wildcard_filter=wildcard_filter,
-                max_iterations=max_iterations, max_depth=max_depth,
-            ))
-        with session_scope() as s:
-            if not s.get(Scan, result.scan_id):
-                s.add(Scan(id=result.scan_id, seed=seed, seed_type=seed_type,
-                           profile=profile, status=result.status, scope_json="{}",
-                           active_authorized=False))
-        console.print(
-            f"\n[bold]tools run:[/bold] {result.total_tools_run}   "
-            f"[bold]entities:[/bold] {result.total_entities}   "
-            f"[bold]status:[/bold] {result.status}   "
-            f"[bold]elapsed:[/bold] {result.duration_ms} ms")
-        if result.errors:
-            console.print(f"[dim]{len(result.errors)} tool errors (first 3): "
-                          f"{'; '.join(result.errors[:3])}[/dim]")
-        scan_id = result.scan_id
+    from recontool.engine.worker import run_queue_scan
+    qr = asyncio.run(run_queue_scan(
+        seed, seed_type=seed_type, profile_name=profile, tools=tools,
+        workers=max(1, workers), authorize_active=authorize_active,
+        noise_control=noise_control or wildcard_filter,
+        wildcard_filter=wildcard_filter, max_depth=max_depth,
+    ))
+    scan_id = qr.scan_id
+
+    console.print(
+        f"\n[bold]items processed:[/bold] {qr.items_processed}   "
+        f"[bold]completed:[/bold] {qr.completed}   [bold]failed:[/bold] {qr.failed}   "
+        f"[bold]entities:[/bold] {qr.entities}")
+    _print_queue_stats(scan_id)
 
     _print_summary(scan_id)
     _print_findings(scan_id)
@@ -171,6 +207,9 @@ def engine(
         console.print(f"\n[green]Exported[/green] full results → {path}")
     console.print(f"\nScan id: [bold cyan]{scan_id}[/bold cyan] "
                   f"(artifacts in {settings.artifact_dir}/{scan_id})")
+    if verbose == 0 and not log_level:
+        console.print("[dim]tip: add -v for per-request DEBUG detail, "
+                      "--tools all to run every runnable tool.[/dim]")
 
 
 @app.command()
@@ -179,8 +218,12 @@ def worker(
     workers: int = typer.Option(8, "--workers", "-w", help="concurrent workers in this process."),
     profile: str = typer.Option(settings.profile_name, "--profile", "-p"),
     tools: str = typer.Option("default", "--tools", help="'default' or 'all'/'excessive'."),
+    authorize_active: bool = typer.Option(
+        False, "--authorize-active",
+        help="unlock active tools (inherits the scan's setting if not passed)."),
     seed: str = typer.Option("", "--seed", help="scope seed (defaults to the scan's seed if known)."),
     seed_type: str = typer.Option("domain", "--type", "-t"),
+    verbose: int = typer.Option(0, "--verbose", "-v", count=True, help="-v DEBUG detail."),
 ):
     """Attach extra workers to an existing scan's queue (multi-process / multi-host).
 
@@ -190,26 +233,26 @@ def worker(
     if profile not in PROFILES:
         console.print(f"[red]Unknown profile {profile!r}.[/red]")
         raise typer.Exit(1)
+    _configure_logging(verbose, quiet_level=logging.INFO)
     create_all()
     with session_scope() as s:
         sc = s.get(Scan, scan_id)
         seed_val = seed or (sc.seed if sc else "")
         seed_t = (sc.seed_type if sc else seed_type) or seed_type
+        # Inherit the scan's active authorization unless explicitly overridden.
+        authorize_active = authorize_active or bool(sc.active_authorized if sc else False)
     if not seed_val:
         console.print("[red]Unknown scan; pass --seed to set scope.[/red]")
         raise typer.Exit(1)
 
-    from recontool.engine.registry import ToolRegistry
-    from recontool.engine.selection import apply_selection
-    from recontool.engine.runner import build_scan_infra
+    from recontool.engine.runner import build_scan_infra, load_engine_registry
     from recontool.engine.worker import WorkerPool
 
     profile_obj, scope, http, api_keys = build_scan_infra(seed_val, seed_t, profile)
-    registry = ToolRegistry.load()
-    apply_selection(registry, tools)
+    registry = load_engine_registry(tools, authorize_active=authorize_active)
     pool = WorkerPool(registry, scope=scope, profile=profile_obj, http=http, api_keys=api_keys)
     console.print(f"[bold]worker[/bold] draining queue for [cyan]{scan_id}[/cyan] "
-                  f"with {workers} workers…")
+                  f"with {workers} workers  active={'yes' if authorize_active else 'no'}…")
     asyncio.run(pool.run(scan_id, workers=workers))
     console.print(f"[green]done[/green] — processed {pool.processed} items")
 
@@ -266,7 +309,91 @@ def export(scan_id: str, out: Path = typer.Option("recon_export.json", "-o", "--
     console.print(f"[green]Exported[/green] → {path}")
 
 
+@app.command()
+def serve(
+    host: str = typer.Option(None, "--host", help="bind address (default 127.0.0.1)."),
+    port: int = typer.Option(None, "--port", help="bind port (default 8088)."),
+):
+    """Run the API / UI server (read API + SSE live status + scan control).
+
+    Auth: every route except /health requires `Authorization: Bearer
+    $RECON_API_TOKEN`. If the token is unset the API starts but refuses data
+    (503) — set RECON_API_TOKEN. Binds to localhost by default; expose publicly
+    only behind a TLS reverse proxy with the token set.
+    """
+    try:
+        import uvicorn
+    except ImportError:
+        console.print("[red]The API needs extra deps:[/red] pip install 'fastapi' 'uvicorn'")
+        raise typer.Exit(1) from None
+    from recontool.api.app import create_app
+
+    create_all()
+    bind_host = host or settings.api_host
+    bind_port = port or settings.api_port
+    if not settings.api_token:
+        console.print("[yellow]⚠ RECON_API_TOKEN is not set — all data routes will "
+                      "return 503 until you set it.[/yellow]")
+    if bind_host not in ("127.0.0.1", "localhost"):
+        console.print(f"[yellow]⚠ binding to {bind_host} (non-local). Ensure a bearer "
+                      "token + TLS proxy are in place — this is a privileged surface.[/yellow]")
+    console.print(f"[bold]Recontool API[/bold] → http://{bind_host}:{bind_port}  "
+                  f"(docs at /docs)  auth={'on' if settings.api_token else 'OFF'}")
+    uvicorn.run(create_app(), host=bind_host, port=bind_port)
+
+
 # ── render helpers ───────────────────────────────────────────────────────────
+import contextlib  # noqa: E402
+
+
+@contextlib.contextmanager
+def _nullctx():
+    """No-op context manager — used to skip the spinner when logs are streaming."""
+    yield
+
+
+def _print_queue_stats(scan_id: str) -> None:
+    """Show the work_item queue breakdown and the deepest recursion level reached.
+
+    This is the visible proof that the DB matrix was driven recursively: a
+    max-depth > 1 means discovered keys re-fed the queue and spawned new jobs.
+    """
+    from sqlalchemy import func, select
+
+    from recontool.engine.models import WorkItem
+
+    with session_scope() as s:
+        rows = s.execute(
+            select(WorkItem.status, func.count(WorkItem.id))
+            .where(WorkItem.scan_id == scan_id)
+            .group_by(WorkItem.status)
+        ).all()
+        max_depth = s.execute(
+            select(func.max(WorkItem.depth)).where(WorkItem.scan_id == scan_id)
+        ).scalar() or 0
+        refeed = s.execute(
+            select(func.coalesce(func.sum(WorkItem.new_keys_found), 0))
+            .where(WorkItem.scan_id == scan_id)
+        ).scalar() or 0
+        by_depth = s.execute(
+            select(WorkItem.depth, func.count(WorkItem.id))
+            .where(WorkItem.scan_id == scan_id)
+            .group_by(WorkItem.depth).order_by(WorkItem.depth)
+        ).all()
+    if not rows:
+        return
+    table = Table(title="WorkQueue (dynamic matrix)", header_style="bold")
+    table.add_column("status")
+    table.add_column("items", justify="right")
+    for st, n in sorted(rows):
+        table.add_row(st, str(n))
+    console.print(table)
+    depth_str = ", ".join(f"d{d}:{n}" for d, n in by_depth)
+    console.print(f"[bold]recursion depth reached:[/bold] {max_depth}   "
+                  f"[bold]downstream items enqueued:[/bold] {refeed}   "
+                  f"[dim]({depth_str})[/dim]")
+
+
 def _render_result(result, supervisor):
     table = Table(title="Phases", header_style="bold")
     for c in ("Phase", "Ran", "Skipped", "Assets", "Endpoints", "Findings", "Secs", "Note"):

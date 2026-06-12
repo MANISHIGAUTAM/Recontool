@@ -23,14 +23,28 @@ def is_excessive(mode: str) -> bool:
     return (mode or "default").lower() in EXCESSIVE
 
 
-def apply_selection(registry: ToolRegistry, mode: str = "default") -> int:
+def apply_selection(
+    registry: ToolRegistry, mode: str = "default", *, authorize_active: bool = False
+) -> int:
     """Enable the tools allowed by `mode`; disable the rest. Returns the count
-    enabled. Non-runnable tools are always disabled (they would only skip)."""
+    enabled.
+
+    Gating rules (applied in order):
+      * non-runnable tools are always disabled (they would only skip);
+      * **active** tools are disabled unless ``authorize_active`` is set — the
+        passive→active safety gate (``docs/D6-opsec.md``). The engine is passive
+        by default; ``--authorize-active`` unlocks resolve/probe/port/crawl/vuln;
+      * in ``default`` mode, inventory-derived stubs are disabled (curated only);
+        ``all``/``excessive`` enables every runnable tool.
+    """
     everything = is_excessive(mode)
     enabled = 0
     for spec in registry.all_tools().values():
         if not plan_execution(spec).runnable:
             spec.enabled = False
+            continue
+        if spec.is_active and not authorize_active:
+            spec.enabled = False           # passive-by-default safety gate
             continue
         keep = everything or not spec.is_inventory_derived
         spec.enabled = keep

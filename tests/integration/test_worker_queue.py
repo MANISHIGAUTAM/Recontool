@@ -79,6 +79,46 @@ async def test_worker_emits_structured_logs(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_worker_logs_ai_decision_and_enqueue(tmp_path, monkeypatch):
+    """The live path emits AI-decision and enqueue log events, and recursion
+    fans out: the discovered in-scope subdomain re-feeds new (key, tool) work."""
+    db.init_engine(f"sqlite:///{tmp_path / 'qai.db'}")
+    db.create_all()
+    monkeypatch.setattr(settings, "artifact_dir", tmp_path / "artifacts")
+
+    result = await run_queue_scan("example.com", registry=_registry(),
+                                  tools="all", workers=4, max_depth=3)
+    assert result.completed >= 2
+
+    # WorkItems were created at depth > 0 — the matrix recursed via enqueue.
+    with db.session_scope() as s:
+        max_depth = s.execute(select(func.max(WorkItem.depth)).where(
+            WorkItem.scan_id == result.scan_id)).scalar()
+        refeed = s.execute(select(func.coalesce(func.sum(WorkItem.new_keys_found), 0))
+                           .where(WorkItem.scan_id == result.scan_id)).scalar()
+    assert max_depth >= 1            # discovered keys created downstream jobs
+    assert refeed >= 1               # at least one downstream (key, tool) enqueued
+
+
+@pytest.mark.asyncio
+async def test_ai_decision_keeps_in_scope_estate(tmp_path, monkeypatch):
+    """An in-scope subdomain of the (reserved) seed is NOT dropped as noise:
+    scope is authoritative over the generic noise patterns."""
+    db.init_engine(f"sqlite:///{tmp_path / 'qscope.db'}")
+    db.create_all()
+    monkeypatch.setattr(settings, "artifact_dir", tmp_path / "artifacts")
+
+    # Seed is example.com (a noise pattern). Its own subdomain api.example.com
+    # must still be persisted and recursed, because it is in scope.
+    result = await run_queue_scan("example.com", registry=_registry(),
+                                  tools="all", workers=4, max_depth=3)
+    with db.session_scope() as s:
+        values = {a.value for a in s.execute(select(Asset)).scalars()}
+    assert "api.example.com" in values
+    assert "deep.api.example.com" in values
+
+
+@pytest.mark.asyncio
 async def test_no_item_processed_twice(tmp_path, monkeypatch):
     """Atomic claim: with many workers, processed == number of work items."""
     db.init_engine(f"sqlite:///{tmp_path / 'q2.db'}")

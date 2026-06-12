@@ -85,6 +85,7 @@ _API_KEY_YAML_MAP = {
     "GRAYHATWARFARE_API_KEY": "grayhatwarfare",
     "HUNTER_API_KEY": "hunter",
     "HIBP_API_KEY": "hibp",
+    "PUBLICWWW_API_KEY": "publicwww",
     "NVD_API_KEY": "nvd",
     "VULNERS_API_KEY": "vulners",
 }
@@ -147,6 +148,29 @@ def _resolve(env_name: str, yaml_keys: tuple[str, ...], default: Any) -> Any:
     return val if val not in (None, "") else default
 
 
+# Conservative per-provider QPS ceilings so the engine stays UNDER each source's
+# published / free-tier limit. This is limit COMPLIANCE (politeness), NOT evasion:
+# it throttles us below a provider's threshold so many workers sharing one key can
+# never collectively exceed it. Keys are the HttpClient `bucket=` names. Override
+# any of them via `network.rate_limits:` in config/recontool.yaml.
+DEFAULT_PROVIDER_QPS: dict[str, float] = {
+    "hackertarget": 0.2,   # free API is very limited (a few requests/min)
+    "crtsh": 1.0,
+    "otx": 2.0,
+    "wayback": 1.0,
+    "wayback_js": 1.0,
+    "shodan": 1.0,
+    "censys": 1.0,
+    "netlas": 1.0,
+    "urlscan": 1.0,
+    "leakix": 1.0,
+    "fullhunt": 1.0,
+    "criminalip": 1.0,
+    "greynoise": 1.0,
+    "internetdb": 1.0,
+}
+
+
 @dataclass
 class Settings:
     db_url: str = field(default_factory=lambda: _resolve(
@@ -175,6 +199,15 @@ class Settings:
     ai_max_calls: int = field(default_factory=lambda: int(_resolve(
         "RECON_AI_MAX_CALLS", ("ai", "max_calls"), 40)))
 
+    # API / UI server (read API + SSE + scan control). Bind to localhost by
+    # default; a bearer token is REQUIRED for every non-health route.
+    api_token: str | None = field(default_factory=lambda: _resolve(
+        "RECON_API_TOKEN", ("api", "token"), "") or None)
+    api_host: str = field(default_factory=lambda: _resolve(
+        "RECON_API_HOST", ("api", "host"), "127.0.0.1"))
+    api_port: int = field(default_factory=lambda: int(_resolve(
+        "RECON_API_PORT", ("api", "port"), 8088)))
+
     @property
     def proxies(self) -> list[str]:
         env = _csv_env("RECON_PROXIES")
@@ -184,6 +217,24 @@ class Settings:
 
     def profile(self) -> RateProfile:
         return PROFILES.get(self.profile_name, PROFILES["normal"])
+
+    def provider_rate_limits(self) -> dict[str, float]:
+        """Per-provider QPS ceilings (compliance — stay under each source's limit).
+
+        Built-in conservative defaults for rate-sensitive endpoints, overridable
+        via ``network.rate_limits:`` in recontool.yaml (provider bucket -> QPS).
+        This throttles the engine BELOW a provider's published ceiling; it is not
+        a rate-limit-bypass mechanism.
+        """
+        merged = dict(DEFAULT_PROVIDER_QPS)
+        cfg = _cfg("network", "rate_limits", default={}) or {}
+        if isinstance(cfg, dict):
+            for k, v in cfg.items():
+                try:
+                    merged[str(k)] = float(v)
+                except (TypeError, ValueError):
+                    continue
+        return merged
 
     def api_key(self, name: str) -> str | None:
         """Resolve a provider key: ENV var first, then config/recontool.yaml."""

@@ -20,6 +20,44 @@ def _uuid() -> str:
     return str(uuid.uuid4())
 
 
+def _format_human(entry: dict[str, Any]) -> str:
+    """Render a structured engine entry as one concise, readable line.
+
+    Falls back to the raw dict for any event type without a bespoke format, so
+    new event kinds remain loggable without a code change here.
+    """
+    ev = entry.get("event", "event")
+    tool = entry.get("tool_name", "")
+    if ev == "tool_start":
+        inputs = entry.get("inputs") or {}
+        ins = ", ".join(f"{k}={v[0] if isinstance(v, list) and v else v}"
+                        for k, v in inputs.items())
+        return f"▶ start  {tool}  ← {ins}" if ins else f"▶ start  {tool}"
+    if ev == "tool_complete":
+        n = entry.get("entity_count", 0)
+        ms = entry.get("duration_ms", 0)
+        return f"✓ done   {tool}  {n} entities  {ms}ms"
+    if ev == "tool_fail":
+        return f"✗ fail   {tool}  {entry.get('error', '')[:160]}"
+    if ev == "entity_discovered":
+        et, val = entry.get("entity_type", "?"), entry.get("entity_value", "")
+        src = entry.get("tool_name", "")
+        return f"  + {et}={val}" + (f"  (from {src})" if src else "")
+    if ev == "pending_key_change":
+        return (f"  · key {entry.get('action', '')} "
+                f"{entry.get('key_type', '')}={entry.get('key_value', '')}")
+    if ev == "ai_decision":
+        return f"AI  {tool}: {entry.get('ai_decision_summary', '')}"
+    if ev == "concurrency_decision":
+        return (f"sched {tool}: {entry.get('concurrency_decision', '')} "
+                f"{entry.get('reason', '')}").rstrip()
+    if ev == "enqueue":
+        return (f"  ↳ enqueued {entry.get('new_items', 0)} work items "
+                f"for {entry.get('key_type', '')}={entry.get('key_value', '')} "
+                f"(depth {entry.get('depth', 0)})")
+    return str(entry)
+
+
 class EngineLogger:
     """Structured logger for engine events.
 
@@ -47,11 +85,16 @@ class EngineLogger:
         return list(self._entries)
 
     def _emit(self, entry: dict[str, Any]) -> None:
-        """Record and emit a structured log entry."""
+        """Record and emit a structured log entry.
+
+        The dict is appended to ``entries`` (for programmatic/JSON consumers) and
+        a concise human-readable line is sent to the stdlib logger so a `-v` scan
+        shows readable progress instead of a raw dict dump.
+        """
         entry.setdefault("correlation_id", self._correlation_id)
         entry.setdefault("timestamp", _now_iso())
         self._entries.append(entry)
-        self._logger.info("%s", entry)
+        self._logger.info("%s", _format_human(entry), extra={"engine_event": entry})
 
     def log_tool_start(
         self,
@@ -186,4 +229,29 @@ class EngineLogger:
             "scan_id": scan_id,
             "tool_name": tool_name,
             "ai_decision_summary": ai_decision_summary or summary,
+        })
+
+    def log_enqueue(
+        self,
+        scan_id: str,
+        key_type: str,
+        key_value: str,
+        new_items: int,
+        depth: int = 0,
+        tool_name: str = "",
+    ) -> None:
+        """Log how many downstream (key, tool) work items a discovery created.
+
+        This is the visible signal that recursion is fanning out across the
+        matrix: a non-zero ``new_items`` means the discovered key matched
+        consumers and pushed new jobs onto the queue.
+        """
+        self._emit({
+            "event": "enqueue",
+            "scan_id": scan_id,
+            "key_type": key_type,
+            "key_value": key_value,
+            "new_items": new_items,
+            "depth": depth,
+            "tool_name": tool_name,
         })

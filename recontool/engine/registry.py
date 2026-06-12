@@ -343,6 +343,16 @@ class ToolRegistry:
 
     # --- Query methods --------------------------------------------------------
 
+    def upsert_many(self, specs: list[ToolSpec]) -> None:
+        """Add or replace tool specs by name, then rebuild the indexes once.
+
+        Used by the adapter bridge to register hand-written Python adapters as
+        first-class, routable tools (they win on a name collision).
+        """
+        for spec in specs:
+            self._tools[spec.name] = spec
+        self._reindex()
+
     def get(self, name: str) -> ToolSpec | None:
         """Get a tool spec by name."""
         return self._tools.get(name)

@@ -78,8 +78,8 @@ cp config/recontool.example.yaml config/recontool.yaml   # everything works WITH
 # 4. RUN — the platform is driven by a single scope domain
 recontool scan www.xyz.com                               # linear pipeline (passive, default)
 recontool scan xyz.com --authorize-active -o results.json # full linear pipeline (authorised)
-recontool engine www.xyz.com                             # recursive event-driven engine
-recontool engine xyz.com --noise-control -o out.json     # recursive + noise filtering
+recontool engine www.xyz.com                             # recursive engine (passive, streams logs+AI)
+recontool engine xyz.com --authorize-active -o out.json  # ◆ dive deep: resolve→probe→crawl→vuln loop
 ```
 
 If you don't `pip install -e .`, run it as a module: `python -m recontool.cli scan www.xyz.com`.
@@ -349,17 +349,44 @@ execute as soon as their input dependencies are satisfied, and **every discovery
 re-feeds the frontier** until no eligible tools remain (convergence).
 
 ```bash
-# run the recursive engine (parallel, convergence-based)
-recontool engine www.xyz.com                        # default profile (curated tools)
-recontool engine xyz.com --tools all                # excessive: every runnable tool
+# run the recursive engine (parallel, convergence-based) — PASSIVE by default
+recontool engine www.xyz.com                        # default profile (curated tools), passive
+recontool engine xyz.com --authorize-active         # ◆ DIVE DEEP: resolve→probe→port→crawl→vuln
+recontool engine xyz.com --tools all --authorize-active   # excessive: every runnable tool, deep
 recontool engine xyz.com --workers 8                # DB-backed multi-worker queue
 recontool engine xyz.com --noise-control            # drop dup / out-of-scope leads
 recontool engine xyz.com --wildcard-filter          # also drop wildcard-DNS noise (DNS lookups)
-recontool engine xyz.com --profile stealth --max-depth 4 -o out.json
+recontool engine xyz.com --authorize-active --profile stealth --max-depth 4 -o out.json
 
 # scale horizontally: point more workers at the same scan + RECON_DB_URL
-recontool worker <scan_id> --workers 8
+recontool worker <scan_id> --workers 8              # inherits the scan's active authorization
 ```
+
+The engine **streams its logs and AI decisions by default** — a plain
+`recontool engine <seed>` prints every tool start/finish, each discovered
+entity, how many downstream `work_item`s it enqueued (the recursion fan-out),
+and the AI keep/drop/triage decision per tool. Add `-v` for per-request DEBUG.
+
+#### Flags to dive deep
+
+| Flag | What it unlocks |
+|------|-----------------|
+| `--authorize-active` | **The dive-deep gate.** Passive by default (CT logs, passive DNS, archives — no target contact). This unlocks the active chain that touches the target: DNS resolution → HTTP probe → port scan (`naabu`, pure-Python fallback) → live JS-render + crawl (`pycrawl`/`js-render`) → content/param discovery → `nuclei`. **Only use on targets you are authorised to test.** |
+| `--tools all` | Run *every* runnable tool, not just the curated default profile (overlap is free via idempotent keys; pair with `--noise-control`). |
+| `--max-depth N` | How far discovered keys re-feed (recursion depth from the seed). Default 3. |
+| `--workers N` | Concurrent async workers draining the queue (scale across hosts with `recontool worker`). |
+| `--noise-control` / `--wildcard-filter` | Drop duplicate / out-of-scope / wildcard-DNS / CDN leads before they re-feed. Recommended with `--tools all`. |
+| `-v` / `-vv` | `-v` adds per-request DEBUG; `-vv` is maximally verbose. |
+| `--profile stealth\|normal\|aggressive` | Tunes concurrency / QPS / jitter / port breadth / nuclei severity. |
+
+> **Deep recursion works with zero external binaries.** The engine runs the
+> built-in pure-Python adapters (`dns_resolve`, `httpx_probe`, the `naabu`
+> connect-scan fallback, the `pycrawl` crawler, JS analysis) directly — so
+> `--authorize-active` gives a full passive→live→active→loop chain even before
+> you install `subfinder`/`httpx`/`naabu`/`nuclei`. Installed Go binaries are
+> used automatically when present (they win nothing over correctness; they add
+> speed/coverage). Hand-written adapters always take precedence over the generic
+> spec of the same name.
 
 **Tool profiles (flag-gated, nothing eliminated):** `--tools default` runs the
 curated/recommended set (correct parsers); `--tools all` (a.k.a. excessive) runs
@@ -377,9 +404,12 @@ ScanRequested -> ToolSelected -> ToolRunning -> EntityDiscovered
 ```
 
 Key capabilities:
-- **Real end-to-end execution** — `engine/runner.py` runs each scheduled tool through
-  the generic adapters, normalizes results into the DB (idempotent dedupe), and
-  re-feeds `EntityDiscovered` so discovery recurses (`recontool engine`).
+- **Real end-to-end execution** — `engine/runner.py` runs each scheduled tool
+  (hand-written Python adapter when one exists, else the generic spec), normalizes
+  results into the DB (idempotent dedupe), and re-feeds `EntityDiscovered` so
+  discovery recurses (`recontool engine`). The hand-written adapters (DNS resolve,
+  HTTP probe, `pycrawl`, `naabu` fallback, JS analysis) are bridged into the engine
+  registry so the recursive chain runs with no external binaries.
 - **Parallel executor** — layered concurrency control (global, per-tool, per-host
   asyncio semaphores). Recon is I/O-bound, so one node fans out hundreds of
   concurrent lookups without lag; tune with the rate profile.
@@ -422,6 +452,65 @@ single-source design in [`docs/00-FINAL-ARCHITECTURE.md`](docs/00-FINAL-ARCHITEC
 | [08-observability.md](docs/engine/08-observability.md) | Logging format, metrics, correlation IDs |
 | [09-adding-new-adapter.md](docs/engine/09-adding-new-adapter.md) | Step-by-step guide with examples |
 | [10-troubleshooting.md](docs/engine/10-troubleshooting.md) | Common issues, debugging, FAQ |
+
+---
+
+## API / UI server, scaling & org-forest
+
+### Live status & control API (`recontool serve`)
+A FastAPI service exposes the engine state for a UI/front-end — read endpoints,
+a live **SSE** progress stream, and an auth-gated scan-control endpoint.
+
+```bash
+pip install fastapi uvicorn                    # optional extra (in the Docker image already)
+export RECON_API_TOKEN=$(openssl rand -hex 16) # REQUIRED — no token => data routes return 503
+recontool serve                                # binds 127.0.0.1:8088 (docs at /docs)
+```
+
+| Route | Purpose |
+|-------|---------|
+| `GET /health` | liveness (open) |
+| `GET /scans` · `GET /scans/{id}` | list scans · overview (counts + recursion-depth stats) |
+| `GET /scans/{id}/assets?type=` · `/findings` | typed asset inventory · findings |
+| `GET /scans/{id}/queue` | WorkQueue / recursion view (status, depth fan-out, re-feed) |
+| `GET /scans/{id}/graph` | `{nodes, edges}` for the relationship graph front-end |
+| `GET /scans/{id}/events` | **SSE** — live queue progress until convergence |
+| `POST /scans` | start a scan (body: seed, profile, `authorize_active`, …) |
+
+> **Security:** every route except `/health` requires `Authorization: Bearer
+> $RECON_API_TOKEN` (constant-time check; default-deny if unset). It binds to
+> localhost by default — only expose it behind a TLS reverse proxy with the token
+> set. It's a privileged control surface (it can launch active scans).
+
+### Horizontal worker fleet (AWS distribution)
+The atomic-claim `work_item` queue lets N identical workers drain one scan in
+parallel against a shared `RECON_DB_URL` (Postgres/RDS) — the unit you replicate
+across Fargate/ECS/EC2.
+
+```bash
+docker compose up -d postgres                                  # shared queue (RDS in AWS)
+docker compose --profile app run --rm recontool engine xyz.com --authorize-active   # seed a scan
+SCAN_ID=<id> docker compose --profile fleet up --scale worker=8 worker              # fan out 8 workers
+docker compose --profile api up api                            # + the read/SSE API (set RECON_API_TOKEN)
+```
+
+### Org-forest pivots (sibling-site discovery)
+`org_fingerprint` (active) extracts an org's shared fingerprints from a live host —
+**favicon mmh3 hash**, **Google Analytics/GA4/GTM/AdSense IDs**, and **copyright
+org** — and the keyed lookups `favicon-shodan` / `analytics-publicwww` pivot those
+to related domains. Siblings are recorded as **`org` intelligence + graph edges**,
+never auto-promoted to an in-scope active scan (authorized-only: add a sibling to
+scope and re-seed to scan it).
+
+### Rate-limit compliance (not evasion)
+Per-provider QPS ceilings keep each source under its published limit so many
+workers sharing one key never collectively exceed it. Tune in `recontool.yaml`:
+
+```yaml
+network:
+  rate_limits: { hackertarget: 0.2, crtsh: 1.0, otx: 2.0 }   # requests/second per provider
+  proxies: []          # optional SINGLE declared egress for allow-listing (not rotation-for-evasion)
+```
 
 ---
 

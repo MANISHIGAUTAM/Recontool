@@ -24,9 +24,13 @@ from recontool.adapters.base import AdapterContext
 from recontool.core.artifacts import ArtifactStore
 from recontool.core.db import session_scope
 from recontool.core.scope import Scope
+from recontool.engine.ai_decision import (
+    AIDecisionService, decide_on_events, discarded_asset_pairs,
+)
 from recontool.engine.events import EntityDiscovered, EventBus
 from recontool.engine.execution import build_adapter_for, plan_execution
 from recontool.engine.executor import ExecutionResult
+from recontool.engine.logging import EngineLogger
 from recontool.engine.registry import ToolRegistry
 from recontool.engine.scheduler import ScheduledJob
 from recontool.normalize.engine import Normalizer
@@ -116,15 +120,19 @@ def make_execute_fn(
     api_keys: Optional[dict[str, str | None]] = None,
     noise: Optional["NoiseFilter"] = None,
     persist: bool = True,
+    ai_service: Optional[AIDecisionService] = None,
 ) -> ExecuteFn:
     """Build the execute_fn closure shared across all jobs in a scan.
 
     Artifacts are written under ``settings.artifact_dir``; set that (or
     ``RECON_ARTIFACT_DIR``) to redirect output, e.g. for tests. Pass ``noise`` to
-    gate the re-feed path (G4); ``None`` (default) means no filtering.
+    gate the re-feed path (G4); ``None`` (default) means no filtering. ``ai_service``
+    overrides the default heuristic AI-decisioning layer.
     """
     api_keys = api_keys or {}
     _stores: dict[str, ArtifactStore] = {}
+    ai = ai_service or AIDecisionService(scope=scope)
+    elog = EngineLogger("recontool.engine")
 
     def _artifacts(scan_id: str) -> ArtifactStore:
         if scan_id not in _stores:
@@ -149,19 +157,29 @@ def make_execute_fn(
                                    success=False, error=outcome.reason)
 
         events = outcome.events
-        if persist and events:
-            with session_scope() as s:
-                Normalizer(s, job.scan_id, scope=scope).ingest(events)
+        # AI decisioning: classify entities before persisting/re-feeding so noise
+        # never spawns downstream work; the decision is logged for visibility.
+        dropped: set[tuple[str, str]] = set()
         if events:
-            write_typed_outputs(_artifacts(job.scan_id), job.tool_name, events)
+            decision = decide_on_events(events, job.tool_name, service=ai)
+            elog.log_ai_decision(job.scan_id, decision.reasoning, tool_name=job.tool_name)
+            dropped = discarded_asset_pairs(decision)
+            persist_events = decision.persist or events
+            if persist:
+                with session_scope() as s:
+                    Normalizer(s, job.scan_id, scope=scope).ingest(persist_events)
+            write_typed_outputs(_artifacts(job.scan_id), job.tool_name, persist_events)
 
         # Fan out: publish each unique discovered asset so the scheduler can
         # select tools that consume the new entity type (the recursion). The
         # optional noise gate (G4) drops dup / out-of-scope / wildcard / CDN
         # leads before they spawn more work.
         for etype, evalue in discovered_assets(events):
+            if (etype, evalue) in dropped:
+                continue  # AI decisioning flagged it as noise
             if noise is not None and not await noise.keep(job.scan_id, etype, evalue):
                 continue
+            elog.log_entity_discovered(job.scan_id, etype, evalue, tool_name=job.tool_name)
             await bus.publish(EntityDiscovered(
                 scan_id=job.scan_id, entity_type=etype, entity_value=evalue,
                 tool_name=job.tool_name,
@@ -193,6 +211,10 @@ def build_scan_infra(seed: str, seed_type: str, profile_name: str | None):
     scope = _Scope.from_seed(seed, seed_type)
     proxies = ProxyPool(settings.proxies, strategy=settings.proxy_strategy)
     limiter = RateLimiter(default_rate=profile.requests_per_second)
+    # Per-provider QPS ceilings (compliance): keep each source under its published
+    # limit so shared keys / many workers never collectively exceed it.
+    for bucket, qps in settings.provider_rate_limits().items():
+        limiter.configure(bucket, qps)
     http = HttpClient(profile=profile, proxy_pool=proxies, limiter=limiter)
     api_keys = {k: settings.api_key(k) for k in _API_KEY_ENVS}
     return profile, scope, http, api_keys
@@ -210,6 +232,34 @@ def build_noise(scope, noise_control: bool, wildcard_filter: bool):
     )
 
 
+def load_engine_registry(
+    tools: str = "default",
+    *,
+    authorize_active: bool = False,
+    registry: ToolRegistry | None = None,
+) -> ToolRegistry:
+    """Load the unified tool registry the engine runs against.
+
+    Single source for every execution path (in-process engine + queue workers):
+      1. load the catalogue (inventory + curated + generic specs),
+      2. **bridge the hand-written Python adapters** in as runnable, routable
+         tools (dns_resolve, httpx_probe, pycrawl, naabu fallback, …) so the
+         recursion does not dead-end where no Go binary is installed,
+      3. apply the tool profile + the passive/active gate.
+    """
+    from recontool.engine.adapters_bridge import register_python_adapters
+    from recontool.engine.selection import apply_selection
+
+    # Only bridge the hand-written adapters when WE load the catalogue. A caller
+    # that supplies its own registry (e.g. a focused test) gets it used as-is.
+    bridge = registry is None
+    registry = registry or ToolRegistry.load()
+    if bridge:
+        register_python_adapters(registry)
+    apply_selection(registry, tools, authorize_active=authorize_active)
+    return registry
+
+
 async def run_engine_scan(
     seed: str,
     *,
@@ -217,6 +267,7 @@ async def run_engine_scan(
     profile_name: str | None = None,
     registry: ToolRegistry | None = None,
     tools: str = "default",
+    authorize_active: bool = False,
     noise_control: bool = False,
     wildcard_filter: bool = False,
     max_iterations: int = 50,
@@ -226,16 +277,18 @@ async def run_engine_scan(
 
     Discovery fans out as soon as a tool's inputs are available, recurses on each
     new entity, and converges when no eligible tools remain. `tools` selects the
-    profile ("default" curated vs "all"/"excessive"). Returns a ScanResult.
+    profile ("default" curated vs "all"/"excessive"). Active tools (resolve /
+    probe / port / crawl / vuln) only run when ``authorize_active`` is set.
+    Returns a ScanResult.
     """
     from recontool.core.db import create_all
     from recontool.engine.orchestrator import EventDrivenOrchestrator, ScanConfig
-    from recontool.engine.selection import apply_selection
 
     create_all()
     profile, scope, http, api_keys = build_scan_infra(seed, seed_type, profile_name)
-    registry = registry or ToolRegistry.load()
-    apply_selection(registry, tools)
+    registry = load_engine_registry(
+        tools, authorize_active=authorize_active, registry=registry
+    )
     noise = build_noise(scope, noise_control, wildcard_filter)
 
     bus = EventBus()

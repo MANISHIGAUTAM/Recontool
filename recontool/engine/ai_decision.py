@@ -33,6 +33,12 @@ class AIDecisionService:
 
     All methods are designed to be overridden or mocked for testing.
     The default implementation uses simple rules without AI API calls.
+
+    Pass ``scope`` (a ``core.scope.Scope``) so the service is scope-aware: an
+    asset that is inside the scan's authorized scope is NEVER classified as
+    noise, even if it matches a generic noise pattern. Without this, scanning a
+    reserved documentation domain (e.g. example.com itself) would see all of its
+    own in-scope subdomains discarded and recursion would dead-end.
     """
 
     # Noise patterns: entities matching these are considered noise
@@ -49,6 +55,9 @@ class AIDecisionService:
 
     # Entity types that always trigger downstream processing
     DOWNSTREAM_TRIGGERS: set[str] = {"subdomain", "ip", "domain"}
+
+    def __init__(self, scope: Any | None = None) -> None:
+        self._scope = scope
 
     def classify_results(self, normalized_output: NormalizedOutput) -> DecisionResult:
         """Classify all entities in a normalized output into action buckets.
@@ -102,11 +111,20 @@ class AIDecisionService:
     def is_noise(self, entity: Event) -> bool:
         """Determine if an entity is noise (should be discarded).
 
-        Checks against known noise patterns like localhost, example.com, etc.
+        Scope wins: an asset inside the authorized scan scope is never noise.
+        Otherwise checks against known noise patterns (localhost, example.com…).
         """
         value = entity.data.get("value", "").lower()
         if not value:
             return False
+        # In-scope assets are authoritative — never drop the target's own estate.
+        if self._scope is not None and entity.entity == "asset":
+            atype = entity.data.get("type", "")
+            try:
+                if atype and self._scope.contains(atype, entity.data.get("value", "")):
+                    return False
+            except Exception:  # noqa: BLE001 — defensive: scope check never blocks
+                pass
         for pattern in self.NOISE_PATTERNS:
             if value == pattern or value.endswith(f".{pattern}"):
                 return True
@@ -166,3 +184,42 @@ class AIDecisionService:
         if manual_review:
             parts.append(f"Flagging {len(manual_review)} for manual review")
         return "; ".join(parts) if parts else "No entities to classify"
+
+
+def discarded_asset_pairs(decision: "DecisionResult") -> set[tuple[str, str]]:
+    """The (entity_type, value) pairs the decision marked as noise to drop.
+
+    Used by the execution paths to keep a discarded asset out of the recursion
+    re-feed: a tool may still have produced it, but AI decisioning said it is
+    noise, so it must not spawn downstream work.
+    """
+    pairs: set[tuple[str, str]] = set()
+    for ev in decision.discard:
+        if ev.entity == "asset":
+            t, v = ev.data.get("type"), ev.data.get("value")
+            if t and v:
+                pairs.add((t, v))
+    return pairs
+
+
+def decide_on_events(
+    events: list[Event],
+    tool_name: str,
+    *,
+    service: AIDecisionService | None = None,
+    confidence: float = 1.0,
+) -> DecisionResult:
+    """Run AI decisioning over one tool's output events.
+
+    The single entry point both engine execution paths use so the heuristic (or
+    an AI-augmented override) is applied uniformly. Wraps the raw adapter events
+    in a NormalizedOutput and classifies them into persist/discard/trigger
+    buckets. Returns the DecisionResult; the caller logs it and acts on it.
+    """
+    svc = service or AIDecisionService()
+    normalized = NormalizedOutput(
+        discovered_entities=list(events),
+        confidence_score=confidence,
+        metadata={"tool_name": tool_name},
+    )
+    return svc.classify_results(normalized)

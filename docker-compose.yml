@@ -23,6 +23,48 @@ services:
       RECON_REDIS_URL: ""
     profiles: ["app"]   # `docker compose --profile app run recontool ...`
 
+  # ── Horizontal worker fleet (the AWS-distribution unit) ──────────────────────
+  # The atomic-claim queue lets N identical containers drain ONE scan in parallel,
+  # each claiming work safely from the shared Postgres. This `worker` service IS
+  # the unit you replicate across AWS (Fargate/ECS tasks or EC2) — point every
+  # task at one RDS instance via RECON_DB_URL. Local usage:
+  #   1) seed a scan (writes the queue + its scan id):
+  #        docker compose --profile app run --rm recontool engine xyz.com --authorize-active
+  #   2) fan out N workers to drain it:
+  #        SCAN_ID=<id> docker compose --profile fleet up --scale worker=8 worker
+  worker:
+    build: .
+    image: recontool:latest
+    command: ["worker", "${SCAN_ID:?set SCAN_ID to the scan id to drain}", "--workers", "8"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      RECON_DB_URL: postgresql+psycopg://recon:recon@postgres:5432/recontool
+    volumes:
+      - ./config:/app/config
+      - ./artifacts:/app/artifacts
+    profiles: ["fleet"]
+
+  # ── Read API + live SSE + scan control (auth-gated) ──────────────────────────
+  # docker compose --profile api up api   (set RECON_API_TOKEN first)
+  api:
+    build: .
+    image: recontool:latest
+    command: ["serve", "--host", "0.0.0.0"]
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      RECON_DB_URL: postgresql+psycopg://recon:recon@postgres:5432/recontool
+      RECON_API_TOKEN: "${RECON_API_TOKEN:?set RECON_API_TOKEN to enable the API}"
+      RECON_API_HOST: 0.0.0.0
+    volumes:
+      - ./artifacts:/app/artifacts
+    profiles: ["api"]
+
   postgres:
     image: postgres:16-alpine
     environment:

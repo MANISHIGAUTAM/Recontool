@@ -140,12 +140,28 @@ install_resources() {
   fi
 }
 
+# ── Optional Python extras (API server, JS-render browser, favicon pivot) ─────
+install_python_extras() {
+  log "Installing optional Python extras (fastapi/uvicorn/mmh3/playwright)..."
+  pip3 install --quiet fastapi uvicorn mmh3 playwright 2>/dev/null \
+    && ok "python extras (API + favicon-hash) installed" \
+    || warn "some python extras failed (API/favicon degrade cleanly)"
+  # Playwright needs a browser for the live JS-render crawler; without it the
+  # js-render tool falls back to a static fetch (so this is optional).
+  if have playwright || python3 -c "import playwright" 2>/dev/null; then
+    python3 -m playwright install --with-deps chromium 2>/dev/null \
+      && ok "playwright chromium installed (live JS-render enabled)" \
+      || warn "playwright browser install failed — js-render uses static fallback"
+  fi
+}
+
 case "$SET" in
   core) install_core ;;
   resources) install_resources ;;
   massdns) install_massdns ;;
-  all) install_all; install_massdns ;;
-  *) echo "usage: $0 [core|all|resources|massdns]"; exit 1 ;;
+  python|extras) install_python_extras ;;
+  all) install_all; install_massdns; install_python_extras ;;
+  *) echo "usage: $0 [core|all|resources|massdns|python]"; exit 1 ;;
 esac
 
 ok "Tool installation finished. Check with: recontool tools"
