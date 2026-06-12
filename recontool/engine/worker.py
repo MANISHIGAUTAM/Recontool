@@ -233,8 +233,9 @@ class WorkerPool:
         if self.incremental and spec is not None:
             reused = await self._try_incremental(item, scan_id, fp)
             if reused is not None:
-                self._finish_item(item.id, "completed", reused)
-                self._record_run(scan_id, item.tool_slug, fp, "skipped", 0, [])
+                await asyncio.to_thread(self._finish_item, item.id, "completed", reused)
+                await asyncio.to_thread(
+                    self._record_run, scan_id, item.tool_slug, fp, "skipped", 0, [])
                 self.log.log_tool_complete(
                     run_id, scan_id, item.tool_slug, duration_ms=0,
                     entity_count=0, key_type=item.key_type,
@@ -263,18 +264,18 @@ class WorkerPool:
                                          tool_name=item.tool_slug)
                 dropped = discarded_asset_pairs(decision)
                 persist_events = decision.persist or events
-                with session_scope() as s:
-                    Normalizer(s, scan_id, scope=self.scope).ingest(persist_events)
-                out_paths = write_typed_outputs(store, item.tool_slug, persist_events)
+                await asyncio.to_thread(self._ingest, scan_id, persist_events)
+                out_paths = await asyncio.to_thread(
+                    write_typed_outputs, store, item.tool_slug, persist_events)
                 new_keys = await self._enqueue_discovered(
                     scan_id, events, item.depth + 1, item.key, item.tool_slug, dropped)
 
-        self._finish_item(item.id, status, new_keys)
+        await asyncio.to_thread(self._finish_item, item.id, status, new_keys)
         dur_ms = int((time.monotonic() - t0) * 1000)
         # ALWAYS record a ToolRun — real per-tool execution history + the
         # input fingerprint that powers incremental delta-only reruns.
-        self._record_run(scan_id, item.tool_slug, fp, status, len(events),
-                         out_paths, dur_ms=dur_ms, error=reason)
+        await asyncio.to_thread(self._record_run, scan_id, item.tool_slug, fp, status,
+                                len(events), out_paths, dur_ms=dur_ms, error=reason)
         if status == "failed":
             self.log.log_tool_fail(run_id, scan_id, item.tool_slug, reason)
         else:
@@ -290,6 +291,18 @@ class WorkerPool:
                 row.status = status
                 row.finished_at = _now()
                 row.new_keys_found = new_keys
+
+    def _ingest(self, scan_id: str, events: list) -> None:
+        """Sync DB unit-of-work (run in a thread): normalize events into the DB."""
+        with session_scope() as s:
+            Normalizer(s, scan_id, scope=self.scope).ingest(events)
+
+    def _find_prior(self, tool: str, fp: str, scan_id: str):
+        """Sync DB unit-of-work (run in a thread): find a reusable prior run's paths."""
+        with session_scope() as s:
+            prior = IncrementalEngine(s).find_fresh_completed(
+                tool, fp, max_age_seconds=self.incremental_max_age, exclude_scan=scan_id)
+            return list(prior.artifact_paths or []) if prior is not None else None
 
     def _record_run(self, scan_id: str, tool: str, fp: str, status: str,
                     entity_count: int, paths, *, dur_ms: int = 0,
@@ -313,20 +326,37 @@ class WorkerPool:
         """
         if depth > self.max_depth:
             return 0
-        new_keys = 0
+        # Apply the (async) noise gate first to get the survivor set, THEN enqueue
+        # them all in ONE transaction — avoids a separate DB commit per entity.
+        survivors: list[tuple[str, str]] = []
         for etype, evalue in discovered_assets(events):
             if (etype, evalue) in dropped:
                 continue  # AI decisioning flagged it as noise
             if self.noise is not None and not await self.noise.keep(scan_id, etype, evalue):
                 continue
-            with session_scope() as s:
-                n = enqueue_key(s, scan_id, evalue, etype, self.registry,
-                                depth=depth, parent=parent, route=self._route)
+            survivors.append((etype, evalue))
+        if not survivors:
+            return 0
+        # Offload the enqueue transaction to a thread (DB-bound); log on the loop.
+        results = await asyncio.to_thread(
+            self._enqueue_batch, scan_id, survivors, depth, parent)
+        new_keys = 0
+        for etype, evalue, n in results:
             new_keys += n
             self.log.log_entity_discovered(scan_id, etype, evalue, tool_name=tool)
             if n:
                 self.log.log_enqueue(scan_id, etype, evalue, n, depth=depth, tool_name=tool)
         return new_keys
+
+    def _enqueue_batch(self, scan_id: str, survivors: list, depth: int, parent: str):
+        """Sync DB unit-of-work (run in a thread): enqueue all survivors in ONE txn."""
+        out: list[tuple[str, str, int]] = []
+        with session_scope() as s:
+            for etype, evalue in survivors:
+                n = enqueue_key(s, scan_id, evalue, etype, self.registry,
+                                depth=depth, parent=parent, route=self._route)
+                out.append((etype, evalue, n))
+        return out
 
     async def _try_incremental(self, item: ClaimedItem, scan_id: str,
                                fp: str) -> Optional[int]:
@@ -337,17 +367,12 @@ class WorkerPool:
         tool. Returns new_keys enqueued, or None if there's nothing to reuse (the
         caller then executes the tool normally).
         """
-        with session_scope() as s:
-            prior = IncrementalEngine(s).find_fresh_completed(
-                item.tool_slug, fp, max_age_seconds=self.incremental_max_age,
-                exclude_scan=scan_id)
-            paths = list(prior.artifact_paths or []) if prior is not None else None
+        paths = await asyncio.to_thread(self._find_prior, item.tool_slug, fp, scan_id)
         if paths is None:
             return None
-        events = _load_typed_events(paths, item.tool_slug)
+        events = await asyncio.to_thread(_load_typed_events, paths, item.tool_slug)
         if events:
-            with session_scope() as s:
-                Normalizer(s, scan_id, scope=self.scope).ingest(events)
+            await asyncio.to_thread(self._ingest, scan_id, events)
         new_keys = await self._enqueue_discovered(
             scan_id, events, item.depth + 1, item.key, item.tool_slug, set())
         self.log.log_concurrency_decision(
@@ -355,12 +380,18 @@ class WorkerPool:
             f"reused prior run ({len(events)} entities)")
         return new_keys
 
+    def _claim(self, scan_id: str) -> Optional[ClaimedItem]:
+        """Sync DB unit-of-work (run in a worker thread): atomically claim one item."""
+        with session_scope() as s:
+            return claim_one(s, scan_id)
+
     async def _worker(self, scan_id: str) -> None:
         while True:
-            with session_scope() as s:
-                item = claim_one(s, scan_id)
+            # Offload the synchronous DB claim to a thread so the event loop stays
+            # free for other workers' async HTTP/DNS I/O (no blocking on DB).
+            item = await asyncio.to_thread(self._claim, scan_id)
             if item is None:
-                if not _has_active(scan_id):
+                if not await asyncio.to_thread(_has_active, scan_id):
                     return
                 await asyncio.sleep(0.02)
                 continue
