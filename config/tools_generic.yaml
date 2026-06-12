@@ -180,7 +180,8 @@ tools:
     consumes: [domain]
     produces: [url]
     binary: gau
-    invocation: "gau {domain} --threads 5"
+    invocation: "gau {domain} --threads 5 --providers wayback,otx,urlscan --timeout 15"
+    timeout: 120
     max_inputs: 20
     parse:
       format: text

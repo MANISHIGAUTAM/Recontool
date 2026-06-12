@@ -509,14 +509,15 @@ tools:
     integration: cli
     binary: gau
     install: {method: go, ref: "github.com/lc/gau/v2/cmd/gau@latest"}
-    invocation: "gau {domain} --threads 5 --json"
+    invocation: "gau {domain} --threads 5 --providers wayback,otx,urlscan --timeout 15"
+    timeout: 120
     input: domain
     output: url
-    output_format: jsonl
+    output_format: text
     requires_key: false
     default_on: true
     chains_to: [22, 25]
-    notes: "Aggregates wayback+commoncrawl+otx+urlscan in one call."
+    notes: "Wayback+OTX+URLScan (commoncrawl dropped: slow/flaky, stalled scans ~5min for 0 results); --timeout 15 fails fast. Plain-text output to match the parser."
 
   waybackurls:
     category: 4
