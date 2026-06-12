@@ -16,6 +16,7 @@ going. `run_engine_scan` wires the whole thing (infra + registry + orchestrator)
 """
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
@@ -25,7 +26,7 @@ from recontool.core.artifacts import ArtifactStore
 from recontool.core.db import session_scope
 from recontool.core.scope import Scope
 from recontool.engine.ai_decision import (
-    AIDecisionService, decide_on_events, discarded_asset_pairs,
+    AIDecisionService, decide_on_events_ai, discarded_asset_pairs,
 )
 from recontool.engine.events import EntityDiscovered, EventBus
 from recontool.engine.execution import build_adapter_for, plan_execution
@@ -77,8 +78,12 @@ async def run_tool_spec(
     return ToolOutcome("ok", events=events or [])
 
 
-def write_typed_outputs(store: ArtifactStore, tool: str, events: list) -> None:
-    """Append discovered entities to typed out/<tool>.<type>.jsonl files (G7)."""
+def write_typed_outputs(store: ArtifactStore, tool: str, events: list) -> list[str]:
+    """Append discovered entities to typed out/<tool>.<type>.jsonl files (G7).
+
+    Returns the list of artifact-relative paths written (one per produced type),
+    so the caller can log exactly where each tool's output landed.
+    """
     by_type: dict[str, list[str]] = {}
     for ev in events:
         if ev.entity == "asset":
@@ -90,10 +95,78 @@ def write_typed_outputs(store: ArtifactStore, tool: str, events: list) -> None:
                 f"{ev.data.get('host', '')}:{ev.data.get('port', '')}")
         elif ev.entity == "finding":
             by_type.setdefault("finding", []).append(ev.data.get("title", ""))
+    paths: list[str] = []
     for etype, vals in by_type.items():
         vals = [v for v in vals if v]
         if vals:
-            store.save_typed(tool, etype, vals)
+            paths.append(store.save_typed(tool, etype, vals))
+    return paths
+
+
+def write_scan_bundle(scan_id: str) -> str | None:
+    """Write ``artifacts/<scan_id>/scan_bundle.json`` — the final per-scan manifest.
+
+    One file that points to the whole run's evidence: the DB summary (asset counts,
+    findings, recursion depth) plus an index of every on-disk artifact (per-tool
+    typed outputs, raw tool dirs, harvested JS). The artifacts dir is host-mounted
+    in docker-compose, so this is the "final scan archive" handed to the operator.
+    Returns the bundle's artifact-relative path, or None if the scan dir is absent.
+    """
+    from sqlalchemy import func, select
+
+    from recontool.config import settings
+    from recontool.core.db import session_scope
+    from recontool.core.models import Asset, Finding, Scan
+    from recontool.engine.models import WorkItem
+
+    scan_dir = settings.artifact_dir / scan_id
+    with session_scope() as s:
+        scan = s.get(Scan, scan_id)
+        assets_by_type = dict(s.execute(
+            select(Asset.type, func.count(Asset.id))
+            .where(Asset.scan_id == scan_id).group_by(Asset.type)).all())
+        findings = [
+            {"severity": f.severity, "kind": f.kind, "title": f.title,
+             "asset": f.asset_value, "detector": f.detector}
+            for f in s.execute(
+                select(Finding).where(Finding.scan_id == scan_id)
+                .order_by(Finding.severity)).scalars().all()
+        ]
+        max_depth = s.execute(select(func.max(WorkItem.depth))
+                              .where(WorkItem.scan_id == scan_id)).scalar() or 0
+        completed = s.execute(select(func.count(WorkItem.id)).where(
+            WorkItem.scan_id == scan_id, WorkItem.status == "completed")).scalar() or 0
+
+    def _rel(p) -> str:
+        return str(p.relative_to(settings.artifact_dir))
+
+    out_dir, raw_dir, js_dir = scan_dir / "out", scan_dir / "raw", scan_dir / "js"
+    typed = sorted(_rel(p) for p in out_dir.glob("*.jsonl")) if out_dir.exists() else []
+    raw_tools = sorted(f"raw/{p.name}" for p in raw_dir.iterdir()) if raw_dir.exists() else []
+    js_files = len(list(js_dir.rglob("*.js"))) if js_dir.exists() else 0
+
+    bundle = {
+        "scan_id": scan_id,
+        "seed": getattr(scan, "seed", None),
+        "seed_type": getattr(scan, "seed_type", None),
+        "status": getattr(scan, "status", None),
+        "active_authorized": bool(getattr(scan, "active_authorized", False)),
+        "assets_by_type": assets_by_type,
+        "assets_total": sum(assets_by_type.values()),
+        "findings_count": len(findings),
+        "findings": findings,
+        "recursion": {"max_depth": int(max_depth), "tools_completed": int(completed)},
+        "artifacts": {
+            "root": scan_id,
+            "typed_outputs": typed,           # out/<tool>.<type>.jsonl
+            "raw_tool_dirs": raw_tools,        # raw/<tool>/
+            "js_file_count": js_files,
+        },
+    }
+    scan_dir.mkdir(parents=True, exist_ok=True)
+    path = scan_dir / "scan_bundle.json"
+    path.write_text(json.dumps(bundle, indent=2, default=str))
+    return _rel(path)
 
 
 def discovered_assets(events: list) -> list[tuple[str, str]]:
@@ -121,6 +194,7 @@ def make_execute_fn(
     noise: Optional["NoiseFilter"] = None,
     persist: bool = True,
     ai_service: Optional[AIDecisionService] = None,
+    ai_router: Any | None = None,
 ) -> ExecuteFn:
     """Build the execute_fn closure shared across all jobs in a scan.
 
@@ -161,7 +235,8 @@ def make_execute_fn(
         # never spawns downstream work; the decision is logged for visibility.
         dropped: set[tuple[str, str]] = set()
         if events:
-            decision = decide_on_events(events, job.tool_name, service=ai)
+            decision = await decide_on_events_ai(
+                events, job.tool_name, service=ai, router=ai_router)
             elog.log_ai_decision(job.scan_id, decision.reasoning, tool_name=job.tool_name)
             dropped = discarded_asset_pairs(decision)
             persist_events = decision.persist or events
@@ -292,9 +367,10 @@ async def run_engine_scan(
     noise = build_noise(scope, noise_control, wildcard_filter)
 
     bus = EventBus()
+    from recontool.ai.router import ModelRouter
     execute_fn = make_execute_fn(
         bus, registry, scope=scope, profile=profile, http=http,
-        api_keys=api_keys, noise=noise,
+        api_keys=api_keys, noise=noise, ai_router=ModelRouter(),
     )
     orchestrator = EventDrivenOrchestrator(bus=bus, registry=registry, execute_fn=execute_fn)
     return await orchestrator.run_scan(

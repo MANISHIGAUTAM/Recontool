@@ -17,6 +17,15 @@ def _now() -> dt.datetime:
     return dt.datetime.now(dt.timezone.utc)
 
 
+def _age_seconds(finished: dt.datetime) -> float:
+    """Seconds since ``finished``, tolerant of naive timestamps (SQLite returns
+    tz-naive datetimes even for tz-aware columns)."""
+    now = _now()
+    if finished.tzinfo is None:
+        now = now.replace(tzinfo=None)
+    return (now - finished).total_seconds()
+
+
 class IncrementalEngine:
     """Determines whether a tool needs to re-run based on state changes.
 
@@ -64,8 +73,7 @@ class IncrementalEngine:
 
         # Check staleness
         if last_run.finished_at:
-            age = (_now() - last_run.finished_at).total_seconds()
-            if age > max_age_seconds:
+            if _age_seconds(last_run.finished_at) > max_age_seconds:
                 return True
 
         return False
@@ -74,6 +82,33 @@ class IncrementalEngine:
         """Persist a tool run record to the database."""
         self._session.add(tool_run)
         self._session.flush()
+
+    def find_fresh_completed(
+        self,
+        tool_name: str,
+        input_fingerprint: str,
+        *,
+        max_age_seconds: int = 604800,
+        exclude_scan: Optional[str] = None,
+    ) -> Optional[ToolRun]:
+        """Most recent COMPLETED run of (tool, exact input fingerprint), fresh
+        enough to reuse. Cross-scan by default (delta-only reruns): a re-scan can
+        skip a tool whose input is byte-identical to one already run recently in
+        any scan. Pass ``exclude_scan`` to ignore the current scan's own runs.
+        Returns None if none qualify (caller then executes normally).
+        """
+        q = self._session.query(ToolRun).filter_by(
+            tool_name=tool_name, input_fingerprint=input_fingerprint, status="completed"
+        )
+        if exclude_scan is not None:
+            q = q.filter(ToolRun.scan_id != exclude_scan)
+        run = q.order_by(ToolRun.id.desc()).first()
+        if run is None:
+            return None
+        if run.finished_at is not None:
+            if _age_seconds(run.finished_at) > max_age_seconds:
+                return None
+        return run
 
     def get_last_run(self, tool_name: str, scan_id: str) -> Optional[ToolRun]:
         """Get the most recent run of a tool in a scan."""

@@ -135,6 +135,9 @@ def engine(
     wildcard_filter: bool = typer.Option(
         False, "--wildcard-filter",
         help="also drop wildcard-DNS subdomains (implies --noise-control; does DNS lookups)."),
+    incremental: bool = typer.Option(
+        False, "--incremental",
+        help="delta-only reruns: skip tools whose exact input already ran in a recent prior scan."),
     verbose: int = typer.Option(
         0, "--verbose", "-v", count=True,
         help="-v shows per-tool/entity/AI logs (INFO); -vv shows DEBUG."),
@@ -191,13 +194,15 @@ def engine(
         workers=max(1, workers), authorize_active=authorize_active,
         noise_control=noise_control or wildcard_filter,
         wildcard_filter=wildcard_filter, max_depth=max_depth,
+        incremental=incremental,
     ))
     scan_id = qr.scan_id
 
     console.print(
         f"\n[bold]items processed:[/bold] {qr.items_processed}   "
         f"[bold]completed:[/bold] {qr.completed}   [bold]failed:[/bold] {qr.failed}   "
-        f"[bold]entities:[/bold] {qr.entities}")
+        + (f"[bold]skipped(incr):[/bold] {qr.skipped}   " if qr.skipped else "")
+        + f"[bold]entities:[/bold] {qr.entities}")
     _print_queue_stats(scan_id)
 
     _print_summary(scan_id)
@@ -207,6 +212,8 @@ def engine(
         console.print(f"\n[green]Exported[/green] full results → {path}")
     console.print(f"\nScan id: [bold cyan]{scan_id}[/bold cyan] "
                   f"(artifacts in {settings.artifact_dir}/{scan_id})")
+    if qr.bundle_path:
+        console.print(f"Final bundle: [cyan]{settings.artifact_dir}/{qr.bundle_path}[/cyan]")
     if verbose == 0 and not log_level:
         console.print("[dim]tip: add -v for per-request DEBUG detail, "
                       "--tools all to run every runnable tool.[/dim]")

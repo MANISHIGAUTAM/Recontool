@@ -71,6 +71,8 @@ pip install -e .                      # provides the `recontool` command
 
 # 2. (optional) install the external CLI tools (subfinder, httpx, nuclei, ...)
 bash docker/install_tools.sh core     # or `all` for the full set
+bash docker/install_tools.sh python   # optional: API server + JS-render browser + favicon
+                                       #   (fastapi, uvicorn, mmh3, playwright) — degrade cleanly if absent
 
 # 3. (optional) configure API keys / proxies / AI
 cp config/recontool.example.yaml config/recontool.yaml   # everything works WITHOUT this
@@ -97,26 +99,104 @@ recontool export <scan_id> -o out.json
 
 ## Configuration
 
-Two config files live in `config/`:
+Two files in `config/` (both optional — passive recon runs with zero config):
 
 | File | Purpose |
 |------|---------|
-| `config/recontool.yaml` | Main config — API keys, profile, proxies, AI, enabled categories. Copy from `recontool.example.yaml`. **Gitignored.** |
+| `config/recontool.yaml` | Main config — profile, network, AI, API server, provider keys, categories, resources. Copy from `recontool.example.yaml`. **Gitignored.** |
 | `config/tools.yaml` | Machine-readable **tool registry** — every tool's invocation, input/output, install method. The integration backbone. |
 
-**Precedence:** environment variable → `config/recontool.yaml` → built-in default. So you
-can keep secrets in env vars (CI) or in the YAML file (local). All keys are **optional** —
-passive recon runs with zero keys; adding keys unlocks more sources and higher limits.
+**Precedence:** environment variable → `config/recontool.yaml` → built-in default. Keep
+secrets in env vars (CI) or the YAML (local). Starter files:
 
-```yaml
-# config/recontool.yaml (excerpt)
-general: { profile: normal }
-network: { proxies: ["http://user:pass@proxy1:8080", "socks5://proxy2:1080"] }
-api_keys:
-  shodan: "..."
-  securitytrails: "..."
-  github_token: "..."
+```bash
+cp config/recontool.example.yaml config/recontool.yaml   # everything works WITHOUT this
+cp .env.example .env                                      # ...or use env vars instead
 ```
+
+### Complete config reference
+
+Every key, its environment-variable override, type, and default.
+
+**`general:`**
+
+| YAML key | Env var | Type | Default | Purpose |
+|----------|---------|------|---------|---------|
+| `general.profile` | `RECON_PROFILE` | `passive_only`\|`stealth`\|`normal`\|`aggressive` | `normal` | concurrency / QPS / jitter / port breadth / nuclei severity envelope |
+| `general.max_concurrency` | `RECON_MAX_CONCURRENCY` | int | `20` | global parallel-task cap |
+| `general.db_url` | `RECON_DB_URL` | str (DSN) | `sqlite:///recontool.db` | SQLite (default) or `postgresql+psycopg://…` |
+| `general.artifact_dir` | `RECON_ARTIFACT_DIR` | path | `./artifacts` | raw + typed + JS + scan-bundle output |
+| `general.redis_url` | `RECON_REDIS_URL` | str | _(unset)_ | optional distributed rate-limit buckets |
+
+**`network:`**
+
+| YAML key | Env var | Type | Default | Purpose |
+|----------|---------|------|---------|---------|
+| `network.proxies` | `RECON_PROXIES` (CSV) | list[str] | `[]` | SINGLE declared egress for allow-listing — **not** rotation-for-evasion |
+| `network.proxy_strategy` | `RECON_PROXY_STRATEGY` | `round_robin`\|`random`\|`sticky` | `round_robin` | only meaningful with >1 egress |
+| `network.rate_limits` | _(YAML only)_ | map `provider: qps` (float) | built-in conservative defaults | per-provider QPS **compliance** (stay under each source's limit) |
+
+**`ai:`** — optional; empty = zero-token deterministic heuristic decisioning.
+
+| YAML key | Env var | Type | Default | Purpose |
+|----------|---------|------|---------|---------|
+| `ai.base_url` | `RECON_AI_BASE_URL` | str (URL) | _(unset)_ | OpenAI-compatible endpoint (incl. local Ollama/vLLM/LM Studio) |
+| `ai.api_key` | `RECON_AI_API_KEY` | str | _(unset)_ | enables model-backed decisioning + summaries |
+| `ai.model_light` | `RECON_AI_MODEL_LIGHT` | str | `gpt-4o-mini` | triage / classification / keep-drop |
+| `ai.model_heavy` | `RECON_AI_MODEL_HEAVY` | str | `gpt-4o` | final narrative only |
+| `ai.max_calls` | `RECON_AI_MAX_CALLS` | int | `40` | hard per-scan AI call budget (`0` = unlimited) |
+
+**`api:`** — the `recontool serve` API/UI server.
+
+| YAML key | Env var | Type | Default | Purpose |
+|----------|---------|------|---------|---------|
+| `api.token` | `RECON_API_TOKEN` | str | _(unset → data routes return 503)_ | **required** bearer token to expose any data/control route |
+| `api.host` | `RECON_API_HOST` | str | `127.0.0.1` | bind address (keep localhost unless behind a TLS proxy) |
+| `api.port` | `RECON_API_PORT` | int | `8088` | bind port |
+
+**`categories:`** and **`resources:`**
+
+| YAML key | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `categories.enabled` | list[int] | `[1, 2, 3, 6]` | which tool categories run (active ones still need `--authorize-active`) |
+| `resources.resolvers` | path | `./config/resolvers.txt` | mass-DNS resolver list (puredns/massdns) |
+| `resources.wordlist_dir` | path | `./wordlists` | content-discovery wordlists (SecLists) |
+| `resources.default_wordlist` | path | `./wordlists/common.txt` | default wordlist |
+
+### Provider API keys (`api_keys:` — all optional)
+
+Set via the env var **or** under `api_keys:` in the YAML. Passive recon needs none; each
+key unlocks its source and/or higher limits.
+
+| Env var | YAML key | Unlocks |
+|---------|----------|---------|
+| `SHODAN_API_KEY` | `shodan` | Shodan host/search **+ favicon-hash org-forest pivot** |
+| `CENSYS_API_ID` / `CENSYS_API_SECRET` | `censys_id` / `censys_secret` | Censys hosts/certs |
+| `NETLAS_API_KEY` | `netlas` | Netlas search |
+| `GREYNOISE_API_KEY` | `greynoise` | GreyNoise IP context |
+| `LEAKIX_API_KEY` | `leakix` | LeakIX exposures |
+| `FULLHUNT_API_KEY` | `fullhunt` | FullHunt attack surface |
+| `URLSCAN_API_KEY` | `urlscan` | urlscan.io |
+| `CRIMINALIP_API_KEY` | `criminalip` | CriminalIP |
+| `BINARYEDGE_API_KEY` | `binaryedge` | BinaryEdge |
+| `ZOOMEYE_API_KEY` | `zoomeye` | ZoomEye |
+| `SECURITYTRAILS_API_KEY` | `securitytrails` | SecurityTrails passive DNS / history |
+| `VIRUSTOTAL_API_KEY` | `virustotal` | VirusTotal domains/resolutions |
+| `CHAOS_API_KEY` | `chaos` | ProjectDiscovery Chaos subdomains |
+| `CERTSPOTTER_API_KEY` | `certspotter` | Cert Spotter (higher limits) |
+| `IPINFO_TOKEN` | `ipinfo` | IPinfo ASN/geo |
+| `GITHUB_TOKEN` | `github_token` | GitHub code/subdomain search |
+| `GITLAB_TOKEN` | `gitlab_token` | GitLab search |
+| `GRAYHATWARFARE_API_KEY` | `grayhatwarfare` | open cloud-bucket search |
+| `PUBLICWWW_API_KEY` | `publicwww` | **analytics-ID org-forest pivot** |
+| `HUNTER_API_KEY` | `hunter` | email discovery (Cat 7, gated) |
+| `HIBP_API_KEY` | `hibp` | breach-exposure lookup (Cat 7, gated) |
+| `NVD_API_KEY` | `nvd` | CVE enrichment |
+| `VULNERS_API_KEY` | `vulners` | vuln intel |
+
+> DeHashed (`dehashed_user`/`dehashed_key`) and FOFA (`fofa_email`/`fofa_key`) are
+> YAML-only placeholders for tools that read them directly. **Security:** real keys go in
+> `.env` or `config/recontool.yaml` (both gitignored) — never commit them.
 
 ---
 
@@ -260,7 +340,9 @@ works without any of them, adapters just report unavailable):
 ```bash
 bash docker/install_tools.sh core        # default-on set: subfinder, httpx, dnsx, naabu,
                                           #   nuclei, asnmap, uncover, gau (+ templates)
-bash docker/install_tools.sh all         # full set + SecLists wordlists + resolver list
+bash docker/install_tools.sh all         # full set + SecLists wordlists + resolver list + python extras
+bash docker/install_tools.sh python      # API server + live JS-render browser + favicon-hash
+                                          #   deps: fastapi, uvicorn, mmh3, playwright (+chromium)
 bash docker/install_tools.sh resources   # just wordlists + clean DNS resolvers
 ```
 
@@ -332,11 +414,13 @@ bundles everything. Full list + invocation details in
 ```
 recontool.db                 # SQLite (default) — switch to Postgres via RECON_DB_URL
 artifacts/<scan_id>/
-  ├── raw/<tool>/*.json       # raw tool/API output (provenance)
-  ├── js/<host>/*.js          # JS files harvested from Wayback / crawler
-  ├── bodies/<host>/*         # response bodies
-  ├── screenshots/*.png       # gowitness (if installed)
-  └── nuclei_targets.txt
+  ├── raw/<tool>/*.json        # raw tool/API output (provenance)
+  ├── out/<tool>.<type>.jsonl  # normalized, typed, append-only records (one file per output type)
+  ├── js/<host>/*.js           # JS files harvested from Wayback / crawler
+  ├── bodies/<host>/*          # response bodies
+  ├── screenshots/*.png        # gowitness (if installed)
+  ├── nuclei_targets.txt
+  └── scan_bundle.json         # FINAL per-scan manifest: DB summary + findings + artifact index
 ```
 
 ---
@@ -376,6 +460,7 @@ and the AI keep/drop/triage decision per tool. Add `-v` for per-request DEBUG.
 | `--max-depth N` | How far discovered keys re-feed (recursion depth from the seed). Default 3. |
 | `--workers N` | Concurrent async workers draining the queue (scale across hosts with `recontool worker`). |
 | `--noise-control` / `--wildcard-filter` | Drop duplicate / out-of-scope / wildcard-DNS / CDN leads before they re-feed. Recommended with `--tools all`. |
+| `--incremental` | Delta-only reruns: skip a tool whose exact input already ran in a recent prior scan, reusing its results (the `tool_run` history powers it). |
 | `-v` / `-vv` | `-v` adds per-request DEBUG; `-vv` is maximally verbose. |
 | `--profile stealth\|normal\|aggressive` | Tunes concurrency / QPS / jitter / port breadth / nuclei severity. |
 
@@ -532,8 +617,11 @@ network:
 
 ```bash
 pip install -r requirements.txt
-pytest -q          # 49 atomic tests: parsers, dedupe/confidence, scope, generic
-                   # engine, crawler, content discovery, params, JS storage
+pytest -q          # full suite: unit/atomic + integration + e2e (318 passing)
+                   #   parsers, dedupe/confidence, scope, generic + adapter bridge,
+                   #   recursion engine, crawler, content discovery, params, JS storage,
+                   #   org-forest, rate-limit compliance, AI decisioning, incremental,
+                   #   artifact bundle, and the API/UI data layer
 ```
 
 See [`docs/00-architecture-overview.md`](docs/00-architecture-overview.md) for the

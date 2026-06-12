@@ -223,3 +223,85 @@ def decide_on_events(
         metadata={"tool_name": tool_name},
     )
     return svc.classify_results(normalized)
+
+
+# The §11 decisioning prompt: AI classifies/prioritizes, never executes or invents.
+AI_DECISION_SYSTEM = (
+    "You are the decisioning layer for a recursive reconnaissance platform. "
+    "You do NOT execute tools, schedule jobs, or invent data. Given the entities "
+    "one tool just produced, classify which are NOISE (placeholder, junk, clearly "
+    "out-of-target) versus SIGNAL, and which deserve priority follow-up. Rules: "
+    "only classify the entities provided — never add new ones; prefer keeping when "
+    "unsure; an entity that is clearly the target's own asset is always SIGNAL. "
+    'Return ONLY compact JSON: {"drop":[values],"priority":[values],"reason":"..."} '
+    'where "drop" lists entity VALUES that are noise and must not spawn follow-up work.'
+)
+
+
+def _asset_entities(events: list[Event]) -> list[dict]:
+    """Compact [{type,value}] of asset events — the only thing the model sees."""
+    out: list[dict] = []
+    for ev in events:
+        if ev.entity == "asset":
+            t, v = ev.data.get("type"), ev.data.get("value")
+            if t and v:
+                out.append({"type": t, "value": v})
+    return out
+
+
+async def decide_on_events_ai(
+    events: list[Event],
+    tool_name: str,
+    *,
+    service: AIDecisionService | None = None,
+    router: Any | None = None,
+    confidence: float = 1.0,
+) -> DecisionResult:
+    """Model-augmented decisioning with a deterministic heuristic floor.
+
+    Computes the heuristic decision first, then — only if a ``ModelRouter`` is
+    enabled and within its per-scan call budget — asks the model to flag noise
+    among the SAME entities (it can never add entities). A model-flagged value is
+    moved to ``discard`` ONLY when it is not in the authorized scope (the
+    scope-safety floor), so the model can prune noise but never drops the target's
+    own estate. Falls back to the pure heuristic when the model is absent, over
+    budget, or returns junk — so behavior is deterministic without an API key.
+    """
+    svc = service or AIDecisionService()
+    base = decide_on_events(events, tool_name, service=svc, confidence=confidence)
+    if router is None or not getattr(router, "enabled", False) or not events:
+        return base
+    assets = _asset_entities(events)
+    if not assets:
+        return base
+    resp = await router.decide_json(
+        AI_DECISION_SYSTEM, {"tool": tool_name, "entities": assets[:60]},
+        tier="light", max_tokens=300,
+    )
+    if not resp or not isinstance(resp.get("drop"), list):
+        return base  # unavailable / over-budget / malformed -> heuristic floor
+    drop_vals = {str(v).strip().lower() for v in resp["drop"] if str(v).strip()}
+    if not drop_vals:
+        return base
+    scope = getattr(svc, "_scope", None)
+    keep: list[Event] = []
+    discard: list[Event] = list(base.discard)
+    for ev in base.persist:
+        value = str(ev.data.get("value", "")).strip().lower()
+        atype = ev.data.get("type", "")
+        in_scope = False
+        if scope is not None and ev.entity == "asset" and atype:
+            try:
+                in_scope = bool(scope.contains(atype, ev.data.get("value", "")))
+            except Exception:  # noqa: BLE001 — scope check never blocks a decision
+                in_scope = False
+        if ev.entity == "asset" and value in drop_vals and not in_scope:
+            discard.append(ev)          # model says noise + not in scope -> drop
+        else:
+            keep.append(ev)             # scope floor / non-asset / kept by model
+    reason = f"{base.reasoning} | AI(model): {str(resp.get('reason', '')).strip()}"[:300]
+    return DecisionResult(
+        persist=keep, discard=discard, trigger_downstream=base.trigger_downstream,
+        rescan_tools=base.rescan_tools, manual_review=base.manual_review,
+        reasoning=reason,
+    )

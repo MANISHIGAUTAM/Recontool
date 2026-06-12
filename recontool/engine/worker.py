@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import json
 import logging
 import time
 import uuid
@@ -23,18 +24,22 @@ from typing import Optional
 
 from sqlalchemy import func, select, update
 
+from recontool.adapters.base import Event
+from recontool.ai.router import ModelRouter
 from recontool.core.artifacts import ArtifactStore
 from recontool.core.db import create_all, session_scope
 from recontool.engine.ai_decision import (
-    AIDecisionService, decide_on_events, discarded_asset_pairs,
+    AIDecisionService, decide_on_events_ai, discarded_asset_pairs,
 )
+from recontool.engine.fingerprint import fingerprint_inputs
+from recontool.engine.incremental import IncrementalEngine
 from recontool.engine.logging import EngineLogger
-from recontool.engine.models import WorkItem
+from recontool.engine.models import ToolRun, WorkItem
 from recontool.engine.registry import ToolRegistry
 from recontool.engine.router import _eligible_types, work_dedupe_key
 from recontool.engine.runner import (
     build_noise, build_scan_infra, discovered_assets, load_engine_registry,
-    run_tool_spec, write_typed_outputs,
+    run_tool_spec, write_scan_bundle, write_typed_outputs,
 )
 from recontool.normalize.engine import Normalizer
 
@@ -43,6 +48,38 @@ logger = logging.getLogger(__name__)
 
 def _now() -> dt.datetime:
     return dt.datetime.now(dt.timezone.utc)
+
+
+def _load_typed_events(paths: list[str], tool: str) -> list:
+    """Reconstruct events from a prior run's typed ``out/*.jsonl`` files (reuse).
+
+    Assets + URLs are re-emitted (they drive recursion); ``service``/``finding``
+    lines are skipped (terminal and not losslessly reconstructable from the typed
+    record). Used only by the incremental-reuse path.
+    """
+    from recontool.config import settings
+
+    events: list = []
+    for rel in paths or []:
+        p = settings.artifact_dir / rel
+        if not p.exists():
+            continue
+        for line in p.read_text(errors="ignore").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except Exception:  # noqa: BLE001
+                continue
+            etype, value = rec.get("type"), rec.get("value")
+            if not (etype and value):
+                continue
+            if etype == "url":
+                events.append(Event.endpoint(tool, value, source="incremental"))
+            elif etype not in ("service", "finding"):
+                events.append(Event.asset(tool, etype, value))
+    return events
 
 
 @dataclass
@@ -149,7 +186,8 @@ class WorkerPool:
     """Runs N concurrent async workers against the work_item queue for a scan."""
 
     def __init__(self, registry, *, scope, profile, http, api_keys,
-                 noise=None, max_depth: int = 3, ai_service=None):
+                 noise=None, max_depth: int = 3, ai_service=None, router=None,
+                 incremental: bool = False, incremental_max_age: int = 604800):
         self.registry = registry
         self.scope = scope
         self.profile = profile
@@ -157,15 +195,19 @@ class WorkerPool:
         self.api_keys = api_keys
         self.noise = noise
         self.max_depth = max_depth
+        self.incremental = incremental
+        self.incremental_max_age = incremental_max_age
         self._stores: dict[str, ArtifactStore] = {}
         self._route = RouteIndex(registry)   # built once; reused for every enqueue
         self.log = EngineLogger("recontool.worker")  # structured, correlated debug logs
         # AI decisioning layer: classifies each tool's output (persist / discard
         # noise / trigger downstream) before anything is re-fed into the loop.
-        # Heuristic by default; override `ai_service` for an AI-augmented path.
-        # Scope-aware so the target's own in-scope estate is never dropped.
+        # Heuristic by default; model-augmented when `router` is enabled (the
+        # heuristic remains the deterministic floor + scope-safety guarantee).
         self.ai = ai_service or AIDecisionService(scope=scope)
+        self.router = router or ModelRouter()
         self.processed = 0
+        self.skipped = 0
 
     def _store(self, scan_id: str) -> ArtifactStore:
         if scan_id not in self._stores:
@@ -176,69 +218,142 @@ class WorkerPool:
         spec = self.registry.get(item.tool_slug)
         store = self._store(scan_id)
         new_keys = 0
+        out_paths: list[str] = []
         status = "completed"
         reason = ""
         events: list = []
         run_id = f"{scan_id}:{item.id}"
         t0 = time.monotonic()
-        self.log.log_tool_start(run_id, scan_id, item.tool_slug,
-                                inputs={item.key_type: [item.key]})
+        inputs = {item.key_type: [item.key]}
+        fp = fingerprint_inputs(item.tool_slug, inputs)
+        self.log.log_tool_start(run_id, scan_id, item.tool_slug, inputs=inputs)
+
+        # Incremental: reuse a fresh prior run of this EXACT (tool, input) instead
+        # of re-executing it — re-ingest its typed outputs into this scan + re-feed.
+        if self.incremental and spec is not None:
+            reused = await self._try_incremental(item, scan_id, fp)
+            if reused is not None:
+                self._finish_item(item.id, "completed", reused)
+                self._record_run(scan_id, item.tool_slug, fp, "skipped", 0, [])
+                self.log.log_tool_complete(
+                    run_id, scan_id, item.tool_slug, duration_ms=0,
+                    entity_count=0, key_type=item.key_type,
+                    artifact_paths=["(reused prior run — incremental)"])
+                self.skipped += 1
+                self.processed += 1
+                return
+
         if spec is None:
             status, reason = "failed", "unknown tool"
         else:
             outcome = await run_tool_spec(
-                spec, scan_id, {item.key_type: [item.key]}, scope=self.scope,
-                profile=self.profile, http=self.http, api_keys=self.api_keys,
-                artifacts=store,
+                spec, scan_id, inputs, scope=self.scope, profile=self.profile,
+                http=self.http, api_keys=self.api_keys, artifacts=store,
             )
             if outcome.status == "error":
                 status, reason = "failed", outcome.reason
             events = outcome.events
             if events:
-                # AI decisioning: classify entities (persist / discard noise /
-                # trigger downstream) BEFORE persisting or re-feeding. Visible in
-                # the logs so the operator can see what the engine decided.
-                decision = decide_on_events(events, item.tool_slug, service=self.ai)
+                # AI decisioning (model-augmented when a router is enabled, else
+                # the deterministic heuristic). Classifies persist / discard noise
+                # BEFORE persisting or re-feeding; logged so the operator sees it.
+                decision = await decide_on_events_ai(
+                    events, item.tool_slug, service=self.ai, router=self.router)
                 self.log.log_ai_decision(scan_id, decision.reasoning,
                                          tool_name=item.tool_slug)
                 dropped = discarded_asset_pairs(decision)
                 persist_events = decision.persist or events
                 with session_scope() as s:
                     Normalizer(s, scan_id, scope=self.scope).ingest(persist_events)
-                write_typed_outputs(store, item.tool_slug, persist_events)
-                if item.depth + 1 <= self.max_depth:
-                    with session_scope() as s:
-                        for etype, evalue in discovered_assets(events):
-                            if (etype, evalue) in dropped:
-                                continue  # AI decisioning flagged it as noise
-                            if self.noise is not None and not await self.noise.keep(
-                                    scan_id, etype, evalue):
-                                continue
-                            n = enqueue_key(
-                                s, scan_id, evalue, etype, self.registry,
-                                depth=item.depth + 1, parent=item.key,
-                                route=self._route,
-                            )
-                            new_keys += n
-                            self.log.log_entity_discovered(
-                                scan_id, etype, evalue, tool_name=item.tool_slug)
-                            if n:
-                                self.log.log_enqueue(
-                                    scan_id, etype, evalue, n,
-                                    depth=item.depth + 1, tool_name=item.tool_slug)
-        with session_scope() as s:
-            row = s.get(WorkItem, item.id)
-            if row is not None:
-                row.status = status
-                row.finished_at = _now()
-                row.new_keys_found = new_keys
+                out_paths = write_typed_outputs(store, item.tool_slug, persist_events)
+                new_keys = await self._enqueue_discovered(
+                    scan_id, events, item.depth + 1, item.key, item.tool_slug, dropped)
+
+        self._finish_item(item.id, status, new_keys)
         dur_ms = int((time.monotonic() - t0) * 1000)
+        # ALWAYS record a ToolRun — real per-tool execution history + the
+        # input fingerprint that powers incremental delta-only reruns.
+        self._record_run(scan_id, item.tool_slug, fp, status, len(events),
+                         out_paths, dur_ms=dur_ms, error=reason)
         if status == "failed":
             self.log.log_tool_fail(run_id, scan_id, item.tool_slug, reason)
         else:
             self.log.log_tool_complete(run_id, scan_id, item.tool_slug,
-                                       duration_ms=dur_ms, entity_count=len(events))
+                                       duration_ms=dur_ms, entity_count=len(events),
+                                       key_type=item.key_type, artifact_paths=out_paths)
         self.processed += 1
+
+    def _finish_item(self, item_id: int, status: str, new_keys: int) -> None:
+        with session_scope() as s:
+            row = s.get(WorkItem, item_id)
+            if row is not None:
+                row.status = status
+                row.finished_at = _now()
+                row.new_keys_found = new_keys
+
+    def _record_run(self, scan_id: str, tool: str, fp: str, status: str,
+                    entity_count: int, paths, *, dur_ms: int = 0,
+                    error: str = "") -> None:
+        """Persist a ToolRun row (execution history + incremental fingerprint)."""
+        with session_scope() as s:
+            IncrementalEngine(s).record_run(ToolRun(
+                scan_id=scan_id, tool_name=tool, status=status,
+                input_fingerprint=fp, finished_at=_now(),
+                exit_code=0 if status != "failed" else 1,
+                entity_count=entity_count, artifact_paths=list(paths or []),
+                duration_ms=dur_ms, error_detail=error or None,
+            ))
+
+    async def _enqueue_discovered(self, scan_id: str, events: list, depth: int,
+                                  parent: str, tool: str, dropped: set) -> int:
+        """Re-feed each new in-scope asset onto the queue (the recursion step).
+
+        Shared by the normal execution path and the incremental-reuse path so
+        both recurse identically through the noise gate + dedupe-on-enqueue.
+        """
+        if depth > self.max_depth:
+            return 0
+        new_keys = 0
+        for etype, evalue in discovered_assets(events):
+            if (etype, evalue) in dropped:
+                continue  # AI decisioning flagged it as noise
+            if self.noise is not None and not await self.noise.keep(scan_id, etype, evalue):
+                continue
+            with session_scope() as s:
+                n = enqueue_key(s, scan_id, evalue, etype, self.registry,
+                                depth=depth, parent=parent, route=self._route)
+            new_keys += n
+            self.log.log_entity_discovered(scan_id, etype, evalue, tool_name=tool)
+            if n:
+                self.log.log_enqueue(scan_id, etype, evalue, n, depth=depth, tool_name=tool)
+        return new_keys
+
+    async def _try_incremental(self, item: ClaimedItem, scan_id: str,
+                               fp: str) -> Optional[int]:
+        """Reuse a fresh prior run of (tool, input) if one exists.
+
+        Re-ingests the prior run's typed outputs into THIS scan and re-feeds them
+        for recursion, so the new scan stays complete without re-executing the
+        tool. Returns new_keys enqueued, or None if there's nothing to reuse (the
+        caller then executes the tool normally).
+        """
+        with session_scope() as s:
+            prior = IncrementalEngine(s).find_fresh_completed(
+                item.tool_slug, fp, max_age_seconds=self.incremental_max_age,
+                exclude_scan=scan_id)
+            paths = list(prior.artifact_paths or []) if prior is not None else None
+        if paths is None:
+            return None
+        events = _load_typed_events(paths, item.tool_slug)
+        if events:
+            with session_scope() as s:
+                Normalizer(s, scan_id, scope=self.scope).ingest(events)
+        new_keys = await self._enqueue_discovered(
+            scan_id, events, item.depth + 1, item.key, item.tool_slug, set())
+        self.log.log_concurrency_decision(
+            scan_id, item.tool_slug, "incremental-skip",
+            f"reused prior run ({len(events)} entities)")
+        return new_keys
 
     async def _worker(self, scan_id: str) -> None:
         while True:
@@ -274,6 +389,8 @@ class QueueScanResult:
     completed: int
     failed: int
     entities: int
+    skipped: int = 0
+    bundle_path: str | None = None
 
 
 async def run_queue_scan(
@@ -281,7 +398,7 @@ async def run_queue_scan(
     registry: ToolRegistry | None = None, tools: str = "default",
     workers: int = 8, authorize_active: bool = False,
     noise_control: bool = False, wildcard_filter: bool = False,
-    max_depth: int = 3, scan_id: str | None = None,
+    max_depth: int = 3, scan_id: str | None = None, incremental: bool = False,
 ) -> QueueScanResult:
     """Seed the work queue and drain it with `workers` concurrent workers.
 
@@ -289,7 +406,8 @@ async def run_queue_scan(
     Python adapters are bridged in (deep recursion works with no external
     binaries) and the passive/active gate is honored (``authorize_active``).
     Pass ``scan_id`` to use a known id (e.g. the API returns it before the scan
-    finishes); otherwise a fresh one is generated.
+    finishes); otherwise a fresh one is generated. ``incremental`` skips tools
+    whose exact input already ran in a recent prior scan (delta-only reruns).
     """
     from recontool.core.models import Asset, Scan
 
@@ -301,7 +419,8 @@ async def run_queue_scan(
     noise = build_noise(scope, noise_control, wildcard_filter)
 
     pool = WorkerPool(registry, scope=scope, profile=profile, http=http,
-                      api_keys=api_keys, noise=noise, max_depth=max_depth)
+                      api_keys=api_keys, noise=noise, max_depth=max_depth,
+                      incremental=incremental)
 
     scan_id = scan_id or uuid.uuid4().hex[:16]
     # Create the Scan row UP FRONT so the DB is consistent while the queue drains
@@ -328,5 +447,9 @@ async def run_queue_scan(
         sc = s.get(Scan, scan_id)
         if sc is not None:
             sc.status = "done"
+    bundle_path = write_scan_bundle(scan_id)
+    if bundle_path:
+        logger.info("✓ scan bundle written → %s", bundle_path)
     return QueueScanResult(scan_id=scan_id, items_processed=pool.processed,
-                           completed=completed, failed=failed, entities=entities)
+                           completed=completed, failed=failed, entities=entities,
+                           skipped=pool.skipped, bundle_path=bundle_path)

@@ -36,7 +36,14 @@ def _format_human(entry: dict[str, Any]) -> str:
     if ev == "tool_complete":
         n = entry.get("entity_count", 0)
         ms = entry.get("duration_ms", 0)
-        return f"✓ done   {tool}  {n} entities  {ms}ms"
+        kt = entry.get("key_type", "")
+        paths = entry.get("artifact_paths") or []
+        line = f"✓ done   {tool}  {n} entities  {ms}ms"
+        if kt:
+            line += f"  [{kt}]"
+        if paths:
+            line += f"  → {paths[0]}" + (f" (+{len(paths) - 1})" if len(paths) > 1 else "")
+        return line
     if ev == "tool_fail":
         return f"✗ fail   {tool}  {entry.get('error', '')[:160]}"
     if ev == "entity_discovered":
@@ -125,6 +132,7 @@ class EngineLogger:
         artifact_paths: list[str] | None = None,
         command: str = "",
         retry_count: int = 0,
+        key_type: str = "",
     ) -> None:
         """Log the successful completion of a tool execution."""
         self._emit({
@@ -132,6 +140,7 @@ class EngineLogger:
             "scan_id": scan_id,
             "tool_run_id": tool_run_id,
             "tool_name": tool_name,
+            "key_type": key_type,
             "duration_ms": duration_ms,
             "exit_code": exit_code,
             "entity_count": entity_count,

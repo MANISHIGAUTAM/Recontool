@@ -52,6 +52,14 @@ ai:
   model_heavy: gpt-4o        # deep reasoning: final report only
   max_calls: 40              # hard per-scan budget (0 = unlimited)
 
+# ── API / UI server (recontool serve: read API + SSE + scan control) ─────────
+api:
+  # Bearer token REQUIRED to expose any data/control route (default-deny -> 503).
+  # Generate one with:  openssl rand -hex 16    (or set RECON_API_TOKEN in env)
+  token: ""
+  host: 127.0.0.1            # bind localhost; expose only behind a TLS proxy
+  port: 8088
+
 # ── API keys for recon providers (all optional) ──────────────────────────────
 # Category numbers refer to docs/pipeline/03-category-pipelines.md
 api_keys:
