@@ -9,6 +9,8 @@ contracts, and register into the pipeline phases.
 from __future__ import annotations
 
 from recontool.adapters.generic import (
+    _expandable_cidr,
+    _input_values,
     build_adapter_class,
     emit_events,
     parse_records,
@@ -76,6 +78,37 @@ def test_emit_bgpview_cidr():
     recs = parse_records(spec, None, json_obj={"data": {"ipv4_prefixes": [{"prefix": "1.2.3.0/24"}]}})
     ev = emit_events(spec, recs, "bgpview", None)
     assert _ev(ev, "asset")[0].data == {"type": "cidr", "value": "1.2.3.0/24"}
+
+
+def test_emit_cidr_size_scope_filter_drops_oversized_blocks():
+    # ASN-level lookups (ripestat/bgpview) on a shared ASN like Cloudflare's
+    # AS13335 return the provider's entire prefix list -- cidr_size keeps
+    # only blocks small enough to plausibly be a dedicated allocation.
+    spec = {"format": "json", "list_path": "data.prefixes", "emit": [
+        {"entity": "asset", "value": "{prefix}", "type": "cidr", "scope_filter": "cidr_size"}]}
+    recs = parse_records(spec, None, json_obj={"data": {"prefixes": [
+        {"prefix": "104.22.42.0/24"},      # /24 -> kept
+        {"prefix": "104.16.0.0/12"},       # CDN-wide supernet -> dropped
+        {"prefix": "2400:cb00:768::/48"},  # IPv6 supernet -> dropped
+    ]}})
+    ev = emit_events(spec, recs, "ripestat", "groww.in")
+    assert {e.data["value"] for e in _ev(ev, "asset")} == {"104.22.42.0/24"}
+
+
+# ── _input_values: cidr fan-out guard ─────────────────────────────────────────
+def test_expandable_cidr_size_guard():
+    assert _expandable_cidr("1.2.3.0/24") is True
+    assert _expandable_cidr("10.0.0.0/8") is False         # too large to expand per-IP
+    assert _expandable_cidr("2400:cb00:768::/48") is False  # IPv6 supernet
+    assert _expandable_cidr("not-a-cidr") is False
+
+
+def test_input_values_filters_oversized_cidrs_for_mapcidr():
+    class _Ctx:
+        def seeds_of(self, atype):
+            return {"cidr": ["1.2.3.0/24", "10.0.0.0/8", "2400:cb00:768::/48"]}.get(atype, [])
+
+    assert _input_values(_Ctx(), ("cidr",), cap=50) == ["1.2.3.0/24"]
 
 
 def test_emit_edge_service_endpoint_finding():

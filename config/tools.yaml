@@ -469,7 +469,10 @@ tools:
       format: json
       list_path: data.prefixes
       emit:
-        - {entity: asset, value: "{prefix}", type: cidr}
+        # AS13335-style ASN lookups return a CDN's ENTIRE global prefix list
+        # (thousands of blocks) -- cidr_size drops supernets/IPv6 ranges too
+        # big to be a dedicated allocation; see generic.py:_scope_ok.
+        - {entity: asset, value: "{prefix}", type: cidr, scope_filter: cidr_size}
     requires_key: false
     default_on: true
 

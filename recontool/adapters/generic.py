@@ -121,7 +121,21 @@ def emit_events(parse_spec: dict, records: list[dict], tool: str,
 
 def _scope_ok(rule: dict, value: str, seed_domain: str | None) -> bool:
     sf = rule.get("scope_filter")
-    if not sf or not seed_domain:
+    if not sf:
+        return True
+    if sf == "cidr_size":
+        # ASN-level enrichment (ripestat/bgpview) returns a provider's *entire*
+        # announced prefix list for shared ASNs (e.g. 5438 blocks for
+        # Cloudflare AS13335) -- mostly the CDN's network, not this target's.
+        # Drop supernets bigger than a /16-equivalent (>65536 addresses) so
+        # the asset graph stays target-plausible; the full list is still in
+        # the raw artifact for manual pivoting. Independent of seed_domain.
+        try:
+            net = ipaddress.ip_network(value, strict=False)
+        except ValueError:
+            return False
+        return (net.max_prefixlen - net.prefixlen) <= 16
+    if not seed_domain:
         return True
     if sf == "subdomain":
         return is_subdomain_of(value, seed_domain)
@@ -200,10 +214,27 @@ def _seed_domain(ctx: AdapterContext) -> str | None:
     return None
 
 
+def _expandable_cidr(value: str, max_host_bits: int = 8) -> bool:
+    # Tools that consume `cidr` (mapcidr -> one ip per address, masscan -> port
+    # scan) fan out per address in the block. A /24 (256 addrs) is already a
+    # full subnet sweep; anything larger risks hanging (an IPv6 /48 is ~2^80
+    # addresses) or amplifying one ASN-level enrichment hit into millions of
+    # downstream `ip` WorkItems. Oversized blocks are skipped here but remain
+    # in the raw artifact for manual follow-up.
+    try:
+        net = ipaddress.ip_network(value, strict=False)
+    except ValueError:
+        return False
+    return (net.max_prefixlen - net.prefixlen) <= max_host_bits
+
+
 def _input_values(ctx: AdapterContext, consumes: tuple[str, ...], cap: int) -> list[str]:
     vals: list[str] = []
     for ctype in consumes:
-        vals.extend(ctx.seeds_of(ctype))
+        seeds = ctx.seeds_of(ctype)
+        if ctype == "cidr":
+            seeds = [v for v in seeds if _expandable_cidr(v)]
+        vals.extend(seeds)
     seen, out = set(), []
     for v in vals:
         if v not in seen:
