@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Recontool — control surface</title>
+<style>
+  :root {
+    --bg:#0b0f14; --panel:#11161d; --panel2:#161d26; --line:#222c38;
+    --ink:#d7e0ea; --dim:#7e8b9a; --accent:#4cc2ff; --accent2:#8b5cf6;
+    --ok:#3ddc97; --warn:#ffb454; --bad:#ff6b6b; --mut:#2a3441;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body {
+    background:var(--bg); color:var(--ink); font:13px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  }
+  a { color:var(--accent); }
+  code,.mono { font-family:var(--mono); }
+  button {
+    background:var(--mut); color:var(--ink); border:1px solid var(--line);
+    border-radius:6px; padding:6px 10px; cursor:pointer; font-size:12px;
+  }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:#04121c; border-color:var(--accent); font-weight:600; }
+  button.danger { border-color:var(--bad); color:var(--bad); }
+  input,select { background:var(--panel2); color:var(--ink); border:1px solid var(--line);
+    border-radius:6px; padding:6px 8px; font-size:12px; width:100%; }
+  label { display:block; font-size:11px; color:var(--dim); margin:8px 0 3px; }
+  .row { display:flex; gap:8px; }
+  .row > * { flex:1; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:999px; font-size:11px;
+    border:1px solid var(--line); background:var(--panel2); }
+  .pill.ok { color:var(--ok); border-color:#1f5a44; }
+  .pill.bad { color:var(--bad); border-color:#5a2222; }
+  .pill.warn { color:var(--warn); border-color:#5a4422; }
+  .pill.run { color:var(--accent); border-color:#1f4a5a; }
+
+  /* top bar */
+  header {
+    display:flex; align-items:center; gap:14px; padding:10px 16px;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header .brand { font-weight:700; letter-spacing:.5px; }
+  header .brand b { color:var(--accent); }
+  header .grow { flex:1; }
+  header .tokenbox { display:flex; gap:6px; align-items:center; }
+  header .tokenbox input { width:230px; }
+  .scope { font-size:11px; color:var(--dim); }
+
+  /* layout */
+  main { display:flex; flex:1; min-height:0; }
+  aside { width:300px; background:var(--panel); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; min-height:0; }
+  aside .scroll { overflow:auto; padding:12px; }
+  section.work { flex:1; display:flex; flex-direction:column; min-width:0; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .card h3 { margin:0 0 8px; font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:.6px; }
+
+  /* tabs */
+  .tabs { display:flex; gap:4px; padding:8px 16px 0; border-bottom:1px solid var(--line); background:var(--panel); }
+  .tab { padding:8px 14px; border:1px solid transparent; border-bottom:none; border-radius:8px 8px 0 0;
+    cursor:pointer; color:var(--dim); font-size:12px; }
+  .tab.active { background:var(--bg); color:var(--ink); border-color:var(--line); }
+  .tabbody { flex:1; overflow:auto; padding:16px; min-height:0; }
+
+  /* stat cards */
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .stat .n { font-size:24px; font-weight:700; }
+  .stat .k { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; }
+  .stat .n.acc { color:var(--accent); } .stat .n.ok2 { color:var(--ok); } .stat .n.warn2 { color:var(--warn); }
+
+  /* scans list */
+  .scan { padding:8px 10px; border:1px solid var(--line); border-radius:8px; margin-bottom:6px;
+    cursor:pointer; background:var(--panel2); }
+  .scan:hover { border-color:var(--accent); }
+  .scan.sel { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .scan .seed { font-weight:600; word-break:break-all; }
+  .scan .meta { font-size:11px; color:var(--dim); display:flex; gap:6px; flex-wrap:wrap; margin-top:3px; }
+
+  /* tables */
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--dim); font-weight:600; position:sticky; top:0; background:var(--bg); cursor:default; }
+  td.val { font-family:var(--mono); word-break:break-all; }
+  tr:hover td { background:var(--panel2); }
+  .sev-critical { color:#ff4d6d; font-weight:700; } .sev-high { color:var(--bad); font-weight:600; }
+  .sev-medium { color:var(--warn); } .sev-low,.sev-info { color:var(--dim); }
+
+  /* progress */
+  .bar { height:8px; background:var(--mut); border-radius:6px; overflow:hidden; }
+  .bar > i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+  .depthrow { display:flex; align-items:center; gap:8px; margin:4px 0; font-family:var(--mono); font-size:11px; }
+  .depthrow .lab { width:34px; color:var(--dim); }
+  .depthrow .bar { flex:1; }
+  .depthrow .ct { width:50px; text-align:right; }
+
+  /* graph */
+  #graphwrap { position:relative; height:100%; }
+  #graph { width:100%; height:100%; display:block; background:
+    radial-gradient(circle at 30% 20%, #0f1620, #0a0d12); border-radius:10px; }
+  .glegend { position:absolute; top:10px; left:10px; display:flex; gap:8px; flex-wrap:wrap;
+    background:rgba(11,15,20,.7); padding:6px 8px; border:1px solid var(--line); border-radius:8px; }
+  .glegend span { font-size:11px; display:flex; align-items:center; gap:4px; }
+  .glegend i { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  #gtip { position:absolute; pointer-events:none; background:var(--panel); border:1px solid var(--accent);
+    border-radius:6px; padding:4px 8px; font-size:11px; display:none; max-width:280px; word-break:break-all; }
+  .ghint { position:absolute; bottom:10px; right:12px; font-size:11px; color:var(--dim); }
+
+  .empty { color:var(--dim); text-align:center; padding:40px; }
+  .filterbar { display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+  .filterbar input,.filterbar select { width:auto; min-width:120px; }
+  .muted { color:var(--dim); }
+  .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--panel);
+    border:1px solid var(--accent); padding:10px 16px; border-radius:8px; display:none; z-index:50; }
+  .toast.bad { border-color:var(--bad); color:var(--bad); }
+  fieldset { border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:0; }
+  fieldset legend { font-size:11px; color:var(--dim); padding:0 4px; }
+  .warnbox { border:1px solid #5a4422; background:#1c1408; color:var(--warn); border-radius:8px;
+    padding:8px; font-size:11px; margin-top:6px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">RECON<b>·</b>TOOL <span class="scope">control surface — authorized recon only</span></div>
+  <div class="grow"></div>
+  <span id="livepill" class="pill" style="display:none"></span>
+  <span id="authpill" class="pill">checking…</span>
+  <div class="tokenbox">
+    <input id="token" type="password" placeholder="RECON_API_TOKEN" autocomplete="off" />
+    <button id="savetoken">Use token</button>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <div class="scroll">
+      <div class="card">
+        <h3>New scan</h3>
+        <label>Seed</label>
+        <input id="f_seed" placeholder="example.com" />
+        <div class="row">
+          <div><label>Type</label>
+            <select id="f_type">
+              <option>domain</option><option>ip</option><option>cidr</option>
+              <option>url</option><option>org</option><option>email</option>
+            </select>
+          </div>
+          <div><label>Tools</label>
+            <select id="f_tools">
+              <option value="default">default (curated)</option>
+              <option value="all">all (excessive)</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div><label>Profile</label><input id="f_profile" value="normal" /></div>
+          <div><label>Max depth</label><input id="f_depth" type="number" value="3" min="1" max="12" /></div>
+          <div><label>Workers</label><input id="f_workers" type="number" value="8" min="1" max="64" /></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--ink)">
+            <input type="checkbox" id="f_noise" style="width:auto" /> noise control</label>
+          <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--ink)">
+            <input type="checkbox" id="f_wild" style="width:auto" /> wildcard filter</label>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;color:var(--bad)">
+          <input type="checkbox" id="f_active" style="width:auto" /> authorize ACTIVE phases</label>
+        <div class="warnbox" id="activewarn" style="display:none">
+          ⚠ Active = DNS resolve · HTTP probe · port scan · live crawl against the target.
+          Only enable for hosts you are explicitly authorized to test.
+        </div>
+        <button class="primary" id="launch" style="width:100%;margin-top:10px">▶ Launch scan</button>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3 style="display:flex;justify-content:space-between">scans
+          <a href="#" id="refreshscans" style="font-size:11px">↻ refresh</a></h3>
+        <div id="scans"><div class="empty">no scans yet</div></div>
+      </div>
+    </div>
+  </aside>
+
+  <section class="work">
+    <div class="tabs">
+      <div class="tab active" data-tab="overview">Overview</div>
+      <div class="tab" data-tab="graph">Graph</div>
+      <div class="tab" data-tab="assets">Assets</div>
+      <div class="tab" data-tab="findings">Findings</div>
+      <div class="tab" data-tab="tools">Tools</div>
+    </div>
+
+    <div class="tabbody" id="tab-overview">
+      <div id="ov-empty" class="empty">Select or launch a scan to see results.</div>
+      <div id="ov-body" style="display:none">
+        <div class="stats" id="ov-stats"></div>
+        <div class="card" style="margin-top:14px">
+          <h3>Recursion / WorkQueue — live</h3>
+          <div id="ov-queue" class="muted">—</div>
+          <div id="ov-depths" style="margin-top:10px"></div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h3>Assets by type</h3>
+          <div id="ov-bytype"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabbody" id="tab-graph" style="display:none">
+      <div id="graphwrap">
+        <canvas id="graph"></canvas>
+        <div class="glegend" id="glegend"></div>
+        <div id="gtip"></div>
+        <div class="ghint">scroll = zoom · drag = pan · drag node = pin</div>
+      </div>
+    </div>
+
+    <div class="tabbody" id="tab-assets" style="display:none">
+      <div class="filterbar">
+        <select id="a_type"><option value="">all types</option></select>
+        <input id="a_search" placeholder="filter value…" />
+        <span class="muted" id="a_count"></span>
+      </div>
+      <table><thead><tr><th>type</th><th>value</th><th>conf</th><th>live</th><th>scope</th><th>tech</th></tr></thead>
+        <tbody id="a_rows"></tbody></table>
+    </div>
+
+    <div class="tabbody" id="tab-findings" style="display:none">
+      <table><thead><tr><th>sev</th><th>kind</th><th>title</th><th>asset</th><th>detector</th><th>cve</th><th>status</th></tr></thead>
+        <tbody id="f_rows"></tbody></table>
+    </div>
+
+    <div class="tabbody" id="tab-tools" style="display:none">
+      <div class="filterbar">
+        <span class="pill" id="t_summary">…</span>
+        <select id="t_filter">
+          <option value="all">all tools</option>
+          <option value="runnable">runnable</option>
+          <option value="default">in default profile</option>
+          <option value="web">web-only (kept)</option>
+        </select>
+        <input id="t_search" placeholder="filter name / category…" />
+      </div>
+      <table><thead><tr><th>tool</th><th>category</th><th>class</th><th>integration</th><th>consumes → produces</th><th>state</th></tr></thead>
+        <tbody id="t_rows"></tbody></table>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const state = { token: localStorage.getItem("recon_token") || "", scan: null,
+                tools: [], assets: [], stream: null, graphAnim: null };
+
+function authHeaders() { return state.token ? { "Authorization": "Bearer " + state.token } : {}; }
+function toast(msg, bad=false) {
+  const t = $("#toast"); t.textContent = msg; t.className = "toast" + (bad ? " bad" : "");
+  t.style.display = "block"; clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.style.display = "none", 3200);
+}
+async function api(path, opts={}) {
+  const r = await fetch(path, { ...opts, headers: { ...authHeaders(), ...(opts.headers||{}),
+    ...(opts.body ? {"Content-Type":"application/json"} : {}) } });
+  if (r.status === 401) { setAuth(false, "invalid token"); throw new Error("401"); }
+  if (r.status === 503) { setAuth(false, "token not set on server"); throw new Error("503"); }
+  if (!r.ok) throw new Error(r.status + " " + path);
+  return r.status === 202 || r.headers.get("content-type")?.includes("json") ? r.json() : r.text();
+}
+function setAuth(ok, label) {
+  const p = $("#authpill");
+  p.textContent = ok ? "authorized" : ("locked — " + (label||""));
+  p.className = "pill " + (ok ? "ok" : "bad");
+}
+
+// ── health / token ──────────────────────────────────────────────────────────
+async function health() {
+  try {
+    const h = await (await fetch("/health")).json();
+    if (!h.auth_configured) { setAuth(false, "server has no RECON_API_TOKEN"); return; }
+    if (!state.token) { setAuth(false, "paste token"); return; }
+    await api("/scans?limit=1"); setAuth(true); loadScans(); loadTools();
+  } catch (e) { /* setAuth already handled */ }
+}
+$("#savetoken").onclick = () => {
+  state.token = $("#token").value.trim();
+  localStorage.setItem("recon_token", state.token); health();
+};
+$("#token").value = state.token;
+
+// ── new scan ─────────────────────────────────────────────────────────────────
+$("#f_active").onchange = e => $("#activewarn").style.display = e.target.checked ? "block" : "none";
+$("#launch").onclick = async () => {
+  const seed = $("#f_seed").value.trim();
+  if (!seed) return toast("enter a seed", true);
+  const body = {
+    seed, seed_type: $("#f_type").value, tools: $("#f_tools").value,
+    profile: $("#f_profile").value.trim() || "normal",
+    max_depth: +$("#f_depth").value, workers: +$("#f_workers").value,
+    noise_control: $("#f_noise").checked, wildcard_filter: $("#f_wild").checked,
+    authorize_active: $("#f_active").checked,
+  };
+  if (body.authorize_active && !confirm("Launch an ACTIVE scan against " + seed +
+      "?\nOnly proceed if you are authorized to test this target.")) return;
+  try {
+    const r = await api("/scans", { method:"POST", body: JSON.stringify(body) });
+    toast("scan " + r.scan_id + " started" + (r.active ? " (active)" : ""));
+    await loadScans(); selectScan(r.scan_id);
+  } catch (e) { toast("launch failed: " + e.message, true); }
+};
+
+// ── scans list ────────────────────────────────────────────────────────────────
+$("#refreshscans").onclick = e => { e.preventDefault(); loadScans(); };
+async function loadScans() {
+  let scans;
+  try { scans = await api("/scans?limit=100"); } catch { return; }
+  const box = $("#scans");
+  if (!scans.length) { box.innerHTML = '<div class="empty">no scans yet</div>'; return; }
+  box.innerHTML = scans.map(s => `
+    <div class="scan ${s.scan_id===state.scan?'sel':''}" data-id="${s.scan_id}">
+      <div class="seed">${esc(s.seed)}</div>
+      <div class="meta">
+        <span class="pill">${s.seed_type}</span>
+        <span class="pill ${s.status==='done'?'ok':'run'}">${s.status}</span>
+        ${s.active_authorized?'<span class="pill warn">active</span>':''}
+        <span>${s.profile}</span>
+      </div>
+    </div>`).join("");
+  $$(".scan", box).forEach(el => el.onclick = () => selectScan(el.dataset.id));
+}
+
+// ── select + overview + live SSE ────────────────────────────────────────────────
+let activeTab = "overview";
+function selectScan(id) {
+  state.scan = id; loadScans();
+  loadOverview(); startStream(id);
+  if (activeTab === "graph") loadGraph();
+  if (activeTab === "assets") loadAssets();
+  if (activeTab === "findings") loadFindings();
+}
+async function loadOverview() {
+  $("#ov-empty").style.display = "none"; $("#ov-body").style.display = "block";
+  let o; try { o = await api("/scans/" + state.scan); } catch { return; }
+  $("#ov-stats").innerHTML = [
+    ["assets", o.assets_total, "acc"], ["live", o.live_assets, "ok2"],
+    ["findings", o.findings, o.findings?"warn2":""],
+    ["max depth", o.queue.max_depth, "acc"],
+    ["re-fed keys", o.queue.downstream_enqueued, ""],
+    ["queue items", o.queue.total_items, ""],
+  ].map(([k,n,c]) => `<div class="stat"><div class="n ${c}">${n}</div><div class="k">${k}</div></div>`).join("");
+  renderByType(o.assets_by_type);
+  renderQueue(o.queue);
+  // populate asset-type filter
+  const sel = $("#a_type"); const cur = sel.value;
+  sel.innerHTML = '<option value="">all types</option>' +
+    Object.keys(o.assets_by_type).sort().map(t => `<option>${t}</option>`).join("");
+  sel.value = cur;
+}
+function renderByType(byType) {
+  const ents = Object.entries(byType).sort((a,b)=>b[1]-a[1]);
+  const max = Math.max(1, ...ents.map(e=>e[1]));
+  $("#ov-bytype").innerHTML = ents.length ? ents.map(([t,n]) => `
+    <div class="depthrow"><span class="lab" style="width:120px;color:var(--ink)">${t}</span>
+      <span class="bar"><i style="width:${100*n/max}%"></i></span><span class="ct">${n}</span></div>`).join("")
+    : '<div class="muted">no assets yet</div>';
+}
+function renderQueue(q) {
+  const done = q.by_status?.completed || 0, total = q.total_items || 0;
+  const pct = total ? Math.round(100*done/total) : 0;
+  $("#ov-queue").innerHTML =
+    `<div class="bar" style="margin-bottom:6px"><i style="width:${pct}%"></i></div>` +
+    Object.entries(q.by_status||{}).map(([k,v]) =>
+      `<span class="pill ${k==='completed'?'ok':k==='running'?'run':k==='failed'?'bad':''}">${k}: ${v}</span>`).join(" ") +
+    ` &nbsp;<span class="muted">${pct}% of ${total}</span>`;
+  const depths = q.by_depth || {};
+  const dmax = Math.max(1, ...Object.values(depths));
+  $("#ov-depths").innerHTML = '<div class="muted" style="margin-bottom:4px">depth fan-out</div>' +
+    Object.entries(depths).map(([d,n]) => `
+      <div class="depthrow"><span class="lab">${d}</span>
+        <span class="bar"><i style="width:${100*n/dmax}%"></i></span><span class="ct">${n}</span></div>`).join("");
+}
+function startStream(id) {
+  if (state.stream) state.stream.abort();
+  const ctrl = new AbortController(); state.stream = ctrl;
+  const pill = $("#livepill"); pill.style.display = "inline-block";
+  pill.className = "pill run"; pill.textContent = "● live";
+  fetch("/scans/"+id+"/events", { headers: authHeaders(), signal: ctrl.signal })
+    .then(async resp => {
+      if (!resp.body) return;
+      const reader = resp.body.getReader(), dec = new TextDecoder(); let buf = "";
+      while (true) {
+        const { value, done } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream:true }); let i;
+        while ((i = buf.indexOf("\n\n")) >= 0) {
+          const chunk = buf.slice(0,i); buf = buf.slice(i+2);
+          let ev = "message", ds = "";
+          chunk.split("\n").forEach(l => {
+            if (l.startsWith("event:")) ev = l.slice(6).trim();
+            else if (l.startsWith("data:")) ds += l.slice(5).trim();
+          });
+          if (!ds) continue;
+          const d = JSON.parse(ds);
+          if (state.scan === id) { renderQueue(d); if (activeTab==="overview") loadOverviewStats(); }
+          if (ev === "done") { pill.className="pill ok"; pill.textContent="✓ converged";
+            if (state.scan===id) { loadOverview(); loadScans(); } return; }
+        }
+      }
+    }).catch(()=>{ /* aborted or ended */ });
+}
+async function loadOverviewStats() {  // light refresh of stat cards during a live scan
+  if (!state.scan) return;
+  try { const o = await api("/scans/"+state.scan);
+    $("#ov-stats").querySelectorAll(".stat .n").forEach((el,i)=>{
+      const vals=[o.assets_total,o.live_assets,o.findings,o.queue.max_depth,o.queue.downstream_enqueued,o.queue.total_items];
+      if (vals[i]!==undefined) el.textContent=vals[i]; });
+    renderByType(o.assets_by_type);
+  } catch {}
+}
+
+// ── tabs ───────────────────────────────────────────────────────────────────────
+$$(".tab").forEach(t => t.onclick = () => {
+  $$(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
+  activeTab = t.dataset.tab;
+  $$(".tabbody").forEach(b=>b.style.display="none");
+  $("#tab-"+activeTab).style.display = "block";
+  if (activeTab==="graph") loadGraph();
+  if (activeTab==="assets") loadAssets();
+  if (activeTab==="findings") loadFindings();
+  if (activeTab==="tools" && !state.tools.length) loadTools();
+});
+
+// ── assets ───────────────────────────────────────────────────────────────────────
+$("#a_type").onchange = loadAssets;
+$("#a_search").oninput = renderAssets;
+async function loadAssets() {
+  if (!state.scan) return;
+  const t = $("#a_type").value;
+  try { state.assets = await api(`/scans/${state.scan}/assets?limit=5000${t?`&type=${encodeURIComponent(t)}`:""}`); }
+  catch { return; }
+  renderAssets();
+}
+function renderAssets() {
+  const q = $("#a_search").value.toLowerCase();
+  const rows = state.assets.filter(a => !q || a.value.toLowerCase().includes(q));
+  $("#a_count").textContent = rows.length + " of " + state.assets.length;
+  $("#a_rows").innerHTML = rows.slice(0,3000).map(a => `
+    <tr><td>${a.type}</td><td class="val">${esc(a.value)}</td>
+      <td>${a.confidence}</td>
+      <td>${a.is_live?'<span class="pill ok">live</span>':''}</td>
+      <td>${a.in_scope?'in':'<span class="muted">out</span>'}</td>
+      <td class="muted">${(a.tech||[]).join(", ")}</td></tr>`).join("")
+    || '<tr><td colspan="6" class="empty">no assets</td></tr>';
+}
+
+// ── findings ─────────────────────────────────────────────────────────────────────
+async function loadFindings() {
+  if (!state.scan) return;
+  let fs; try { fs = await api(`/scans/${state.scan}/findings`); } catch { return; }
+  $("#f_rows").innerHTML = fs.map(f => `
+    <tr><td class="sev-${(f.severity||'info').toLowerCase()}">${f.severity||'-'}</td>
+      <td>${f.kind||''}</td><td>${esc(f.title||'')}</td>
+      <td class="val">${esc(f.asset||'')}</td><td class="muted">${f.detector||''}</td>
+      <td>${f.cve_id||''}</td><td>${f.status||''}</td></tr>`).join("")
+    || '<tr><td colspan="7" class="empty">no findings</td></tr>';
+}
+
+// ── tools matrix ───────────────────────────────────────────────────────────────
+$("#t_filter").onchange = renderTools; $("#t_search").oninput = renderTools;
+async function loadTools() {
+  try { state.tools = await api("/tools"); } catch { return; }
+  const r = await api("/tools/summary").catch(()=>null);
+  if (r) $("#t_summary").textContent =
+    `${r.runnable} runnable · ${r.default_on} in default · ${r.web_only} web-only · ${r.total} total`;
+  renderTools();
+}
+function renderTools() {
+  const f = $("#t_filter").value, q = $("#t_search").value.toLowerCase();
+  const rows = state.tools.filter(t => {
+    if (f==="runnable" && !t.runnable) return false;
+    if (f==="default" && !t.default_on) return false;
+    if (f==="web" && !t.web_only) return false;
+    if (q && !(t.name+t.slug+t.category).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  $("#t_rows").innerHTML = rows.map(t => `
+    <tr><td>${esc(t.name)} <span class="muted mono">${t.slug}</span></td>
+      <td class="muted">${t.category||''}</td>
+      <td>${t.classification||''}</td>
+      <td class="muted">${(t.integration||[]).join(",")}</td>
+      <td class="muted mono">${(t.consumes||[]).join(",")||'·'} → ${(t.produces||[]).join(",")||'·'}</td>
+      <td>${t.runnable?'<span class="pill ok">runnable</span>':'<span class="pill">stub</span>'}
+          ${t.default_on?'<span class="pill run">default</span>':''}
+          ${t.web_only?'<span class="pill warn">web</span>':''}</td></tr>`).join("")
+    || '<tr><td colspan="6" class="empty">no tools match</td></tr>';
+}
+
+// ── graph (vanilla force layout on canvas, no external libs) ────────────────────
+const TYPE_COLORS = { domain:"#4cc2ff", subdomain:"#3ddc97", ip:"#ffb454", cidr:"#c084fc",
+  url:"#60a5fa", port:"#f472b6", email:"#facc15", org:"#a78bfa", asn:"#fb923c",
+  finding:"#ff6b6b", username:"#34d399", hostname:"#22d3ee" };
+function colorFor(t){ return TYPE_COLORS[t] || "#8aa0b4"; }
+let G = { nodes:[], edges:[], tf:{x:0,y:0,k:1}, drag:null, hover:null };
+
+async function loadGraph() {
+  if (!state.scan) return;
+  if (state.graphAnim) cancelAnimationFrame(state.graphAnim);
+  let g; try { g = await api(`/scans/${state.scan}/graph?limit=4000`); } catch { return; }
+  const cv = $("#graph"); const W = cv.clientWidth||800, H = cv.clientHeight||600;
+  const ids = new Map();
+  G.nodes = g.nodes.slice(0, 600).map((n,idx) => {
+    ids.set(n.id, idx);
+    return { ...n, x: W/2 + (Math.random()-.5)*W*0.6, y: H/2 + (Math.random()-.5)*H*0.6,
+             vx:0, vy:0, r: 4 + (n.confidence||0.5)*6, pin:false };
+  });
+  G.edges = g.edges.filter(e => ids.has(e.source) && ids.has(e.target))
+                   .map(e => ({ s: ids.get(e.source), t: ids.get(e.target), rel:e.rel }));
+  G.tf = { x:0, y:0, k:1 };
+  buildLegend(g.nodes);
+  if (!G.nodes.length) { drawGraph(0); return; }
+  let alpha = 1;
+  const step = () => {
+    alpha *= 0.985; simulate(alpha, W, H); drawGraph();
+    if (alpha > 0.02) state.graphAnim = requestAnimationFrame(step); else drawGraph();
+  };
+  step();
+}
+function buildLegend(nodes){
+  const types=[...new Set(nodes.map(n=>n.type))].slice(0,12);
+  $("#glegend").innerHTML = types.map(t=>`<span><i style="background:${colorFor(t)}"></i>${t}</span>`).join("")
+    + `<span class="muted">${nodes.length} nodes</span>`;
+}
+function simulate(alpha, W, H) {
+  const N = G.nodes;
+  for (let i=0;i<N.length;i++){
+    const a=N[i];
+    for (let j=i+1;j<N.length;j++){
+      const b=N[j]; let dx=a.x-b.x, dy=a.y-b.y; let d2=dx*dx+dy*dy||0.01;
+      if (d2>40000) continue;  // ignore far pairs for perf
+      const f=900/d2; const d=Math.sqrt(d2);
+      const fx=dx/d*f, fy=dy/d*f;
+      a.vx+=fx; a.vy+=fy; b.vx-=fx; b.vy-=fy;
+    }
+    // center gravity
+    a.vx += (W/2 - a.x)*0.0008; a.vy += (H/2 - a.y)*0.0008;
+  }
+  for (const e of G.edges){
+    const a=N[e.s], b=N[e.t]; let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||0.01;
+    const f=(d-70)*0.02; const fx=dx/d*f, fy=dy/d*f;
+    a.vx+=fx; a.vy+=fy; b.vx-=fx; b.vy-=fy;
+  }
+  for (const n of N){
+    if (n.pin) { n.vx=0; n.vy=0; continue; }
+    n.vx*=0.85; n.vy*=0.85; n.x+=n.vx*alpha*2; n.y+=n.vy*alpha*2;
+  }
+}
+function drawGraph() {
+  const cv=$("#graph"); const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth, H=cv.clientHeight;
+  if (cv.width!==W*dpr||cv.height!==H*dpr){ cv.width=W*dpr; cv.height=H*dpr; }
+  const ctx=cv.getContext("2d"); ctx.save(); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  ctx.translate(G.tf.x,G.tf.y); ctx.scale(G.tf.k,G.tf.k);
+  ctx.lineWidth=0.6; ctx.strokeStyle="rgba(120,150,180,0.25)";
+  for (const e of G.edges){ const a=G.nodes[e.s], b=G.nodes[e.t];
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+  for (const n of G.nodes){
+    ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,7); ctx.fillStyle=colorFor(n.type); ctx.fill();
+    if (n.is_live){ ctx.lineWidth=1.5; ctx.strokeStyle="#fff"; ctx.stroke(); }
+    if (n===G.hover){ ctx.lineWidth=2; ctx.strokeStyle=colorFor(n.type); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+// graph interaction: zoom / pan / drag
+(function(){
+  const cv=$("#graph"); const tip=$("#gtip");
+  const toWorld=(mx,my)=>({x:(mx-G.tf.x)/G.tf.k, y:(my-G.tf.y)/G.tf.k});
+  const pick=(mx,my)=>{ const w=toWorld(mx,my); let best=null,bd=99;
+    for (const n of G.nodes){ const d=Math.hypot(n.x-w.x,n.y-w.y); if (d<n.r+4&&d<bd){bd=d;best=n;} } return best; };
+  cv.addEventListener("wheel", e=>{ e.preventDefault(); const r=cv.getBoundingClientRect();
+    const mx=e.clientX-r.left, my=e.clientY-r.top; const f=e.deltaY<0?1.1:0.9;
+    G.tf.x=mx-(mx-G.tf.x)*f; G.tf.y=my-(my-G.tf.y)*f; G.tf.k*=f; drawGraph(); }, {passive:false});
+  cv.addEventListener("mousedown", e=>{ const r=cv.getBoundingClientRect();
+    const mx=e.clientX-r.left, my=e.clientY-r.top; const n=pick(mx,my);
+    if (n){ G.drag={node:n}; n.pin=true; } else G.drag={pan:true, x:mx-G.tf.x, y:my-G.tf.y}; });
+  window.addEventListener("mousemove", e=>{ const r=cv.getBoundingClientRect();
+    const mx=e.clientX-r.left, my=e.clientY-r.top;
+    if (G.drag?.node){ const w=toWorld(mx,my); G.drag.node.x=w.x; G.drag.node.y=w.y; drawGraph(); }
+    else if (G.drag?.pan){ G.tf.x=mx-G.drag.x; G.tf.y=my-G.drag.y; drawGraph(); }
+    else { const n=pick(mx,my); G.hover=n;
+      if (n){ tip.style.display="block"; tip.style.left=(mx+14)+"px"; tip.style.top=(my+10)+"px";
+        tip.innerHTML=`<b style="color:${colorFor(n.type)}">${n.type}</b> ${esc(n.id)}<br><span class="muted">conf ${n.confidence}${n.is_live?' · live':''}</span>`; }
+      else tip.style.display="none"; drawGraph(); } });
+  window.addEventListener("mouseup", ()=>{ if (G.drag?.node) G.drag.node.pin=false; G.drag=null; });
+})();
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+health();
+</script>
+</body>
+</html>

@@ -311,6 +311,7 @@ designed to be sub-linear and are regression-tested:
 10. AI as the 4 bounded functions, each with deterministic fallback.
 11. Graph store (Neo4j) for the relationship/clue graph + evidence-pack export.
 12. IP rotation + per-provider rate/circuit wiring; bandit-style source scoring.
+13. ✅ **done** — **Web UI + control API** (`recontool serve` → `recontool/api/`): auth-gated FastAPI read API, **SSE** live progress, scan launcher (incl. the active-gate), a vanilla force-directed relationship graph, and the read-only **tool matrix** (`/tools`) so users see the full capability surface and pick a profile. Self-contained single page (no CDN). The Neo4j graph store (#11) is the heavier follow-on; this ships the visualization now over the SQL graph.
 
 **Cross-cutting:** keep `recon-integration-tracker` green every session;
 regenerate `recon_matrix.xlsx` and the suggested docs when the tool set changes.

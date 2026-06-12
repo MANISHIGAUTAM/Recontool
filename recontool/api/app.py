@@ -25,9 +25,10 @@ import hmac
 import json
 import threading
 import uuid
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from recontool.api import data
@@ -119,6 +120,16 @@ def create_app() -> FastAPI:
               limit: int = Query(2000, le=20000)) -> dict:
         return data.graph(scan_id, limit=limit)
 
+    @app.get("/tools")
+    def tools(_: None = Depends(_require_auth),
+              runnable_only: bool = Query(False)) -> list:
+        """Capability matrix — every tool, what's runnable, what's in `default`."""
+        return data.list_tools(runnable_only=runnable_only)
+
+    @app.get("/tools/summary")
+    def tools_summary(_: None = Depends(_require_auth)) -> dict:
+        return data.tools_summary()
+
     @app.get("/scans/{scan_id}/events")
     def events(scan_id: str, _: None = Depends(_require_auth)) -> StreamingResponse:
         async def _stream():
@@ -132,5 +143,18 @@ def create_app() -> FastAPI:
                 await asyncio.sleep(1.0)
 
         return StreamingResponse(_stream(), media_type="text/event-stream")
+
+    # ── UI front-end ─────────────────────────────────────────────────────────
+    # Single self-contained SPA (no CDN / external calls — this is a privileged
+    # control surface). The page itself is public; every data route it calls is
+    # bearer-gated, and the user pastes the token into the UI.
+    _ui = Path(__file__).parent / "static" / "index.html"
+
+    @app.get("/", include_in_schema=False)
+    @app.get("/ui", include_in_schema=False)
+    def ui() -> FileResponse:
+        if not _ui.exists():  # pragma: no cover - UI always bundled in repo
+            raise HTTPException(status_code=404, detail="UI not bundled")
+        return FileResponse(_ui, media_type="text/html")
 
     return app

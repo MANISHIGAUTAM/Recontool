@@ -68,9 +68,63 @@ def test_graph(seeded):
     assert g["edges"][0]["rel"] == "resolves_to"
 
 
+def test_list_tools_and_summary():
+    """Pure capability matrix the UI 'Tools' tab renders — no web stack needed."""
+    rows = data.list_tools()
+    assert rows, "catalog should yield tools"
+    sample = rows[0]
+    for key in ("slug", "name", "runnable", "default_on", "web_only", "source"):
+        assert key in sample
+    runnable = data.list_tools(runnable_only=True)
+    assert 0 < len(runnable) < len(rows)
+    assert all(t["runnable"] for t in runnable)
+    summ = data.tools_summary()
+    assert summ["total"] == len(rows)
+    assert summ["runnable"] == len(runnable)
+    assert summ["default_on"] >= summ["runnable"] >= 1 or summ["default_on"] >= 1
+
+
 def test_app_constructs_when_fastapi_present():
     if importlib.util.find_spec("fastapi") is None:
         pytest.skip("fastapi not installed (optional API extra)")
     from recontool.api.app import create_app
 
     assert create_app() is not None
+
+
+def _client(monkeypatch):
+    """A TestClient with a known token configured (fastapi-only).
+
+    Uses monkeypatch so the global ``settings.api_token`` is restored after the
+    test and can't leak into the rest of the suite."""
+    from fastapi.testclient import TestClient
+
+    from recontool.api.app import create_app
+    from recontool.config import settings
+    monkeypatch.setattr(settings, "api_token", "test-token")
+    return TestClient(create_app())
+
+
+def test_ui_is_served(seeded, monkeypatch):
+    if importlib.util.find_spec("fastapi") is None:
+        pytest.skip("fastapi not installed (optional API extra)")
+    c = _client(monkeypatch)
+    r = c.get("/")
+    assert r.status_code == 200
+    assert "text/html" in r.headers["content-type"]
+    body = r.text
+    assert "RECON" in body and "control surface" in body
+    # self-contained: no external script/style/img sources (no CDN phone-home)
+    assert "http://" not in body.replace("http://127.0.0.1", "").replace("http://{", "")
+    assert "src=\"http" not in body and "href=\"http" not in body
+
+
+def test_tools_route_auth_gated(seeded, monkeypatch):
+    if importlib.util.find_spec("fastapi") is None:
+        pytest.skip("fastapi not installed (optional API extra)")
+    c = _client(monkeypatch)
+    assert c.get("/tools").status_code == 401          # no bearer
+    ok = c.get("/tools", headers={"Authorization": "Bearer test-token"})
+    assert ok.status_code == 200 and isinstance(ok.json(), list) and ok.json()
+    summ = c.get("/tools/summary", headers={"Authorization": "Bearer test-token"})
+    assert summ.status_code == 200 and summ.json()["total"] >= 1

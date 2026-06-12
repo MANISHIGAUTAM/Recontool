@@ -128,6 +128,40 @@ def list_findings(scan_id: str, *, limit: int = 500) -> list[dict[str, Any]]:
         ]
 
 
+def list_tools(*, runnable_only: bool = False) -> list[dict[str, Any]]:
+    """The full tool matrix from the catalog — the capability surface the UI shows.
+
+    Read-only. Scan-time selection is by *profile* (``default`` = recommended,
+    ``all`` = every runnable tool), so ``runnable``/``default_on`` explain what
+    each profile includes rather than offering per-tool toggles the engine can't
+    yet honor. Nothing is dropped: web-only / key-gated tools are listed too."""
+    from recontool.inventory.catalog import load_all_tools
+
+    out: list[dict[str, Any]] = []
+    for r in load_all_tools():
+        if runnable_only and not r.runnable:
+            continue
+        out.append({
+            "slug": r.slug, "name": r.name, "category": r.category,
+            "classification": r.classification, "integration": list(r.integration),
+            "consumes": list(r.consumes), "produces": list(r.produces),
+            "runnable": bool(r.runnable), "web_only": bool(r.web_only),
+            "default_on": bool(r.default_on), "source": r.source,
+        })
+    return out
+
+
+def tools_summary() -> dict[str, int]:
+    """Counts for the matrix header: total / runnable / in-default / web-only."""
+    rows = list_tools()
+    return {
+        "total": len(rows),
+        "runnable": sum(t["runnable"] for t in rows),
+        "default_on": sum(t["default_on"] for t in rows),
+        "web_only": sum(t["web_only"] for t in rows),
+    }
+
+
 def graph(scan_id: str, *, limit: int = 2000) -> dict[str, Any]:
     """Nodes (assets) + edges for the relationship graph front-end."""
     with session_scope() as s:

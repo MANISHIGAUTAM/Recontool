@@ -457,30 +457,44 @@ single-source design in [`docs/00-FINAL-ARCHITECTURE.md`](docs/00-FINAL-ARCHITEC
 
 ## API / UI server, scaling & org-forest
 
-### Live status & control API (`recontool serve`)
-A FastAPI service exposes the engine state for a UI/front-end — read endpoints,
-a live **SSE** progress stream, and an auth-gated scan-control endpoint.
+### Web UI + live status & control API (`recontool serve`)
+A FastAPI service exposes the engine state **and ships a self-contained web UI** —
+read endpoints, a live **SSE** progress stream, and an auth-gated scan-control
+endpoint. The UI is a single dependency-free page (no CDN / external calls — this
+is a privileged surface); you paste the bearer token into it.
 
 ```bash
 pip install fastapi uvicorn                    # optional extra (in the Docker image already)
 export RECON_API_TOKEN=$(openssl rand -hex 16) # REQUIRED — no token => data routes return 503
-recontool serve                                # binds 127.0.0.1:8088 (docs at /docs)
+recontool serve                                # UI at http://127.0.0.1:8088/  (API docs at /docs)
 ```
+
+Open `http://127.0.0.1:8088/`, paste the token, and you get: a **scan launcher**
+(seed/type/profile, tool profile `default`|`all`, depth/workers, noise toggles, and
+an explicit *authorize-active* checkbox with a guardrail confirm), **live SSE
+progress** (queue status + recursion depth fan-out), an **assets** table (type
+filter + search), **findings**, the **relationship graph** (a vanilla
+force-directed canvas — color by entity type, live hosts ringed, zoom/pan/pin),
+and the read-only **tool matrix** (every tool, what's runnable, what's in `default`).
 
 | Route | Purpose |
 |-------|---------|
+| `GET /` · `GET /ui` | the bundled web UI (open; calls below are token-gated) |
 | `GET /health` | liveness (open) |
 | `GET /scans` · `GET /scans/{id}` | list scans · overview (counts + recursion-depth stats) |
 | `GET /scans/{id}/assets?type=` · `/findings` | typed asset inventory · findings |
 | `GET /scans/{id}/queue` | WorkQueue / recursion view (status, depth fan-out, re-feed) |
-| `GET /scans/{id}/graph` | `{nodes, edges}` for the relationship graph front-end |
+| `GET /scans/{id}/graph` | `{nodes, edges}` for the relationship graph |
 | `GET /scans/{id}/events` | **SSE** — live queue progress until convergence |
+| `GET /tools` · `/tools/summary` | capability matrix — every tool, runnable/default flags |
 | `POST /scans` | start a scan (body: seed, profile, `authorize_active`, …) |
 
-> **Security:** every route except `/health` requires `Authorization: Bearer
-> $RECON_API_TOKEN` (constant-time check; default-deny if unset). It binds to
-> localhost by default — only expose it behind a TLS reverse proxy with the token
-> set. It's a privileged control surface (it can launch active scans).
+> **Security:** every route except `/`, `/ui`, and `/health` requires
+> `Authorization: Bearer $RECON_API_TOKEN` (constant-time check; default-deny if
+> unset). It binds to localhost by default — only expose it behind a TLS reverse
+> proxy with the token set. It's a privileged control surface (it can launch
+> active scans). The UI sends the token via `fetch`, including the SSE stream
+> (`EventSource` can't set headers), so nothing about it weakens the bearer gate.
 
 ### Horizontal worker fleet (AWS distribution)
 The atomic-claim `work_item` queue lets N identical workers drain one scan in
