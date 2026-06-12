@@ -1046,7 +1046,11 @@ tools:
     integration: cli
     binary: cero
     install: {method: go, ref: "github.com/glebarez/cero@latest"}
-    invocation: "cero {infile}"
+    # No {infile}: GenericCliAdapter only substitutes {value}/{domain}/{ip}/{host},
+    # so {infile} rendered to "" and cero ran with no target + no stdin, exiting
+    # near-instantly with 0 results every run. cero accepts the target IP as a
+    # positional argument directly.
+    invocation: "cero {value}"
     input: ip
     output: subdomain
     output_format: text
