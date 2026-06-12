@@ -14,6 +14,9 @@ services:
     build: .
     image: recontool:latest
     volumes:
+      # Live source (editable install) — code edits apply with NO rebuild.
+      # Remove this mount to run the image's baked-in code instead.
+      - ./recontool:/app/recontool
       - ./config:/app/config
       - ./output:/app/output
       - ./artifacts:/app/artifacts

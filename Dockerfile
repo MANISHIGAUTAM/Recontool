@@ -29,17 +29,24 @@ RUN pipx ensurepath || true
 
 WORKDIR /app
 
-# Install the Python platform first (better layer caching).
-COPY requirements.txt pyproject.toml ./
-COPY recontool ./recontool
-RUN pip3 install --no-cache-dir -r requirements.txt && pip3 install --no-cache-dir -e .
-# API server (recontool serve) + favicon-hash org-forest pivot. Light deps, so
-# the all-in-one image ships UI/API-ready; local users add these on demand.
-RUN pip3 install --no-cache-dir fastapi uvicorn mmh3
+# ── Dependency + tool layers FIRST (heavy + rarely changing) ─────────────────
+# Install Python deps from requirements (NOT the editable package yet) so that
+# editing app code further down never invalidates these expensive layers.
+COPY requirements.txt ./
+RUN pip3 install --no-cache-dir -r requirements.txt \
+    && pip3 install --no-cache-dir fastapi uvicorn mmh3
 
-# Install external recon tools (Go + pip + git). This is the heavy layer.
+# Install external recon tools (Go + pip + git). This is the ~40-min heavy layer
+# — kept ABOVE the app-code COPY so a code change never busts it.
 COPY docker/install_tools.sh ./docker/install_tools.sh
 RUN bash docker/install_tools.sh all || true
+
+# ── App code LAST (changes often, cheap to rebuild) ──────────────────────────
+# Editable install: a code change only rebuilds from here down (seconds), and the
+# bind-mount in docker-compose lets local edits apply with NO rebuild at all.
+COPY pyproject.toml ./
+COPY recontool ./recontool
+RUN pip3 install --no-cache-dir -e .
 
 # Copy the rest (config, docs).
 COPY . .
