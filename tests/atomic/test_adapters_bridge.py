@@ -73,20 +73,17 @@ def test_python_adapter_classes_excludes_generic():
         assert not issubclass(cls, (GenericApiAdapter, GenericCliAdapter))
 
 
-def test_url_tools_get_default_firehose_cap():
-    """URL-producing generic tools are capped (bounds the historical-URL firehose);
-    an explicit max_records wins; non-URL tools get no default cap."""
+def test_max_records_is_optional_and_unlimited_by_default():
+    """No default cap — URL tools ingest everything (designed for large datasets);
+    the engine handles volume via the single-writer DB executor + chunked ingest.
+    An explicit max_records is still honored if a user opts into a cap."""
     from recontool.engine.execution import to_generic_spec
     from recontool.engine.registry import ToolSpec
 
     url_tool = ToolSpec(name="gau_x", integration="cli", binary="gau",
                         consumes=["domain"], produces=["url"])
-    assert to_generic_spec(url_tool)["max_records"] == 5000
+    assert to_generic_spec(url_tool)["max_records"] is None   # unlimited by default
 
     explicit = ToolSpec(name="gau_y", integration="cli", binary="gau",
                         consumes=["domain"], produces=["url"], max_records=100)
-    assert to_generic_spec(explicit)["max_records"] == 100
-
-    sub_tool = ToolSpec(name="sub_z", integration="cli", binary="z",
-                        consumes=["domain"], produces=["subdomain"])
-    assert to_generic_spec(sub_tool)["max_records"] is None
+    assert to_generic_spec(explicit)["max_records"] == 100    # opt-in cap honored

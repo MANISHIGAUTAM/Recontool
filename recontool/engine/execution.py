@@ -60,13 +60,6 @@ def to_generic_spec(tool_spec: ToolSpec) -> Optional[dict[str, Any]]:
 
     consumes = list(tool_spec.consumes or tool_spec.supported_input_types)
     produces = list(tool_spec.produces or tool_spec.output_types)
-    # Firehose guard: URL/endpoint tools (gau, waybackurls, katana, …) can emit
-    # 100k+ records in one run. Cap per-run records — an explicit spec value wins,
-    # else default for URL producers. (curated tools.yaml entries lack the field,
-    # so this default is what actually bounds gau/waybackurls in the engine.)
-    _max_records = tool_spec.max_records
-    if _max_records is None and ("url" in produces or "endpoint" in produces):
-        _max_records = 5000
     base: dict[str, Any] = {
         "name": tool_spec.name,
         "phase": tool_spec.phase,
@@ -77,7 +70,10 @@ def to_generic_spec(tool_spec: ToolSpec) -> Optional[dict[str, Any]]:
         "requires_key": tool_spec.requires_key,
         "key_optional": tool_spec.key_optional,
         "timeout": tool_spec.timeout,
-        "max_records": _max_records,
+        # Optional per-tool record cap (None = UNLIMITED). The engine handles huge
+        # volumes safely via the single-writer DB executor + chunked ingest, so
+        # nothing is truncated by default — set this only if you want a cap.
+        "max_records": tool_spec.max_records,
     }
 
     if tool_spec.integration == "api":

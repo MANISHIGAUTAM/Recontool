@@ -180,9 +180,8 @@ tools:
     consumes: [domain]
     produces: [url]
     binary: gau
-    invocation: "gau {domain} --threads 5 --blacklist ttf,woff,woff2,svg,png,jpg,jpeg,gif,css,ico,webp,eot"
+    invocation: "gau {domain} --threads 5"
     max_inputs: 20
-    max_records: 5000          # bound the historical-URL firehose (was 200k+ per scan)
     parse:
       format: text
       emit:
@@ -198,7 +197,6 @@ tools:
     binary: gauplus
     invocation: "gauplus -t 5 {domain}"
     max_inputs: 20
-    max_records: 5000
     parse:
       format: text
       emit:
@@ -214,7 +212,6 @@ tools:
     binary: waybackurls
     invocation: "waybackurls {domain}"
     max_inputs: 20
-    max_records: 5000
     parse:
       format: text
       emit:
