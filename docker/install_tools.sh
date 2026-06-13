@@ -106,7 +106,8 @@ install_all() {
   go_install jsluice   "github.com/BishopFox/jsluice/cmd/jsluice@latest"
   go_install metabigor "github.com/j3ssie/metabigor@latest"
   go_install github-subdomains "github.com/gwen001/github-subdomains@latest"
-  go_install gitleaks  "github.com/gitleaks/gitleaks/v8@latest"
+  go_install gitleaks  "github.com/zricethezav/gitleaks/v8@latest"
+  go_install amass     "github.com/owasp-amass/amass/v4/cmd/amass@latest"
   # Python tools
   pip_install dnsvalidator dnsvalidator
   pip_install wafw00f wafw00f
@@ -171,7 +172,7 @@ install_resources() {
 
   # subjack takeover fingerprints (the -c signature DB).
   if [ ! -s config/fingerprints.json ]; then
-    curl -fsSL https://raw.githubusercontent.com/haccer/subjack/master/fingerprints.json \
+    curl -fsSL https://raw.githubusercontent.com/EdOverflow/can-i-take-over-xyz/master/fingerprints.json \
       -o config/fingerprints.json 2>/dev/null && ok "subjack fingerprints -> config/fingerprints.json" \
       || warn "fingerprints.json fetch failed (subjack will skip)"
   fi

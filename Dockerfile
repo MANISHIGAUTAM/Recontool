@@ -23,7 +23,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     GOBIN=/usr/local/bin \
     GOTOOLCHAIN=auto \
     PYTHONUNBUFFERED=1 \
-    PIP_BREAK_SYSTEM_PACKAGES=1
+    PIP_BREAK_SYSTEM_PACKAGES=1 \
+    PATH="/root/.local/bin:${PATH}"
 
 # System deps: python, build tools, git, pipx, and libs the scanners need.
 RUN apt-get update && apt-get install -y --no-install-recommends \
