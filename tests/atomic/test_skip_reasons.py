@@ -29,3 +29,20 @@ def test_unavailable_reason_flags_missing_endpoint():
     r = _unavailable_reason(_spec(binary=None, requires_key=None,
                                   integration="api", endpoint=""))
     assert r == "no API endpoint contract"
+
+
+def test_missing_aux_file_detected(monkeypatch):
+    """A CLI tool whose required wordlist/resolvers file is absent must skip with
+    a precise reason — not run and dump usage (the ffuf-without-SecLists bug)."""
+    from recontool.adapters import generic
+
+    # force the resolved wordlist path to a non-existent file
+    monkeypatch.setattr(generic.settings, "resource",
+                        lambda key, default="": "/nope/does/not/exist.txt")
+    inv = "ffuf -u {url}/FUZZ -w {wordlist} -of json -o /dev/stdout -s"
+    assert generic.missing_aux_file(inv) == "/nope/does/not/exist.txt"
+    # a tool that references no data-file token is unaffected
+    assert generic.missing_aux_file("crtsh {domain}") is None
+
+    r = _unavailable_reason(_spec(binary="echo", integration="cli", invocation=inv))
+    assert r.startswith("missing data file:")

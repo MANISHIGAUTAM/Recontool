@@ -67,6 +67,10 @@ def _unavailable_reason(spec) -> str:
     key_env = getattr(spec, "requires_key", None)
     if key_env and not getattr(spec, "key_optional", False) and not _settings.api_key(key_env):
         return f"missing API key: {key_env}"
+    from recontool.adapters.generic import missing_aux_file
+    miss = missing_aux_file(getattr(spec, "invocation", "") or "")
+    if miss:
+        return f"missing data file: {miss}"
     if getattr(spec, "integration", "") == "api" and not getattr(spec, "endpoint", ""):
         return "no API endpoint contract"
     return "unavailable (prerequisite missing)"

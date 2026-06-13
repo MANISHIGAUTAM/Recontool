@@ -378,6 +378,36 @@ class GenericApiAdapter(Adapter):
         return await _fan_out(inputs, one, spec.get("max_inputs") or 100)
 
 
+# Aux data-FILE tokens a CLI invocation may reference -> (settings.resource key,
+# install-default path). A tool whose invocation needs one of these but whose file
+# is ABSENT would run with a bad path and dump usage/help instead of results
+# (the ffuf-without-SecLists bug), so it must skip instead — see missing_aux_file.
+_AUX_FILE_TOKENS = {
+    "wordlist": ("content_wordlist",
+                 "/opt/SecLists/Discovery/Web-Content/raft-medium-directories.txt"),
+    "dns_wordlist": ("dns_wordlist",
+                     "/opt/SecLists/Discovery/DNS/subdomains-top1million-5000.txt"),
+    "resolvers": ("resolvers", "config/resolvers.txt"),
+    "fingerprints": ("fingerprints", "config/fingerprints.json"),
+    "kite_wordlist": ("kite_wordlist", "/opt/kite/routes-small.kite"),
+}
+
+
+def missing_aux_file(invocation: str) -> str | None:
+    """If the invocation references an aux data-file token whose resolved file
+    does not exist, return that path (so the caller can skip with a reason);
+    else None. Resolution matches `_aux_tokens` so available() and the skip-reason
+    logic agree."""
+    if not invocation:
+        return None
+    for tok, (key, default) in _AUX_FILE_TOKENS.items():
+        if "{" + tok + "}" in invocation:
+            path = settings.resource(key, default)
+            if not path or not os.path.exists(path):
+                return path or f"{{{tok}}}"
+    return None
+
+
 def _aux_tokens(spec: dict, ctx: AdapterContext) -> dict[str, str]:
     """Resolve the non-entity tokens a CLI invocation may reference — resource
     files (wordlists/resolvers/fingerprints), scan-config scalars (ports/rate/
@@ -424,6 +454,11 @@ class GenericCliAdapter(Adapter):
         # they log `⊘ skip` instead of running a broken keyless invocation.
         key_env = self.spec.get("requires_key")
         if key_env and not self.spec.get("key_optional") and not settings.api_key(key_env):
+            return False
+        # A required data file (wordlist/resolvers/…) that doesn't exist would
+        # make the tool print usage/help instead of results (ffuf without
+        # SecLists) — skip cleanly instead of emitting that garbage.
+        if missing_aux_file(self.spec.get("invocation", "")):
             return False
         return True
 
