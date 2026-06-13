@@ -348,6 +348,13 @@ tools:
     requires_key: false
     default_on: false
     chains_to: [2]
+    # DEFERRED (recursion amplification): alterx emits permutation CANDIDATES, not
+    # confirmed hosts. Emitting them as `subdomain` assets would re-feed the full
+    # ~30-tool subdomain chain on thousands of non-existent hosts. Correct fix is a
+    # new `subdomain_candidate` output type that ONLY feeds resolvers (puredns/dnsx)
+    # for verification before promotion. Marked non_executable until that exists.
+    non_executable: true
+    non_executable_reason: "permutation candidates need a subdomain_candidate type -> resolver gate (else recursion amplifies); see review doc"
     notes: "Modern permutation engine; output MUST go through puredns/dnsx."
 
   dnsx:
@@ -435,6 +442,11 @@ tools:
     output_format: text
     requires_key: false
     default_on: false
+    # Resource GENERATOR, not a scan tool: builds config/resolvers.txt for
+    # puredns/massdns (input:none, output:resolver_list -- not an entity type).
+    # Already invoked by docker/install_tools.sh:install_resources at build time.
+    non_executable: true
+    non_executable_reason: "resource generator (builds resolvers.txt at install), not a scan-time entity producer"
     notes: "Produces clean resolver list for puredns/massdns (reduces false positives)."
 
   tlsx:
@@ -732,10 +744,21 @@ tools:
     integration: cli
     binary: wafw00f
     install: {method: pip, ref: "wafw00f"}
-    invocation: "wafw00f {url} -o {outfile} -f json"
+    # -o /dev/stdout -f json writes the JSON report ([{url,detected,firewall}])
+    # to stdout; wafw00f's progress goes to stderr (DEVNULL'd by the adapter).
+    invocation: "wafw00f {url} -o /dev/stdout -f json"
     input: url
-    output: tag
+    output: finding
     output_format: json
+    parse:
+      format: json
+      emit:
+        - entity: finding
+          when: {detected: "True"}
+          title: "WAF detected ({firewall}) on {url}"
+          kind: waf
+          severity: info
+          asset_value: "{url}"
     requires_key: false
     default_on: false
     notes: "Detect WAF -> informs rate strategy."
@@ -753,6 +776,13 @@ tools:
     output_format: text
     requires_key: false
     default_on: false
+    # cdncheck's job is to TAG CDN IPs so the engine skips port-scanning CDN edge
+    # ranges -- that's a noise-filter concern (engine/noise.py), not an entity the
+    # graph recurses on (output:tag is not a canonical type). Wiring it as a
+    # finding-producer would emit one low-value finding per CDN IP (pure noise).
+    # Marked non_executable until integrated into the noise filter directly.
+    non_executable: true
+    non_executable_reason: "CDN tagging feeds the noise filter (engine/noise.py), not the entity graph"
     notes: "Flag CDN hosts so we don't port-scan CDN edge ranges."
 
   # ===========================================================================
@@ -865,10 +895,18 @@ tools:
     integration: cli
     binary: cloud_enum
     install: {method: git, ref: "https://github.com/initstring/cloud_enum"}
-    invocation: "cloud_enum -k {keyword} -l {outfile}"
+    # -l {outfile} is just a logfile; cloud_enum prints hits to stdout as
+    # "[+] OPEN ... BUCKET: https://...". line_regex lifts the URL of each
+    # publicly-readable bucket into an exposed-storage finding.
+    invocation: "cloud_enum -k {keyword} -t 20"
     input: keyword
-    output: bucket
+    output: finding
     output_format: text
+    parse:
+      format: text
+      line_regex: 'OPEN.*?:\s*(?P<_value>https?://\S+)'
+      emit:
+        - {entity: finding, title: "Public cloud bucket: {_value}", kind: exposed_bucket, severity: medium, asset_value: "{_value}"}
     requires_key: false
     default_on: false
 
@@ -1301,6 +1339,11 @@ tools:
     output_format: text
     requires_key: false
     default_on: false
+    # anew is a dedupe PIPE UTILITY (stdin -> new lines), not a recon source: it
+    # discovers nothing and emits no entity type. The engine dedupes on enqueue
+    # already, so it has no role in the entity graph -> not scan-routable.
+    non_executable: true
+    non_executable_reason: "pipe utility (dedupe), emits no entities; engine dedupes on enqueue"
     notes: "Append-only dedupe; glue for incremental/streaming pipelines."
 
   interactsh:
@@ -1331,4 +1374,9 @@ tools:
     output_format: text
     requires_key: false
     default_on: false
+    # notify is an OUTPUT SINK (pushes to slack/discord/telegram); output:none ->
+    # it produces no recon entities. Belongs in a post-scan alert hook, not the
+    # scan tool-routing graph.
+    non_executable: true
+    non_executable_reason: "output sink (alerting), produces no entities; use as a post-scan hook"
     notes: "Alerting sink (slack/discord/telegram) for new assets/findings."

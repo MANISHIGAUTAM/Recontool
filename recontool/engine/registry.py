@@ -200,6 +200,10 @@ class ToolRegistry:
                 spec_data = cls._merge_inventory_metadata(spec_data, inv)
             spec_data.setdefault("slug", slug)
             spec_data.setdefault("source", "curated")
+            # A non_executable tool is never scheduled — keep enabled in lockstep
+            # so the scheduler skips it (matches inventory web/manual tools).
+            if spec_data.get("non_executable"):
+                spec_data["enabled"] = False
             tools[name] = ToolSpec(**spec_data)
             by_slug.setdefault(slug, name)
 
@@ -332,6 +336,7 @@ class ToolRegistry:
             "category", "phase", "type", "integration", "binary",
             "invocation", "output_format", "requires_key", "default_on",
             "chains_to", "notes", "timeout", "parse", "stdin", "max_records",
+            "non_executable", "non_executable_reason",
         ):
             if key in raw:
                 result[key] = raw[key]
