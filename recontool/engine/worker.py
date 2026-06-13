@@ -143,6 +143,24 @@ _PY_ADAPTER_BINARY = {
     "gitleaks": "gitleaks", "whatweb": "whatweb", "gowitness": "gowitness",
 }
 
+# High-output producers that must be concurrency-gated for MEMORY regardless of
+# integration: each can emit 10^5-10^6 events for a big target, so several running
+# at once (esp. the Python crawlers, which were NOT gated before) drive the heap
+# past the box limit. CLI tools are already gated; these add the Python crawlers +
+# the Wayback API firehose. (The earlier batching fix bounds the per-tool
+# downstream; this bounds how many big producers materialize concurrently.)
+_HIGH_OUTPUT = {
+    "pycrawl", "js_analyze", "js-render", "js_render", "wayback_cdx",
+    "waybackurls", "gau", "gauplus", "waymore", "katana", "hakrawler",
+    "gospider", "cariddi",
+}
+
+# Hard ceiling on concurrent heavy/high-output tools, independent of --workers.
+# Light tools (DNS, small APIs) still use the full worker pool; only the
+# memory-heavy producers serialize through this, keeping peak RSS bounded so the
+# engine and Postgres coexist on a modest shared box.
+_HEAVY_MAX = 16
+
 
 def _tool_available(spec) -> bool:
     integ = getattr(spec, "integration", "")
@@ -312,6 +330,8 @@ class WorkerPool:
         return self._stores[scan_id]
 
     def _is_heavy(self, spec) -> bool:
+        if spec.name in _HIGH_OUTPUT:
+            return True
         integ = getattr(spec, "integration", "")
         if integ == "cli":
             return True
@@ -570,9 +590,12 @@ class WorkerPool:
                 self.processed += 1
 
     async def run(self, scan_id: str, workers: int = 24) -> None:
-        # heavy (subprocess) tools may use at most HALF the pool, so light/fast
-        # tools always have free workers (no starvation, no caps on any tool).
-        self._heavy_sem = asyncio.Semaphore(max(2, workers // 2))
+        # Heavy/high-output tools are bounded to at most _HEAVY_MAX concurrent
+        # (independent of --workers) so their large stdout buffers + event lists
+        # can't blow the heap; light/fast tools still use the full pool. Capping
+        # by an absolute number (not workers//2) is what lets a 128-worker scan
+        # of a firehose target fit alongside Postgres on a ~8GB box.
+        self._heavy_sem = asyncio.Semaphore(max(2, min(workers // 2, _HEAVY_MAX)))
         try:
             await asyncio.gather(*(self._worker(scan_id) for _ in range(max(1, workers))))
         finally:
