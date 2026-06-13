@@ -14,6 +14,7 @@ same dedupe/confidence semantics as the per-row path.
 from __future__ import annotations
 
 import logging
+import re
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -39,6 +40,28 @@ _NAME_MAX = 64
 def _cap(value, n):
     """Truncate a string to n chars, leaving None/empty untouched."""
     return value[:n] if isinstance(value, str) and len(value) > n else value
+
+
+# A syntactically valid DNS hostname (dot-separated labels, alpha TLD; underscore
+# allowed for records like _dmarc). Mirrors the adapter-layer check.
+_HOST_RE = re.compile(r"^(?=.{1,253}$)([a-z0-9_](?:[a-z0-9_-]{0,62})?\.)+[a-z]{2,63}$")
+
+
+def _host_in_scope(value: str, scope) -> bool:
+    """A subdomain/domain asset must be a valid hostname AND in scope.
+
+    Applied at the Normalizer (the SOLE canonical writer, ADR-011) so EVERY
+    source is gated uniformly — direct subdomain emits from any adapter (generic
+    CLI/API, crawler, js_analyze) AND the host implied by an out-of-scope endpoint
+    or service URL (katana/hakrawler crawl third-party links like
+    accounts.google.com, which host-resolution would otherwise store as a
+    "subdomain" of the target). Garbage (a tool banner line, a bare label) fails
+    the shape check; external hosts fail the scope check. Raw evidence is
+    untouched — only the asset graph stays target-scoped.
+    """
+    if not _HOST_RE.match((value or "").lower()):
+        return False
+    return scope is None or scope.contains("subdomain", value)
 
 
 def _insert_ignore(session: Session, model, rows: list[dict]) -> None:
@@ -105,6 +128,11 @@ class Normalizer:
         key_tools: dict[str, set[tuple[str, str | None]]] = {}  # key -> {(tool, raw_ref)}
         for atype, value, tool, raw_ref in specs:
             if not atype or not value:
+                continue
+            # Central host gate: drop malformed / out-of-scope subdomain & domain
+            # assets at the one writer, covering every adapter + endpoint/service
+            # host resolution. (IPs/urls/cidrs keep their in_scope flag as before.)
+            if atype in ("subdomain", "domain") and not _host_in_scope(value, self.scope):
                 continue
             key = dedupe.dedupe_key(atype, value)
             if key not in key_info:

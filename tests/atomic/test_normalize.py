@@ -9,7 +9,8 @@ from sqlalchemy import func, select
 
 from recontool.adapters.base import Event
 from recontool.core.db import session_scope
-from recontool.core.models import Asset, Service
+from recontool.core.models import Asset, Endpoint, Service
+from recontool.core.scope import Scope
 from recontool.normalize.engine import Normalizer
 
 
@@ -28,6 +29,30 @@ def test_dedupe_no_duplicates(scan_db):
     with session_scope() as s:
         Normalizer(s, scan_db).ingest(events)
     assert _count_assets(scan_db) == 1   # collapsed to one canonical asset
+
+
+def test_host_gate_drops_out_of_scope_and_garbage(scan_db):
+    """The Normalizer is the single host-scope gate: malformed and out-of-scope
+    subdomain/domain assets are dropped at the canonical writer — covering ALL
+    adapters AND the host implied by an out-of-scope endpoint URL (crawler
+    third-party links). In-scope hosts (incl. the apex) are kept."""
+    scope = Scope.from_seed("example.com", "domain")
+    events = [
+        Event.asset("crtsh", "subdomain", "api.example.com"),       # in scope
+        Event.asset("crtsh", "subdomain", "example.com"),           # apex, in scope
+        Event.asset("js_analyze", "subdomain", "accounts.google.com"),  # out of scope
+        Event.asset("paramspider", "subdomain", "a"),               # malformed (no dot)
+        # an out-of-scope endpoint must NOT create a subdomain via host resolution
+        Event.endpoint("katana", "https://api.whatsapp.com/x"),
+    ]
+    with session_scope() as s:
+        Normalizer(s, scan_db, scope=scope).ingest(events)
+    with session_scope() as s:
+        subs = sorted(v for (v,) in s.execute(
+            select(Asset.value).where(Asset.scan_id == scan_db, Asset.type == "subdomain")))
+        eps = s.execute(select(func.count()).select_from(Endpoint)).scalar()
+    assert subs == ["api.example.com", "example.com"]   # google/whatsapp/'a' dropped
+    assert eps == 0                                      # out-of-scope endpoint dropped too
 
 
 def test_reingest_is_idempotent(scan_db):
