@@ -311,10 +311,17 @@ tools:
     integration: cli
     binary: amass
     install: {method: go, ref: "github.com/owasp-amass/amass/v4/...@master"}
-    invocation: "amass enum -passive -d {domain} -json {outfile}"
+    # -json {outfile} rendered to "" -> amass wrote JSON to a file named "" and
+    # the adapter (which parses stdout) saw nothing. Drop it: amass prints the
+    # discovered FQDNs to stdout as plain text, one per line. {domain} fills fine.
+    invocation: "amass enum -passive -d {domain}"
     input: domain
     output: subdomain
-    output_format: jsonl
+    output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
     requires_key: false
     default_on: false
     chains_to: [2, 3]
@@ -414,10 +421,20 @@ tools:
     integration: cli
     binary: tlsx
     install: {method: go, ref: "github.com/projectdiscovery/tlsx/cmd/tlsx@latest"}
-    invocation: "tlsx -l {infile} -json -san -cn -so"
-    input: host_port
+    # -l {infile} rendered to "" -> 0 results. tlsx reads host[:port] from stdin;
+    # connects :443 by default, so it runs on plain `subdomain` keys (was
+    # host_port, which NOTHING produces -> tlsx was also unreachable). -json -san
+    # -cn emits the cert's SANs + CN, which become NEW in-scope subdomains.
+    invocation: "tlsx -json -san -cn -silent"
+    stdin: true
+    input: subdomain
     output: subdomain    # SANs/CN from live certs
     output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - {entity: asset, value_each: subject_an, type: subdomain, scope_filter: subdomain}
+        - {entity: asset, value: "{subject_cn}", type: subdomain, scope_filter: subdomain}
     requires_key: false
     default_on: false
     chains_to: [2, 24]
@@ -496,10 +513,19 @@ tools:
     integration: cli
     binary: metabigor
     install: {method: go, ref: "github.com/j3ssie/metabigor@latest"}
-    invocation: "echo {org} | metabigor net --org -o {outfile}"
+    # The `echo {org} | ...` shell pipe never worked: the adapter uses
+    # subprocess_exec (no shell), so the pipe + {outfile} were never honored.
+    # metabigor reads the org from stdin natively and prints CIDRs to stdout.
+    # cidr_size guards against an over-broad shared-ASN result (see ripestat).
+    invocation: "metabigor net --org"
+    stdin: true
     input: org
     output: cidr
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: cidr, scope_filter: cidr_size}
     requires_key: false
     default_on: false
     notes: "ASN/IP/org discovery with NO API key. Great free pivot."
@@ -615,10 +641,19 @@ tools:
     integration: cli
     binary: httpx
     install: {method: go, ref: "github.com/projectdiscovery/httpx/cmd/httpx@latest"}
-    invocation: "httpx -l {infile} -json -sc -title -tech-detect -tls-grab -cdn -ip -cname -hash sha256 -web-server"
+    # -l {infile} rendered to "" (unsupported token) -> httpx got no targets and
+    # produced 0. httpx reads hosts from stdin when -l is omitted; -json writes
+    # JSONL to stdout (which the adapter captures). One host piped per work item.
+    invocation: "httpx -json -sc -title -tech-detect -tls-grab -cdn -ip -cname -web-server -silent"
+    stdin: true
     input: subdomain
     output: url
     output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - {entity: endpoint, url: "{url}"}
+        - {entity: asset, value_each: a, type: ip, scope_filter: ip}
     requires_key: false
     default_on: true
     chains_to: [13, 20, 22, 27]
@@ -965,10 +1000,22 @@ tools:
     integration: cli
     binary: katana
     install: {method: go, ref: "github.com/projectdiscovery/katana/cmd/katana@latest"}
-    invocation: "katana -list {infile} -jc -js-crawl -json -d 3"
+    # -list {infile} rendered to "" -> katana crawled nothing. katana reads URLs
+    # from stdin when -list is omitted; -silent prints one discovered URL per line
+    # (more robust to parse than its nested -json shape). One URL piped per item.
+    # -ct bounds the crawl so katana TERMINATES and flushes results within the
+    # adapter timeout — without it a deep (-d 3) JS crawl on a big site runs past
+    # the 150s kill and the adapter (which reads stdout only after exit) gets 0.
+    invocation: "katana -jc -js-crawl -d 3 -ct 90 -silent"
+    stdin: true
+    timeout: 150
     input: url
     output: url
-    output_format: jsonl
+    output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: endpoint, url: "{_value}"}
     requires_key: false
     default_on: false
     chains_to: [22, 25]
