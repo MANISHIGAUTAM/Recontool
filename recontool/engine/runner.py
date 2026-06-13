@@ -341,6 +341,9 @@ def load_engine_registry(
     registry = registry or ToolRegistry.load()
     if bridge:
         register_python_adapters(registry)
+    # Populate the execution-policy fields (incremental_safe / concurrency_safety
+    # / retry_policy) the engine honors, from the registry's reliable signals.
+    registry.apply_policy_defaults()
     apply_selection(registry, tools, authorize_active=authorize_active)
     return registry
 

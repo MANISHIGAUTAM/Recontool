@@ -431,6 +431,43 @@ class ToolRegistry:
         """Return all tools in a given phase."""
         return [t for t in self._tools.values() if t.phase == phase]
 
+    # Raw-socket / full-port scanners: each does its own GLOBAL rate limiting and
+    # binds raw sockets, so running several at once corrupts each other's timing
+    # and the kernel's socket state. Serialize them (concurrency_safety=False).
+    _CONCURRENCY_UNSAFE = {"masscan", "naabu", "zmap"}
+
+    def apply_policy_defaults(self) -> None:
+        """Populate the per-tool execution-policy fields the engine HONORS
+        (incremental_safe, concurrency_safety, retry_policy) from the reliable,
+        already-populated signals (type / is_active / integration / binary).
+
+        Run once at load so the registry — not implicit engine code — is the
+        source of truth. Anything set explicitly in tools.yaml is preserved; only
+        fields still at their inert default are derived. Idempotent.
+        """
+        for spec in self._tools.values():
+            active = bool(spec.is_active) or spec.type == "active"
+            # incremental_safe: passive, non-active discovery is stable across the
+            # freshness window and may be reused on a rescan; active/vuln tools
+            # must always re-run (target state changes). Default field is False.
+            if not spec.incremental_safe and not active:
+                spec.incremental_safe = True
+            # concurrency_safety: serialize the raw-socket scanners.
+            if spec.concurrency_safety and (
+                    spec.name in self._CONCURRENCY_UNSAFE
+                    or spec.binary in self._CONCURRENCY_UNSAFE):
+                spec.concurrency_safety = False
+            # retry_policy: bounded retries for transient-failure-prone NETWORK
+            # tools (API > CLI); never auto-retry active scanners (a re-run is
+            # costly and the failure is usually real, not transient).
+            if spec.retry_policy.max_retries == 0 and not active:
+                if spec.integration == "api":
+                    spec.retry_policy.max_retries = 2
+                    spec.retry_policy.backoff_factor = 2.0
+                elif spec.integration == "cli":
+                    spec.retry_policy.max_retries = 1
+                    spec.retry_policy.backoff_factor = 2.0
+
     def by_input_type(self, input_type: str) -> list[ToolSpec]:
         """Return tools that accept a given input type (index-backed, O(matches))."""
         names = self._input_index.get(input_type, [])
