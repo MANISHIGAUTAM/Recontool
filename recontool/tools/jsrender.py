@@ -109,11 +109,16 @@ def _render_playwright(url: str, timeout_ms: int) -> tuple[str, list[str]]:
     requests: list[str] = []
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.on("request", lambda r: requests.append(r.url))
-        page.goto(url, wait_until="networkidle", timeout=timeout_ms)
-        html = page.content()
-        browser.close()
+        try:
+            page = browser.new_page()
+            page.on("request", lambda r: requests.append(r.url))
+            page.goto(url, wait_until="networkidle", timeout=timeout_ms)
+            html = page.content()
+        finally:
+            # ALWAYS close the browser — if goto/content raised (nav timeout or
+            # error) an unclosed chromium orphans and piles up as leaked
+            # headless_shell processes that block interpreter shutdown.
+            browser.close()
     return html, requests
 
 

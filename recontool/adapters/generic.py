@@ -16,8 +16,10 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import json
+import os
 import re
 import shutil
+import signal
 from typing import Any
 
 from recontool.adapters.base import Adapter, AdapterContext, Event
@@ -228,6 +230,26 @@ def _expandable_cidr(value: str, max_host_bits: int = 8) -> bool:
     return (net.max_prefixlen - net.prefixlen) <= max_host_bits
 
 
+def _kill_proc_group(proc) -> None:
+    """SIGKILL the subprocess AND its whole process group.
+
+    CLI tools launched with start_new_session=True lead their own group, so a
+    tool that spawns grandchildren (e.g. js-render -> headless Chromium) has all
+    of them reaped here — killing only the direct child orphans the browser,
+    which then blocks event-loop/interpreter shutdown (the leaked-headless_shell
+    deadlock). Fire-and-forget: safe to call during task cancellation.
+    """
+    if proc is None or proc.returncode is not None:
+        return
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+
+
 def _input_values(ctx: AdapterContext, consumes: tuple[str, ...], cap: int) -> list[str]:
     vals: list[str] = []
     for ctype in consumes:
@@ -366,6 +388,7 @@ class GenericCliAdapter(Adapter):
                         stdin=asyncio.subprocess.PIPE if use_stdin else None,
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.DEVNULL,
+                        start_new_session=True,  # own process group: kill children too
                     )
                 except Exception:  # noqa: BLE001
                     return []
@@ -373,13 +396,24 @@ class GenericCliAdapter(Adapter):
                     out, _ = await asyncio.wait_for(
                         proc.communicate(input=v.encode() if use_stdin else None),
                         timeout=spec.get("timeout", 1800))
+                except asyncio.CancelledError:
+                    # Pool shutdown: kill the group (incl. any chromium) and let
+                    # cancellation propagate so the loop can close cleanly. We do
+                    # NOT await proc.wait() here — awaiting in a cancelled context
+                    # re-raises immediately; the SIGKILL + child-watcher reaps it.
+                    _kill_proc_group(proc)
+                    raise
                 except Exception:  # noqa: BLE001
-                    # Timeout (or any other failure) leaves the subprocess running
-                    # under asyncio.wait_for — kill + reap it so long-running CLI
-                    # tools (gau/amass/etc.) on slow targets never orphan.
-                    if proc.returncode is None:
-                        proc.kill()
+                    # Timeout or any other failure leaves the subprocess (and its
+                    # children) running under asyncio.wait_for — kill the whole
+                    # group + reap so slow CLI tools / browsers never orphan.
+                    # Return [] (not raise) so a single slow input doesn't fail
+                    # the tool for the other parallel inputs in this gather.
+                    _kill_proc_group(proc)
+                    try:
                         await proc.wait()
+                    except Exception:  # noqa: BLE001
+                        pass
                     return []
             text = out.decode(errors="ignore")
             ctx.artifacts.save_text(spec["name"], f"{v}.out", text)
