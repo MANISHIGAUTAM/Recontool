@@ -2,7 +2,8 @@
 
 Status from the reproducible auditor
 (`python3 .claude/skills/recon-integration-tracker/scripts/tool_contract_audit.py`):
-**261 runnable, 253 clean, 8 INPUT issues.** Every issue below is a tool whose
+**261 runnable, 254 clean, 7 INPUT issues** (nmap, item 3 below, is now DONE —
+handwritten adapter `3fc26be`, live-verified). Every issue below is a tool whose
 invocation still references a token the generic CLI adapter cannot fill
 (`{outfile}`, `{infile}`, `{repo}`, …). None is fixable by the existing mechanisms
 (stdin/stdout plumbing, aux-token resolution, variant expansion, `non_executable`);
@@ -40,18 +41,13 @@ worse than an honest deferral. Each entry says exactly what's needed to unblock 
   then a tiny handwritten adapter (or a `plugins`-aware emit) for whatweb. Until
   tech is modelled, this produces nothing useful regardless of the binary.
 
-## 3. nmap — generic parser has no XML, and greppable can't split per-port
-- **Invocation:** `nmap -sV -sC -p {ports} -oX {outfile} {host}` (`{ports}` already
-  resolves via `_aux_tokens`).
-- **Blocker:** `-oX` is XML; `parse_records` only does json/jsonl/text/csv. The
-  greppable alternative (`-oG -`) puts **all** of a host's ports on **one line**
-  (`Ports: 443/open//https//, 80/open//http//`), and the generic parser emits one
-  record per line — it cannot split that into N `service` events.
-- **Context:** naabu (handwritten) already covers port discovery; nmap's unique
-  value is `-sV` version + `-sC` script output.
-- **To unblock:** a handwritten `nmap` adapter that runs `-oX -` and parses the XML
-  into one `service` per `<port>` (host/port/product/version). ~1–2h. This is the
-  cleanest path and mirrors the existing naabu/PortScan adapter.
+## 3. nmap — ✅ DONE (`3fc26be`)
+Implemented as the handwritten `NmapServiceScan` adapter (`adapters/active.py`):
+runs `nmap -sV -sC -T4 -Pn --top-ports N -oX -` per host and parses the XML into
+one `Event.service` per OPEN port (service_name + product/version). consumes
+ip/subdomain, default_on=False (heavy), capped 50 hosts. Live-verified against
+scanme.nmap.org. The bridge now honors a `default_on` class attr so heavy
+handwritten adapters can be available-but-opt-in.
 
 ## 4. sslyze — deeply nested JSON the generic emit can't navigate
 - **Invocation:** `sslyze --json_out {outfile} {host}`
