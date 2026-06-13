@@ -332,6 +332,10 @@ class WorkerPool:
         # python adapters) run unbounded. NO tool is capped or dropped -- heavy
         # ones just can't all run AT ONCE. Sized in run() from the worker count.
         self._heavy_sem = asyncio.Semaphore(8)
+        # Per-tool serialization locks for tools the registry marks
+        # concurrency_safety=False (raw-socket scanners, fixed-output-path tools):
+        # only one run of such a tool executes at a time across the whole pool.
+        self._conc_locks: dict[str, asyncio.Lock] = {}
 
     async def _db(self, fn, *args, **kwargs):
         """Run a synchronous DB unit-of-work on the dedicated DB executor.
@@ -357,6 +361,55 @@ class WorkerPool:
         if integ == "python":
             return spec.name in _PY_ADAPTER_BINARY
         return False
+
+    async def _run_with_policy(self, spec, scan_id: str, inputs: dict, store):
+        """Execute a tool honoring the registry's concurrency + retry policy.
+
+        - ``concurrency_safety=False`` -> serialize all runs of this tool through a
+          per-tool lock (one at a time across the pool), for tools that aren't
+          parallel-safe (raw-socket scanners, fixed shared output paths).
+        - ``retry_policy.max_retries`` -> re-execute on an ``error`` outcome only
+          (never on ``skip``/``ok``), waiting ``backoff_factor**attempt`` seconds
+          (capped) between tries. Default policy (max_retries=0) = no retry, so
+          behavior is unchanged unless a tool opts in.
+        Each attempt is still bounded by the heavy semaphore + per-item wall-clock.
+        """
+        rp = getattr(spec, "retry_policy", None)
+        max_retries = max(0, getattr(rp, "max_retries", 0) or 0)
+        backoff = getattr(rp, "backoff_factor", 1.0) or 1.0
+        lock = (self._conc_locks.setdefault(spec.name, asyncio.Lock())
+                if not getattr(spec, "concurrency_safety", True) else None)
+
+        async def _once():
+            heavy = self._is_heavy(spec)
+            if heavy:
+                await self._heavy_sem.acquire()
+            try:
+                return await asyncio.wait_for(
+                    run_tool_spec(
+                        spec, scan_id, inputs, scope=self.scope, profile=self.profile,
+                        http=self.http, api_keys=self.api_keys, artifacts=store,
+                    ),
+                    timeout=self.item_timeout,
+                )
+            finally:
+                if heavy:
+                    self._heavy_sem.release()
+
+        attempt = 0
+        while True:
+            if lock is not None:
+                async with lock:
+                    outcome = await _once()
+            else:
+                outcome = await _once()
+            if outcome.status != "error" or attempt >= max_retries:
+                return outcome
+            attempt += 1
+            self.log.log_concurrency_decision(
+                scan_id, spec.name, "retry",
+                f"attempt {attempt}/{max_retries} after error: {(outcome.reason or '')[:80]}")
+            await asyncio.sleep(min(30.0, backoff ** attempt))
 
     async def _process(self, item: ClaimedItem, scan_id: str) -> None:
         spec = self.registry.get(item.tool_slug)
@@ -392,20 +445,7 @@ class WorkerPool:
         if spec is None:
             status, reason = "failed", "unknown tool"
         else:
-            _heavy = self._is_heavy(spec)
-            if _heavy:
-                await self._heavy_sem.acquire()
-            try:
-                outcome = await asyncio.wait_for(
-                    run_tool_spec(
-                        spec, scan_id, inputs, scope=self.scope, profile=self.profile,
-                        http=self.http, api_keys=self.api_keys, artifacts=store,
-                    ),
-                    timeout=self.item_timeout,
-                )
-            finally:
-                if _heavy:
-                    self._heavy_sem.release()
+            outcome = await self._run_with_policy(spec, scan_id, inputs, store)
             tool_status = outcome.status
             if outcome.status == "error":
                 status, reason = "failed", outcome.reason
