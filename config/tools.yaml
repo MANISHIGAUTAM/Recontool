@@ -961,7 +961,13 @@ tools:
     parse:
       format: text
       emit:
-        - {entity: asset, value: "{_value}", type: url}
+        # ENDPOINT (terminal), not a recursable url ASSET. wayback returns the
+        # target's FULL historical URL set (100k+); emitting those as recursable
+        # url assets made each re-trigger the whole tool chain — 175k urls ×
+        # ~69 tools ≈ 12M work items (recursion explosion). As endpoints they're
+        # fully stored/deduped but don't recurse; only httpx_probe's confirmed
+        # LIVE roots recurse (bounded). Matches gau/waybackurls/hakrawler/gospider.
+        - {entity: endpoint, url: "{_value}"}
     requires_key: false
     default_on: true
     chains_to: [22]

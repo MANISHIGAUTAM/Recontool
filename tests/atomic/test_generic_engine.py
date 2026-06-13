@@ -93,6 +93,28 @@ def test_emit_drops_tool_banner_lines_and_out_of_scope_hosts():
     assert "apps.apple.com" not in got and "bit.ly" not in got
 
 
+def test_firehose_url_tools_emit_endpoints_not_recursable_assets():
+    """URL-firehose tools (wayback/gau/crawlers) return the target's FULL
+    historical/crawled URL set (100k+). They must emit ENDPOINTs (terminal,
+    stored+deduped but not re-fed), NOT recursable url ASSETS — otherwise each
+    URL re-triggers the whole ~69-tool chain (the 12M-work-item explosion).
+    Only httpx_probe's bounded live ROOTS may recurse as url assets."""
+    from recontool.engine.registry import ToolRegistry
+
+    reg = ToolRegistry.load()
+    firehose = ("wayback_cdx", "gau", "gauplus", "waybackurls", "waymore",
+                "hakrawler", "gospider", "cariddi", "katana")
+    offenders = []
+    for name in firehose:
+        spec = reg.all_tools().get(name)
+        if not spec or not spec.parse:
+            continue
+        for rule in spec.parse.get("emit", []):
+            if rule.get("entity") == "asset" and rule.get("type") == "url":
+                offenders.append(name)
+    assert offenders == [], f"firehose tools emit recursable url assets: {offenders}"
+
+
 def test_emit_bgpview_cidr():
     spec = {"format": "json", "list_path": "data.ipv4_prefixes",
             "emit": [{"entity": "asset", "value": "{prefix}", "type": "cidr"}]}
