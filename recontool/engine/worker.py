@@ -255,6 +255,11 @@ class WorkerPool:
         self.max_depth = max_depth
         self.incremental = incremental
         self.incremental_max_age = incremental_max_age
+        # Hard ceiling per work item: no tool may pin a worker forever. A CLI
+        # tool already self-bounds via its spec timeout (default 1800s); this
+        # is the backstop for in-process Python adapters (crawler/js-render) and
+        # any wedged await, so the queue always makes forward progress.
+        self.item_timeout = 2400
         self._stores: dict[str, ArtifactStore] = {}
         self._route = RouteIndex(registry)   # built once; reused for every enqueue
         self.log = EngineLogger("recontool.worker")  # structured, correlated debug logs
@@ -346,9 +351,12 @@ class WorkerPool:
             if _heavy:
                 await self._heavy_sem.acquire()
             try:
-                outcome = await run_tool_spec(
-                    spec, scan_id, inputs, scope=self.scope, profile=self.profile,
-                    http=self.http, api_keys=self.api_keys, artifacts=store,
+                outcome = await asyncio.wait_for(
+                    run_tool_spec(
+                        spec, scan_id, inputs, scope=self.scope, profile=self.profile,
+                        http=self.http, api_keys=self.api_keys, artifacts=store,
+                    ),
+                    timeout=self.item_timeout,
                 )
             finally:
                 if _heavy:
@@ -407,8 +415,21 @@ class WorkerPool:
         """
         chunk = 1000
         for i in range(0, len(events), chunk):
-            with session_scope() as s:
-                Normalizer(s, scan_id, scope=self.scope).ingest(events[i:i + chunk])
+            batch = events[i:i + chunk]
+            try:
+                with session_scope() as s:
+                    Normalizer(s, scan_id, scope=self.scope).ingest(batch)
+            except Exception as exc:  # noqa: BLE001
+                # A single malformed/over-limit event must not lose the other 999
+                # in the chunk (the whole txn rolls back). Retry the batch one
+                # event at a time so every salvageable row is persisted.
+                logger.warning("ingest: chunk failed (%s) — retrying per-event", exc)
+                for ev in batch:
+                    try:
+                        with session_scope() as s:
+                            Normalizer(s, scan_id, scope=self.scope).ingest([ev])
+                    except Exception as exc2:  # noqa: BLE001
+                        logger.warning("ingest: dropped 1 unpersistable event: %s", exc2)
 
     def _find_prior(self, tool: str, fp: str, scan_id: str):
         """Sync DB unit-of-work (run in a thread): find a reusable prior run's paths."""
@@ -508,7 +529,25 @@ class WorkerPool:
                     return
                 await asyncio.sleep(0.02)
                 continue
-            await self._process(item, scan_id)
+            try:
+                await self._process(item, scan_id)
+            except asyncio.CancelledError:
+                raise  # legitimate shutdown — let the pool unwind
+            except Exception as exc:  # noqa: BLE001
+                # A SINGLE item's failure (tool crash, DB error, parse bug) must
+                # NEVER tear down the pool. asyncio.gather() re-raises the first
+                # worker exception and cancels the rest — which would orphan their
+                # in-flight subprocesses and deadlock the whole scan (the exact
+                # failure mode we hit: one over-long-value DB INSERT killed a 128-
+                # worker run with 5,797 items still pending). Mark the item failed,
+                # log it, and keep draining the queue.
+                logger.warning("worker: item %s tool=%s failed, continuing: %s",
+                               item.id, item.tool_slug, exc)
+                try:
+                    await self._db(self._finish_item, item.id, "failed", 0)
+                except Exception:  # noqa: BLE001
+                    pass
+                self.processed += 1
 
     async def run(self, scan_id: str, workers: int = 24) -> None:
         # heavy (subprocess) tools may use at most HALF the pool, so light/fast
