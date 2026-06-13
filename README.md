@@ -6,10 +6,11 @@
 > older scattered roadmaps. Read it before relying on any other design doc.
 
 > Modular, AI-supervised **reconnaissance & attack-surface mapping** platform.
-> Give it a domain — it chains 200+-tool-class recon together, stores everything
-> in a database, harvests artifacts (JS, response bodies) to the filesystem,
-> rotates egress IPs to dodge rate-limit blacklisting, runs tasks in parallel,
-> and uses a tiered AI agent to make better decisions at runtime.
+> Give it a domain — it chains recon tools together (560+ catalogued, 267 wired
+> and runnable), stores everything in a database, harvests artifacts (JS, response
+> bodies) to the filesystem, rotates egress IPs to dodge rate-limit blacklisting,
+> runs tasks in parallel, and uses a tiered AI agent to make better decisions at
+> runtime. A recursive engine re-feeds every discovery until the scope converges.
 
 **Scope guardrail:** reconnaissance & attack-surface mapping only — no
 exploitation. Active phases that touch a target are disabled by default and
@@ -23,19 +24,27 @@ require an explicit `--authorize-active` flag. See [`docs/D6-opsec.md`](docs/D6-
   www.xyz.com
         │
         ▼  PASSIVE (no target contact — safe, default)
-   P1 seed        crt.sh · HackerTarget · AlienVault OTX
-   P2 expansion   subfinder (if installed) · recursion
-   P3 enrichment  Wayback URLs  ──►  downloads .js files to ./artifacts
+   P1 seed        crt.sh · certspotter · HackerTarget · AlienVault OTX · urlscan
+   P2 expansion   subfinder · amass · github_subdomains · recursion
+   P3 enrichment  Wayback/gau URLs ─► .js to ./artifacts · ASN/CIDR (ripestat) ·
+                  github_org_repos ─► gitleaks (clone + redacted secret scan)
         │
         ▼  ◆ ACTIVE GATE (requires --authorize-active)
-   P4 verify      DNS resolve · HTTP probe · port scan (naabu or fallback)
-   P5 deep        JS analysis (endpoints + redacted secrets from harvested JS)
-   P6 vuln        nuclei (if installed) · CVE/exposure findings
+   P4 verify      DNS resolve (dnsx) · HTTP probe (httpx) · port scan (naabu) ·
+                  tlsx (cert SANs ─► new subdomains)
+   P5 deep        katana crawl · JS analysis (endpoints + redacted secrets) ·
+                  nmap -sV · whatweb (tech) · gowitness (screenshots)
+   P6 vuln        nuclei · sslyze (TLS findings) · subjack (takeover) · CVE/exposure
         │
-        ▼
+        ▼  every discovered key re-feeds the queue until the scope converges
    Deduplicated, confidence-scored asset inventory in the DB
-   + findings + relationship graph + JSON export + AI summary
+   + findings + relationship graph + JSON bundle + AI summary
 ```
+
+The diagram shows phases, but the **engine is not linear** — a tool fires the
+moment its input exists, and new discoveries loop back in (e.g. a cert SAN from
+`tlsx` becomes a new subdomain that re-enters P4). AI decisioning classifies each
+tool's output (keep / drop noise / prioritise) before it re-feeds.
 
 Each tool's output becomes the next tool's input (subdomains → resolve → probe →
 crawl → analyse). Everything is **deduplicated** with deterministic keys and
@@ -51,15 +60,26 @@ schema, ADRs, API specs, OPSEC, roadmap, build-vs-buy, code structure, risks).
 ### Option A — Docker (recommended; ships with all recon tools)
 
 ```bash
-# build the all-in-one image (Python platform + subfinder/httpx/nuclei/naabu/...)
+# build the all-in-one image (Python platform + subfinder/httpx/nuclei/naabu/...
+# + tool data deps: SecLists, nuclei-templates, resolvers, gf patterns, ...)
 docker compose build recontool
 
-# passive scan — just pass a scope domain
-docker compose run --rm recontool scan www.xyz.com
+# passive recursive scan — just pass a scope domain
+docker compose --profile app run --rm recontool engine www.xyz.com
 
-# full pipeline against an AUTHORISED target
-docker compose run --rm recontool scan xyz.com --profile stealth --authorize-active
+# full active scan against an AUTHORISED target (the curated tool set)
+docker compose --profile app run --rm recontool engine xyz.com \
+    --authorize-active --noise-control
+
+# everything runnable (267 tools), recursive, parallel — the "max data" run
+docker compose --profile app run --rm recontool engine xyz.com \
+    --tools all --authorize-active --noise-control --workers 12 --max-depth 4 -v
 ```
+
+> A fresh image only has the tools that build cleanly; rerun `docker compose build`
+> after pulling so the updated `docker/install_tools.sh` provisions newer tools and
+> their data deps. Any tool whose binary/dep is missing is **skipped cleanly**
+> (`⊘ skip`), never failing the scan.
 
 ### Option B — local (Python 3.10+)
 
@@ -78,13 +98,39 @@ bash docker/install_tools.sh python   # optional: API server + JS-render browser
 cp config/recontool.example.yaml config/recontool.yaml   # everything works WITHOUT this
 
 # 4. RUN — the platform is driven by a single scope domain
-recontool scan www.xyz.com                               # linear pipeline (passive, default)
-recontool scan xyz.com --authorize-active -o results.json # full linear pipeline (authorised)
 recontool engine www.xyz.com                             # recursive engine (passive, streams logs+AI)
 recontool engine xyz.com --authorize-active -o out.json  # ◆ dive deep: resolve→probe→crawl→vuln loop
+recontool scan www.xyz.com                               # linear P1→P6 pipeline (alternative)
 ```
 
-If you don't `pip install -e .`, run it as a module: `python -m recontool.cli scan www.xyz.com`.
+If you don't `pip install -e .`, run it as a module: `python -m recontool.cli engine www.xyz.com`.
+
+### The `engine` command (the recommended path)
+
+The event-driven engine fires each tool as soon as its input key exists, re-feeds
+every discovered key, and stops when the scope converges. State lives in a DB
+queue, so a scan is resumable and you can attach more workers on other hosts.
+
+```bash
+recontool engine SEED [options]
+```
+
+| Flag | Default | What it does |
+|------|---------|--------------|
+| `--type, -t` | `domain` | seed type: `domain · subdomain · ip · cidr · asn` |
+| `--profile, -p` | `normal` | rate envelope: `passive_only · stealth · normal · aggressive` |
+| `--tools` | `default` | `default` (curated, correctly-wired set) or `all`/`excessive` (every runnable tool) |
+| `--authorize-active` | off | unlock active tools (DNS resolve, HTTP probe, port scan, crawl, vuln). **Required to touch the target.** |
+| `--max-depth, -d` | `3` | how far discovered keys re-feed from the seed |
+| `--workers, -w` | `8` | concurrent async workers draining the queue |
+| `--noise-control` | off | drop duplicate / out-of-scope leads before re-feeding (recommended) |
+| `-v` | off | stream tool runs, entity discovery, recursion, and AI decisions live |
+| `-o` | — | write the final JSON bundle to a path |
+
+**Passive by default.** Active/exploitation-class tools (port scan, nuclei, sslyze,
+gitleaks, …) only run with `--authorize-active`. `--tools default` runs the curated,
+hand-verified contracts; `--tools all` adds every runnable tool (broad coverage,
+best-effort — pair with `--noise-control`).
 
 ### Inspect results
 
