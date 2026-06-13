@@ -278,6 +278,12 @@ class WorkerPool:
         _sqlite = (_settings.db_url or "").startswith("sqlite")
         self._db_pool = ThreadPoolExecutor(
             max_workers=1 if _sqlite else 8, thread_name_prefix="recon-db")
+        # Concurrency weighting: subprocess-spawning tools (CLI + the handwritten
+        # adapters that shell out) are resource-heavy and get a bounded semaphore
+        # so they can never monopolise the pool; pure-network tools (API + dns/http
+        # python adapters) run unbounded. NO tool is capped or dropped -- heavy
+        # ones just can't all run AT ONCE. Sized in run() from the worker count.
+        self._heavy_sem = asyncio.Semaphore(8)
 
     async def _db(self, fn, *args, **kwargs):
         """Run a synchronous DB unit-of-work on the dedicated DB executor.
@@ -293,6 +299,14 @@ class WorkerPool:
         if scan_id not in self._stores:
             self._stores[scan_id] = ArtifactStore(scan_id)
         return self._stores[scan_id]
+
+    def _is_heavy(self, spec) -> bool:
+        integ = getattr(spec, "integration", "")
+        if integ == "cli":
+            return True
+        if integ == "python":
+            return spec.name in _PY_ADAPTER_BINARY
+        return False
 
     async def _process(self, item: ClaimedItem, scan_id: str) -> None:
         spec = self.registry.get(item.tool_slug)
@@ -328,10 +342,17 @@ class WorkerPool:
         if spec is None:
             status, reason = "failed", "unknown tool"
         else:
-            outcome = await run_tool_spec(
-                spec, scan_id, inputs, scope=self.scope, profile=self.profile,
-                http=self.http, api_keys=self.api_keys, artifacts=store,
-            )
+            _heavy = self._is_heavy(spec)
+            if _heavy:
+                await self._heavy_sem.acquire()
+            try:
+                outcome = await run_tool_spec(
+                    spec, scan_id, inputs, scope=self.scope, profile=self.profile,
+                    http=self.http, api_keys=self.api_keys, artifacts=store,
+                )
+            finally:
+                if _heavy:
+                    self._heavy_sem.release()
             tool_status = outcome.status
             if outcome.status == "error":
                 status, reason = "failed", outcome.reason
@@ -489,7 +510,10 @@ class WorkerPool:
                 continue
             await self._process(item, scan_id)
 
-    async def run(self, scan_id: str, workers: int = 8) -> None:
+    async def run(self, scan_id: str, workers: int = 24) -> None:
+        # heavy (subprocess) tools may use at most HALF the pool, so light/fast
+        # tools always have free workers (no starvation, no caps on any tool).
+        self._heavy_sem = asyncio.Semaphore(max(2, workers // 2))
         try:
             await asyncio.gather(*(self._worker(scan_id) for _ in range(max(1, workers))))
         finally:

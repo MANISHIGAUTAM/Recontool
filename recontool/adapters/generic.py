@@ -372,7 +372,7 @@ class GenericCliAdapter(Adapter):
                 try:
                     out, _ = await asyncio.wait_for(
                         proc.communicate(input=v.encode() if use_stdin else None),
-                        timeout=spec.get("timeout", 120))
+                        timeout=spec.get("timeout", 1800))
                 except Exception:  # noqa: BLE001
                     # Timeout (or any other failure) leaves the subprocess running
                     # under asyncio.wait_for — kill + reap it so long-running CLI

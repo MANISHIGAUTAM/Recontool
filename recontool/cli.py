@@ -135,7 +135,7 @@ def engine(
         False, "--authorize-active",
         help="DIVE DEEP: unlock active tools (DNS resolve, HTTP probe, port scan, "
              "crawl, vuln). Required to touch the target; passive-only otherwise."),
-    workers: int = typer.Option(8, "--workers", "-w",
+    workers: int = typer.Option(24, "--workers", "-w",
                                 help="concurrent async workers draining the DB queue (scale out with `recontool worker`)."),
     noise_control: bool = typer.Option(
         False, "--noise-control",
@@ -230,7 +230,7 @@ def engine(
 @app.command()
 def worker(
     scan_id: str = typer.Argument(..., help="scan id whose work_item queue to drain"),
-    workers: int = typer.Option(8, "--workers", "-w", help="concurrent workers in this process."),
+    workers: int = typer.Option(24, "--workers", "-w", help="concurrent workers in this process."),
     profile: str = typer.Option(settings.profile_name, "--profile", "-p"),
     tools: str = typer.Option("default", "--tools", help="'default' or 'all'/'excessive'."),
     authorize_active: bool = typer.Option(
