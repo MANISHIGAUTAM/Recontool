@@ -41,6 +41,29 @@ def _cap(value, n):
     return value[:n] if isinstance(value, str) and len(value) > n else value
 
 
+def _insert_ignore(session: Session, model, rows: list[dict]) -> None:
+    """Bulk INSERT ... ON CONFLICT DO NOTHING (Postgres/SQLite).
+
+    The check-then-insert pattern (SELECT existing, then add the rest) races
+    under CONCURRENT writers: two workers both miss the same row in their SELECT
+    and both INSERT it, and the second hits the unique constraint. Impossible on
+    single-threaded SQLite; real on Postgres with the 8-thread DB pool. An
+    insert-or-ignore makes the dedupe atomic so the loser is silently skipped
+    (the row is already stored by the winner — no data loss, no error).
+    """
+    if not rows:
+        return
+    dialect = session.get_bind().dialect.name
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as _ins
+        session.execute(_ins(model).values(rows).on_conflict_do_nothing())
+    elif dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as _ins
+        session.execute(_ins(model).values(rows).on_conflict_do_nothing())
+    else:  # other backends: fall back to ORM add (resilience layer covers races)
+        session.add_all([model(**r) for r in rows])
+
+
 class Normalizer:
     def __init__(self, session: Session, scan_id: str, scope=None):
         self.s = session
@@ -268,6 +291,8 @@ class Normalizer:
             ).scalars():
                 existing[(ep.asset_id, ep.dedupe_key)] = ep
         count = 0
+        new_rows: list[dict] = []
+        seen: set[tuple] = set()
         for ev, akey, url, ekey in rows:
             asset = assets.get(akey)
             if asset is None:
@@ -275,22 +300,27 @@ class Normalizer:
             d = ev.data
             sig = (asset.id, ekey)
             ep = existing.get(sig)
-            if ep is None:
-                ep = Endpoint(
-                    asset_id=asset.id, url=url[:2048], status_code=d.get("status"),
-                    title=(d.get("title") or "")[:512] or None, source=d.get("source"),
-                    params=sorted(set(d.get("params") or [])),
-                    risk_class=_risk_class(url), dedupe_key=ekey)
-                self.s.add(ep)
-                existing[sig] = ep
-                count += 1
-            else:
+            if ep is not None:
                 if d.get("status") is not None:
                     ep.status_code = d["status"]
                 if d.get("title"):
                     ep.title = d["title"][:512]
                 if d.get("params"):
                     ep.params = sorted(set((ep.params or []) + list(d["params"])))
+                continue
+            if sig in seen:
+                continue  # dedupe within this batch before the insert
+            seen.add(sig)
+            new_rows.append(dict(
+                asset_id=asset.id, url=url[:2048], status_code=d.get("status"),
+                title=(d.get("title") or "")[:512] or None, source=d.get("source"),
+                params=sorted(set(d.get("params") or [])),
+                risk_class=_risk_class(url), dedupe_key=ekey))
+            count += 1
+        # Atomic insert-or-ignore: concurrent workers inserting the same endpoint
+        # no longer raise a UniqueViolation (it was caught by the resilience layer
+        # but triggered a costly per-event chunk retry + a scary PG error log).
+        _insert_ignore(self.s, Endpoint, new_rows)
         return count
 
     def _ingest_findings(self, evs: list[Event]) -> int:
