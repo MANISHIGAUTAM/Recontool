@@ -53,6 +53,25 @@ class ToolOutcome:
     reason: str = ""
 
 
+def _unavailable_reason(spec) -> str:
+    """Precise reason a runnable tool can't execute right now — so the skip log
+    says exactly WHY (missing which binary, which API key) instead of a vague
+    'missing binary/key'. Mirrors the adapters' available() preconditions."""
+    import shutil
+
+    from recontool.config import settings as _settings
+
+    binary = getattr(spec, "binary", None)
+    if binary and shutil.which(binary) is None:
+        return f"missing binary: {binary}"
+    key_env = getattr(spec, "requires_key", None)
+    if key_env and not getattr(spec, "key_optional", False) and not _settings.api_key(key_env):
+        return f"missing API key: {key_env}"
+    if getattr(spec, "integration", "") == "api" and not getattr(spec, "endpoint", ""):
+        return "no API endpoint contract"
+    return "unavailable (prerequisite missing)"
+
+
 async def run_tool_spec(
     spec, scan_id: str, inputs: dict, *,
     scope: Scope, profile: Any, http: Any,
@@ -70,7 +89,7 @@ async def run_tool_spec(
         artifacts=artifacts, inputs=inputs or {}, api_keys=api_keys,
     )
     if not adapter.available(ctx):
-        return ToolOutcome("skip", reason="unavailable (missing binary/key)")
+        return ToolOutcome("skip", reason=_unavailable_reason(spec))
     try:
         events = await adapter.run(ctx)
     except Exception as exc:  # noqa: BLE001
