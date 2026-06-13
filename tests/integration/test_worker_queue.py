@@ -58,6 +58,40 @@ async def test_queue_scan_drains_and_recurses(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_firehose_tool_is_batched_but_persists_everything(tmp_path, monkeypatch):
+    """A tool emitting MORE than _EVENT_BATCH entities is processed in bounded
+    batches (the OOM fix) yet every entity is still persisted — none dropped at a
+    batch boundary."""
+    import shutil
+
+    from recontool.engine.worker import _EVENT_BATCH
+    if shutil.which("seq") is None:
+        pytest.skip("seq not available")
+    db.init_engine(f"sqlite:///{tmp_path / 'fh.db'}")
+    db.create_all()
+    monkeypatch.setattr(settings, "artifact_dir", tmp_path / "artifacts")
+
+    n = _EVENT_BATCH + 1000            # spans 2 batches
+    firehose = ToolSpec(
+        name="firehose", integration="cli", binary="seq", invocation=f"seq 1 {n}",
+        consumes=["domain"], supported_input_types=["domain"],
+        produces=["subdomain"], output_types=["subdomain"],
+        category=2, is_active=False, enabled=True, non_executable=False,
+        parse={"format": "text",
+               "emit": [{"entity": "asset", "value": "h{_value}.example.com",
+                         "type": "subdomain", "scope_filter": "subdomain"}]},
+    )
+    result = await run_queue_scan("example.com", registry=ToolRegistry(tools={"firehose": firehose}),
+                                  tools="all", workers=2, max_depth=1)
+
+    assert result.failed == 0
+    with db.session_scope() as s:
+        subs = s.execute(select(func.count(Asset.id)).where(
+            Asset.scan_id == result.scan_id, Asset.type == "subdomain")).scalar_one()
+    assert subs == n                   # all n persisted across both batches
+
+
+@pytest.mark.asyncio
 async def test_worker_emits_structured_logs(tmp_path, monkeypatch):
     """Each processed item produces correlated start+complete debug log entries."""
     db.init_engine(f"sqlite:///{tmp_path / 'qlog.db'}")

@@ -49,6 +49,12 @@ from recontool.normalize.engine import Normalizer
 
 logger = logging.getLogger(__name__)
 
+# Max events held in flight per tool while persisting/writing/recursing. Bounds
+# the heap watermark so a firehose tool (wayback_cdx ~200k urls) processed across
+# 128 concurrent workers can't OOM the box. Large enough to keep DB round-trips
+# amortized; small relative to a 200k firehose.
+_EVENT_BATCH = 5000
+
 
 def _now() -> dt.datetime:
     return dt.datetime.now(dt.timezone.utc)
@@ -371,17 +377,31 @@ class WorkerPool:
                 # AI decisioning (model-augmented when a router is enabled, else
                 # the deterministic heuristic). Classifies persist / discard noise
                 # BEFORE persisting or re-feeding; logged so the operator sees it.
-                decision = await decide_on_events_ai(
-                    events, item.tool_slug, service=self.ai, router=self.router)
-                self.log.log_ai_decision(scan_id, decision.reasoning,
-                                         tool_name=item.tool_slug)
-                dropped = discarded_asset_pairs(decision)
-                persist_events = decision.persist or events
-                await self._db(self._ingest, scan_id, persist_events)
-                out_paths = await asyncio.to_thread(
-                    write_typed_outputs, store, item.tool_slug, persist_events)
-                new_keys = await self._enqueue_discovered(
-                    scan_id, events, item.depth + 1, item.key, item.tool_slug, dropped)
+                #
+                # MEMORY: process the events in bounded batches. A firehose tool
+                # (wayback_cdx emitting 200k+ urls) otherwise holds its full event
+                # list PLUS the decision/persist copy PLUS the write buffers PLUS
+                # the enqueue working set simultaneously, and with 128 workers
+                # several such tools at once exhaust the heap (OOM, exit 137).
+                # Batching caps the per-tool watermark to ~_EVENT_BATCH events
+                # without dropping anything — every event is still classified,
+                # persisted, written to its typed file, and recursed.
+                out_seen: set[str] = set()
+                for _b in range(0, len(events), _EVENT_BATCH):
+                    batch = events[_b:_b + _EVENT_BATCH]
+                    decision = await decide_on_events_ai(
+                        batch, item.tool_slug, service=self.ai, router=self.router)
+                    if _b == 0:
+                        self.log.log_ai_decision(scan_id, decision.reasoning,
+                                                 tool_name=item.tool_slug)
+                    dropped = discarded_asset_pairs(decision)
+                    persist_events = decision.persist or batch
+                    await self._db(self._ingest, scan_id, persist_events)
+                    out_seen.update(await asyncio.to_thread(
+                        write_typed_outputs, store, item.tool_slug, persist_events))
+                    new_keys += await self._enqueue_discovered(
+                        scan_id, batch, item.depth + 1, item.key, item.tool_slug, dropped)
+                out_paths = sorted(out_seen)
 
         await self._db(self._finish_item, item.id, status, new_keys)
         dur_ms = int((time.monotonic() - t0) * 1000)
