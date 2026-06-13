@@ -25,6 +25,21 @@ from recontool.core.models import Asset, AssetSource, Edge, Endpoint, Finding, S
 
 logger = logging.getLogger("recontool.normalize")
 
+# Column-length ceilings (mirror models.py). Enforced so a value longer than its
+# varchar(N) never raises on Postgres (SQLite silently allowed it). The full
+# original is preserved elsewhere (attributes / typed-output JSONL / raw artifact)
+# so bounding the stored column is not data loss.
+_ASSET_VALUE_MAX = 1024
+_FINDING_ASSET_MAX = 1024
+_RAW_REF_MAX = 512
+_PRODUCT_MAX = 128
+_NAME_MAX = 64
+
+
+def _cap(value, n):
+    """Truncate a string to n chars, leaving None/empty untouched."""
+    return value[:n] if isinstance(value, str) and len(value) > n else value
+
 
 class Normalizer:
     def __init__(self, session: Session, scan_id: str, scope=None):
@@ -100,8 +115,17 @@ class Normalizer:
             if key in result:
                 continue
             in_scope = self.scope.contains(atype, canon) if self.scope else True
-            a = Asset(scan_id=self.scan_id, type=atype, value=canon, dedupe_key=key,
-                      in_scope=in_scope, attributes={}, tech=[], tags=[])
+            # `value` is an indexed varchar(1024). SQLite ignores the length but
+            # Postgres ENFORCES it — a crawl URL >1024 chars would raise
+            # StringDataRightTruncation and (pre-resilience) kill the whole pool.
+            # Bound the stored/indexed value but PRESERVE the full original in
+            # attributes (no data loss — dedupe_key is already over the full value).
+            stored, attrs = canon, {}
+            if len(canon) > _ASSET_VALUE_MAX:
+                stored = canon[:_ASSET_VALUE_MAX]
+                attrs = {"value_full": canon}
+            a = Asset(scan_id=self.scan_id, type=atype, value=stored, dedupe_key=key,
+                      in_scope=in_scope, attributes=attrs, tech=[], tags=[])
             self.s.add(a)
             new_created.append((key, a))
         if new_created:
@@ -128,7 +152,7 @@ class Normalizer:
                 pairs.add((a.id, tool))
                 new_sources.append(AssetSource(
                     asset_id=a.id, tool=tool,
-                    source_confidence=source_weight(tool), raw_ref=raw_ref))
+                    source_confidence=source_weight(tool), raw_ref=_cap(raw_ref, _RAW_REF_MAX)))
         if new_sources:
             self.s.add_all(new_sources)
             self.s.flush()
@@ -201,15 +225,19 @@ class Normalizer:
             svc = existing.get(sig)
             if svc is None:
                 svc = Service(asset_id=asset.id, port=port, protocol=proto,
-                              service_name=d.get("service_name"), product=d.get("product"),
-                              version=d.get("version"), banner=d.get("banner"), tls=d.get("tls"))
+                              service_name=_cap(d.get("service_name"), _NAME_MAX),
+                              product=_cap(d.get("product"), _PRODUCT_MAX),
+                              version=_cap(d.get("version"), _NAME_MAX),
+                              banner=d.get("banner"), tls=d.get("tls"))
                 self.s.add(svc)
                 existing[sig] = svc
                 count += 1
             else:
+                _caps = {"service_name": _NAME_MAX, "product": _PRODUCT_MAX,
+                         "version": _NAME_MAX}
                 for f in ("service_name", "product", "version", "banner"):
                     if d.get(f):
-                        setattr(svc, f, d[f])
+                        setattr(svc, f, _cap(d[f], _caps[f]) if f in _caps else d[f])
         return count
 
     def _ingest_endpoints(self, evs: list[Event]) -> int:
@@ -286,7 +314,7 @@ class Normalizer:
             if f is None:
                 d = ev.data
                 f = Finding(
-                    scan_id=self.scan_id, asset_value=d.get("asset_value"),
+                    scan_id=self.scan_id, asset_value=_cap(d.get("asset_value"), _FINDING_ASSET_MAX),
                     kind=d.get("kind", "exposure"), title=d.get("title", "")[:512],
                     cve_id=d.get("cve_id"), severity=d.get("severity", "info"),
                     confidence=source_weight(ev.tool), detector=detector,
