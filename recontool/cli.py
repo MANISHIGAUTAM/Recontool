@@ -215,6 +215,9 @@ def engine(
 
     _print_summary(scan_id)
     _print_findings(scan_id)
+    if qr.summary:
+        console.print(Panel(qr.summary, title="AI scan summary",
+                            border_style="green", expand=False))
     if export:
         path = rpt.export_json(scan_id, export)
         console.print(f"\n[green]Exported[/green] full results → {path}")

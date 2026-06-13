@@ -580,6 +580,7 @@ class QueueScanResult:
     entities: int
     skipped: int = 0
     bundle_path: str | None = None
+    summary: str | None = None
 
 
 async def run_queue_scan(
@@ -636,9 +637,14 @@ async def run_queue_scan(
         sc = s.get(Scan, scan_id)
         if sc is not None:
             sc.status = "done"
-    bundle_path = write_scan_bundle(scan_id)
+    # Final AI (or heuristic) wrap-up — written into the bundle + out/scan_summary.md.
+    from recontool.engine.summary import generate_summary
+    summary, facts = await generate_summary(scan_id, pool.router)
+    bundle_path = write_scan_bundle(
+        scan_id, summary=summary, tool_stats=facts.get("tools"))
     if bundle_path:
         logger.info("✓ scan bundle written → %s", bundle_path)
     return QueueScanResult(scan_id=scan_id, items_processed=pool.processed,
                            completed=completed, failed=failed, entities=entities,
-                           skipped=pool.skipped, bundle_path=bundle_path)
+                           skipped=pool.skipped, bundle_path=bundle_path,
+                           summary=summary)

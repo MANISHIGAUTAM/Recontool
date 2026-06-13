@@ -103,7 +103,8 @@ def write_typed_outputs(store: ArtifactStore, tool: str, events: list) -> list[s
     return paths
 
 
-def write_scan_bundle(scan_id: str) -> str | None:
+def write_scan_bundle(scan_id: str, *, summary: str | None = None,
+                      tool_stats: dict | None = None) -> str | None:
     """Write ``artifacts/<scan_id>/scan_bundle.json`` — the final per-scan manifest.
 
     One file that points to the whole run's evidence: the DB summary (asset counts,
@@ -111,6 +112,9 @@ def write_scan_bundle(scan_id: str) -> str | None:
     typed outputs, raw tool dirs, harvested JS). The artifacts dir is host-mounted
     in docker-compose, so this is the "final scan archive" handed to the operator.
     Returns the bundle's artifact-relative path, or None if the scan dir is absent.
+
+    ``summary`` (markdown AI/heuristic narrative) and ``tool_stats`` (per-tool
+    produced/empty/failed breakdown) are embedded so the bundle is self-describing.
     """
     from sqlalchemy import func, select
 
@@ -156,14 +160,20 @@ def write_scan_bundle(scan_id: str) -> str | None:
         "findings_count": len(findings),
         "findings": findings,
         "recursion": {"max_depth": int(max_depth), "tools_completed": int(completed)},
+        "tool_execution": tool_stats or {},   # produced / ran_empty / failed (+reasons)
+        "summary": summary,                    # AI/heuristic narrative (markdown)
         "artifacts": {
             "root": scan_id,
             "typed_outputs": typed,           # out/<tool>.<type>.jsonl
             "raw_tool_dirs": raw_tools,        # raw/<tool>/
             "js_file_count": js_files,
+            "summary_md": "out/scan_summary.md" if summary else None,
         },
     }
     scan_dir.mkdir(parents=True, exist_ok=True)
+    if summary:
+        (scan_dir / "out").mkdir(parents=True, exist_ok=True)
+        (scan_dir / "out" / "scan_summary.md").write_text(summary)
     path = scan_dir / "scan_bundle.json"
     path.write_text(json.dumps(bundle, indent=2, default=str))
     return _rel(path)
