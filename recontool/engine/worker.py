@@ -25,7 +25,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Optional
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 
 from recontool.adapters.base import Event
 from recontool.config import settings as _cfg_settings
@@ -39,7 +39,7 @@ from recontool.engine.fingerprint import fingerprint_inputs
 from recontool.engine.incremental import IncrementalEngine
 from recontool.engine.logging import EngineLogger
 from recontool.engine.models import ToolRun, WorkItem
-from recontool.engine.registry import ToolRegistry
+from recontool.engine.registry import ToolRegistry, is_validation_tool
 from recontool.engine.router import _eligible_types, work_dedupe_key
 from recontool.engine.runner import (
     build_noise, build_scan_infra, discovered_assets, load_engine_registry,
@@ -683,6 +683,7 @@ class QueueScanResult:
     skipped: int = 0
     bundle_path: str | None = None
     summary: str | None = None
+    validation_findings: int = 0
 
 
 async def run_queue_scan(
@@ -691,6 +692,7 @@ async def run_queue_scan(
     workers: int = 8, authorize_active: bool = False,
     noise_control: bool = False, wildcard_filter: bool = False,
     max_depth: int = 3, scan_id: str | None = None, incremental: bool = False,
+    validate: bool = False,
 ) -> QueueScanResult:
     """Seed the work queue and drain it with `workers` concurrent workers.
 
@@ -701,7 +703,7 @@ async def run_queue_scan(
     finishes); otherwise a fresh one is generated. ``incremental`` skips tools
     whose exact input already ran in a recent prior scan (delta-only reruns).
     """
-    from recontool.core.models import Asset, Scan
+    from recontool.core.models import Asset, Finding, Scan
 
     create_all()
     # Silence benign subprocess-teardown noise: a stdin-fed CLI tool
@@ -724,6 +726,15 @@ async def run_queue_scan(
     )
     noise = build_noise(scope, noise_control, wildcard_filter)
 
+    # Two-phase split: in --validate mode the VALIDATION tools (nuclei/nikto/
+    # subjack/…) are held back from recon so they fire in a SEPARATE post-recon
+    # phase against the COMPLETE discovered surface (not piecemeal as hosts trickle
+    # in). Captured before the hold-back so phase 2 knows exactly what to re-enable.
+    val_names = ({s.name for s in registry.all_tools().values()
+                  if s.enabled and is_validation_tool(s)} if validate else set())
+    for name in val_names:
+        registry.get(name).enabled = False
+
     pool = WorkerPool(registry, scope=scope, profile=profile, http=http,
                       api_keys=api_keys, noise=noise, max_depth=max_depth,
                       incremental=incremental)
@@ -741,7 +752,27 @@ async def run_queue_scan(
     with session_scope() as s:
         enqueue_key(s, scan_id, seed, seed_type, registry, depth=0, route=pool._route)
 
-    await pool.run(scan_id, workers=workers)
+    await pool.run(scan_id, workers=workers)   # phase 1: recon
+
+    # Phase 2: post-recon VALIDATION (exploitation-style). Allowlisted vuln tools
+    # run against the recon-discovered in-scope LIVE surface — reusing the same
+    # primary keys, depth 0 (validate the known surface, don't expand it). Active
+    # by nature, so it only runs with authorization. Findings are normalized to
+    # the Finding table (linked to tool + asset_value + evidence) like any other.
+    validation_findings = 0
+    if val_names and authorize_active:
+        with session_scope() as s:
+            f0 = s.execute(select(func.count(Finding.id)).where(
+                Finding.scan_id == scan_id)).scalar_one()
+        await _run_validation_phase(
+            scan_id, registry, scope=scope, profile=profile, http=http,
+            api_keys=api_keys, noise=noise, workers=workers, val_names=val_names)
+        with session_scope() as s:
+            f1 = s.execute(select(func.count(Finding.id)).where(
+                Finding.scan_id == scan_id)).scalar_one()
+        validation_findings = max(0, f1 - f0)
+    elif val_names:
+        logger.info("⊘ validation phase skipped: requires --authorize-active")
 
     with session_scope() as s:
         completed = s.execute(select(func.count(WorkItem.id)).where(
@@ -763,4 +794,35 @@ async def run_queue_scan(
     return QueueScanResult(scan_id=scan_id, items_processed=pool.processed,
                            completed=completed, failed=failed, entities=entities,
                            skipped=pool.skipped, bundle_path=bundle_path,
-                           summary=summary)
+                           summary=summary, validation_findings=validation_findings)
+
+
+async def _run_validation_phase(
+    scan_id: str, registry: ToolRegistry, *, scope, profile, http, api_keys,
+    noise, workers: int, val_names: set[str],
+) -> int:
+    """Post-recon validation drain: enable ONLY the allowlisted validation tools
+    and run them against the recon-discovered in-scope LIVE surface (live hosts +
+    confirmed URLs), reusing the existing primary keys. ``max_depth=0`` so this
+    phase VALIDATES the known surface without expanding it (no recursion). Returns
+    the number of work items processed."""
+    from recontool.core.models import Asset
+
+    for spec in registry.all_tools().values():
+        spec.enabled = spec.name in val_names      # allowlist: validation tools only
+    vpool = WorkerPool(registry, scope=scope, profile=profile, http=http,
+                       api_keys=api_keys, noise=noise, max_depth=0)
+    with session_scope() as s:
+        live = s.execute(
+            select(Asset.type, Asset.value).where(
+                Asset.scan_id == scan_id, Asset.in_scope.is_(True),
+                or_(Asset.is_live.is_(True), Asset.type == "url"))
+        ).all()
+        seeded = 0
+        for atype, value in live:
+            seeded += enqueue_key(s, scan_id, value, atype, registry,
+                                  depth=0, route=vpool._route)
+    logger.info("▶ validation phase: %d tools × %d live assets → %d work items",
+                len(val_names), len(live), seeded)
+    await vpool.run(scan_id, workers=workers)
+    return vpool.processed

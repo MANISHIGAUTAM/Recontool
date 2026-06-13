@@ -546,3 +546,16 @@ class ToolRegistry:
 
     def __contains__(self, name: str) -> bool:
         return name in self._tools
+
+
+def is_validation_tool(spec) -> bool:
+    """A post-recon VALIDATION (exploitation-style) tool: it TESTS the discovered
+    surface and emits FINDINGS (vuln / takeover / exposure / misconfig) rather
+    than discovering new assets. Identified by the vuln/exploitation phases
+    (p6/p7) OR by being an ACTIVE tool whose output is findings-only — nuclei,
+    nikto, subjack, wafw00f, etc. Recon tools (httpx -> url, crt.sh -> subdomain)
+    are NOT validation. Used to split recon (phase 1) from validation (phase 2)."""
+    if (getattr(spec, "phase", "") or "").startswith(("p6", "p7")):
+        return True
+    outputs = set(getattr(spec, "produces", None) or getattr(spec, "output_types", None) or [])
+    return bool(getattr(spec, "is_active", False) and outputs and outputs <= {"finding"})

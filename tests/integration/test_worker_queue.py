@@ -92,6 +92,58 @@ async def test_firehose_tool_is_batched_but_persists_everything(tmp_path, monkey
 
 
 @pytest.mark.asyncio
+async def test_validation_phase_is_separate_and_finds_after_recon(tmp_path, monkeypatch):
+    """--validate splits recon from validation: a vuln tool (active, finding-only)
+    is held back from recon and runs in a SEPARATE phase 2 against the discovered
+    live surface, producing normalized findings linked to the asset."""
+    import shutil
+
+    from sqlalchemy import func, select
+
+    from recontool.core.models import Finding
+    if shutil.which("echo") is None:
+        pytest.skip("echo not available")
+    db.init_engine(f"sqlite:///{tmp_path / 'v.db'}")
+    db.create_all()
+    monkeypatch.setattr(settings, "artifact_dir", tmp_path / "artifacts")
+
+    # recon: domain -> a confirmed url asset (in scope)
+    seeder = ToolSpec(
+        name="seeder", integration="cli", binary="echo",
+        invocation="echo https://x.example.com",
+        consumes=["domain"], supported_input_types=["domain"],
+        produces=["url"], output_types=["url"], category=2,
+        is_active=False, enabled=True, non_executable=False,
+        parse={"format": "text", "emit": [{"entity": "asset", "value": "{_value}", "type": "url"}]})
+    # validation: url -> a finding (active + finding-only => is_validation_tool)
+    vuln = ToolSpec(
+        name="vuln_echo", integration="cli", binary="echo", invocation="echo HIT",
+        consumes=["url"], supported_input_types=["url"],
+        produces=["finding"], output_types=["finding"], category=27, phase="p6_vuln",
+        is_active=True, enabled=True, non_executable=False,
+        parse={"format": "text", "emit": [{"entity": "finding", "title": "vuln: {_value}",
+                                            "kind": "exposure", "asset_value": "https://x.example.com"}]})
+    reg = ToolRegistry(tools={"seeder": seeder, "vuln_echo": vuln})
+
+    result = await run_queue_scan("example.com", registry=reg, tools="all",
+                                  workers=2, max_depth=2, authorize_active=True,
+                                  validate=True)
+
+    assert result.failed == 0
+    assert result.validation_findings >= 1          # phase 2 produced findings
+    with db.session_scope() as s:
+        findings = s.execute(select(Finding).where(Finding.scan_id == result.scan_id)).scalars().all()
+        # the finding came from the validation tool, linked to the asset
+        assert any(f.detector == "vuln_echo" and f.asset_value == "https://x.example.com"
+                   for f in findings)
+        # both tools ran (recon seeder in phase 1, vuln in phase 2), none left pending
+        leftover = s.execute(select(func.count(WorkItem.id)).where(
+            WorkItem.scan_id == result.scan_id,
+            WorkItem.status.in_(("pending", "running")))).scalar_one()
+    assert leftover == 0
+
+
+@pytest.mark.asyncio
 async def test_worker_emits_structured_logs(tmp_path, monkeypatch):
     """Each processed item produces correlated start+complete debug log entries."""
     db.init_engine(f"sqlite:///{tmp_path / 'qlog.db'}")

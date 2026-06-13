@@ -146,6 +146,11 @@ def engine(
     incremental: bool = typer.Option(
         False, "--incremental",
         help="delta-only reruns: skip tools whose exact input already ran in a recent prior scan."),
+    validate: bool = typer.Option(
+        False, "--validate",
+        help="run a SEPARATE post-recon validation phase (nuclei/nikto/takeover) "
+             "against the discovered live surface after recon completes. "
+             "Requires --authorize-active."),
     verbose: int = typer.Option(
         0, "--verbose", "-v", count=True,
         help="-v shows per-tool/entity/AI logs (INFO); -vv shows DEBUG."),
@@ -202,7 +207,7 @@ def engine(
         workers=max(1, workers), authorize_active=authorize_active,
         noise_control=noise_control or wildcard_filter,
         wildcard_filter=wildcard_filter, max_depth=max_depth,
-        incremental=incremental,
+        incremental=incremental, validate=validate,
     ))
     scan_id = qr.scan_id
 
@@ -210,6 +215,7 @@ def engine(
         f"\n[bold]items processed:[/bold] {qr.items_processed}   "
         f"[bold]completed:[/bold] {qr.completed}   [bold]failed:[/bold] {qr.failed}   "
         + (f"[bold]skipped(incr):[/bold] {qr.skipped}   " if qr.skipped else "")
+        + (f"[bold]validation findings:[/bold] {qr.validation_findings}   " if validate else "")
         + f"[bold]entities:[/bold] {qr.entities}")
     _print_queue_stats(scan_id)
 
