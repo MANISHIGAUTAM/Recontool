@@ -18,6 +18,7 @@ import datetime as dt
 import functools
 import json
 import logging
+import shutil
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -27,6 +28,7 @@ from typing import Optional
 from sqlalchemy import func, select, update
 
 from recontool.adapters.base import Event
+from recontool.config import settings as _cfg_settings
 from recontool.ai.router import ModelRouter
 from recontool.core.artifacts import ArtifactStore
 from recontool.core.db import create_all, session_scope
@@ -124,6 +126,29 @@ def claim_one(session, scan_id: str) -> Optional[ClaimedItem]:
                        tool_slug=it.tool_slug, depth=it.depth)
 
 
+# Static availability gate: an enabled tool whose binary isn't installed (or whose
+# required API key is absent) would only be claimed-then-skipped at EVERY recursion
+# level. Pruning these from routing removes that dead churn -- the single biggest
+# queue-size win on a --tools all scan (hundreds of inventory stubs have no binary).
+# Python adapters without a declared binary are kept (they decide at runtime); the
+# handful that gate on a binary are listed so they prune too.
+_PY_ADAPTER_BINARY = {
+    "nuclei": "nuclei", "naabu": "naabu", "nmap": "nmap", "sslyze": "sslyze",
+    "gitleaks": "gitleaks", "whatweb": "whatweb", "gowitness": "gowitness",
+}
+
+
+def _tool_available(spec) -> bool:
+    integ = getattr(spec, "integration", "")
+    if integ == "api":
+        ke = getattr(spec, "requires_key", None)
+        return (not ke) or bool(getattr(spec, "key_optional", False)) or bool(_cfg_settings.api_key(ke))
+    binary = getattr(spec, "binary", None) or _PY_ADAPTER_BINARY.get(spec.name)
+    if binary:
+        return shutil.which(binary) is not None
+    return True
+
+
 class RouteIndex:
     """Precomputed `input_type -> [enabled tool specs]` map, built once per scan.
 
@@ -133,8 +158,12 @@ class RouteIndex:
 
     def __init__(self, registry: ToolRegistry) -> None:
         self._by_type: dict[str, list] = {}
+        self.pruned_unavailable: list[str] = []
         for spec in registry.all_tools().values():
             if not spec.enabled:
+                continue
+            if not _tool_available(spec):
+                self.pruned_unavailable.append(spec.name)
                 continue
             for t in set(spec.supported_input_types) | set(spec.consumes):
                 self._by_type.setdefault(t, []).append(spec)
@@ -229,6 +258,10 @@ class WorkerPool:
         self._stores: dict[str, ArtifactStore] = {}
         self._route = RouteIndex(registry)   # built once; reused for every enqueue
         self.log = EngineLogger("recontool.worker")  # structured, correlated debug logs
+        if self._route.pruned_unavailable:
+            _pr = sorted(self._route.pruned_unavailable)
+            logger.info("\u2298 %d tools pruned at routing (no binary/key) \u2014 not enqueued: %s%s",
+                        len(_pr), ", ".join(_pr[:12]), " \u2026" if len(_pr) > 12 else "")
         # AI decisioning layer: classifies each tool's output (persist / discard
         # noise / trigger downstream) before anything is re-fed into the loop.
         # Heuristic by default; model-augmented when `router` is enabled (the
