@@ -132,6 +132,32 @@ gitleaks, …) only run with `--authorize-active`. `--tools default` runs the cu
 hand-verified contracts; `--tools all` adds every runnable tool (broad coverage,
 best-effort — pair with `--noise-control`).
 
+
+### Scaling for big targets (no stall, no caps)
+
+The engine is built to run **every** tool to completion without dropping data —
+throughput comes from concurrency, not from capping tools:
+
+- **Postgres backend** (parallel DB writes) — the single biggest lever. SQLite
+  serializes all writes through one thread; Postgres removes that ceiling. The
+  `docker compose --profile app` path now uses Postgres by default (bare
+  `docker run` still uses SQLite). Needs `psycopg` in the image — rebuild once.
+- **Worker concurrency** — `--workers 24` by default; raise it freely on Postgres
+  (`--workers 128`). Work is I/O-bound, so high concurrency is cheap. Heavy
+  subprocess tools (nmap/amass/masscan/…) are auto-bounded to half the pool so
+  they never starve fast lookups, while pure-network tools run unbounded.
+- **Horizontal fleet** — the queue is atomic-claim, so add nodes:
+  `docker compose --profile fleet up --scale worker=8` (or `recontool worker
+  <scan_id>` on other hosts) — all drain the same Postgres queue, scaling
+  throughput linearly. This is the AWS-distribution unit.
+- **No kill-caps** — slow-but-working tools complete fully (a 30-min reaper only
+  catches genuine hangs). For huge URL corpora, raise/remove `max_records` once
+  Postgres is handling the volume.
+
+For max local throughput, swap artifacts to a named volume (see the commented
+`recon_artifacts` mount in `docker-compose.yml`) to skip the macOS bind-mount
+fsync penalty.
+
 ### Inspect results
 
 ```bash
