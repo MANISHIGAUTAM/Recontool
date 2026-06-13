@@ -30,6 +30,117 @@ meta:
 # CATEGORY 1 — Internet-Wide Search Engines & Asset Discovery   [PASSIVE]
 # ===========================================================================
 tools:
+  # ── batch-wired CLI tools (installed via install_tools.sh) ──────────────────
+  assetfinder:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: cli
+    binary: assetfinder
+    invocation: "assetfinder --subs-only {domain}"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
+  sublist3r:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: cli
+    binary: sublist3r
+    invocation: "sublist3r -d {domain} -n"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
+  fierce:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: cli
+    binary: fierce
+    invocation: "fierce --domain {domain}"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, line_regex: '(?P<_value>[a-z0-9][a-z0-9_.-]*\.[a-z]{2,})', emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
+  dnsenum:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: cli
+    binary: dnsenum
+    invocation: "dnsenum --noreverse -o /dev/null {domain}"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, line_regex: '(?P<_value>[a-z0-9][a-z0-9_.-]*\.[a-z]{2,})', emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
+  shuffledns:
+    category: 2
+    phase: p4_verify
+    type: passive
+    integration: cli
+    binary: shuffledns
+    invocation: "shuffledns -d {domain} -w {dns_wordlist} -r {resolvers} -silent -mode bruteforce"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
+  hakrawler:
+    category: 22
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: hakrawler
+    invocation: "hakrawler -subs"
+    stdin: true
+    input: url
+    output: url
+    output_format: text
+    parse: {format: text, line_regex: '^(?P<_value>https?://\S+)', emit: [{entity: endpoint, url: "{_value}"}]}
+    default_on: false
+  gospider:
+    category: 22
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: gospider
+    invocation: "gospider -s {url} -q -d 1 -t 5 -m 30"
+    input: url
+    output: url
+    output_format: text
+    parse: {format: text, line_regex: '(?P<_value>https?://\S+)', emit: [{entity: endpoint, url: "{_value}"}]}
+    default_on: false
+  cariddi:
+    category: 22
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: cariddi
+    invocation: "cariddi -plain"
+    stdin: true
+    input: url
+    output: url
+    output_format: text
+    parse: {format: text, line_regex: '^(?P<_value>https?://\S+)', emit: [{entity: endpoint, url: "{_value}"}]}
+    default_on: false
+  gauplus:
+    category: 4
+    phase: p3_enrichment
+    type: passive
+    integration: cli
+    binary: gauplus
+    invocation: "gauplus -t 5 {domain}"
+    input: domain
+    output: url
+    output_format: text
+    parse: {format: text, line_regex: '^(?P<_value>https?://\S+)', emit: [{entity: endpoint, url: "{_value}"}]}
+    default_on: false
 
   uncover:
     category: 1

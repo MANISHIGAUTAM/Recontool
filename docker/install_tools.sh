@@ -132,6 +132,7 @@ install_all() {
   apt_install whois whois
 
   install_resources
+  install_batch_clis
 }
 
 # ── massdns (needs build) ─────────────────────────────────────────────────────
@@ -208,9 +209,30 @@ install_python_extras() {
   fi
 }
 
+
+# ── extra installable CLI recon tools (batch-wired in config/tools.yaml) ──────
+install_batch_clis() {
+  log "Installing batch CLI tools..."
+  go_install assetfinder "github.com/tomnomnom/assetfinder@latest"
+  go_install hakrawler   "github.com/hakluke/hakrawler@latest"
+  go_install gobuster    "github.com/OJ/gobuster/v3@latest"
+  go_install shuffledns  "github.com/projectdiscovery/shuffledns/cmd/shuffledns@latest"
+  go_install cariddi     "github.com/edoardottt/cariddi/cmd/cariddi@latest"
+  go_install gauplus     "github.com/bp0lr/gauplus@latest"
+  go_install gospider    "github.com/jaeles-project/gospider@latest"
+  pip_install sublist3r sublist3r
+  pip_install fierce fierce
+  pip_install dnsgen dnsgen
+  apt_install dnsenum dnsenum
+  apt_install dnsrecon dnsrecon
+  apt_install exiftool libimage-exiftool-perl
+  apt_install binwalk binwalk
+}
+
 case "$SET" in
   core) install_core ;;
   resources) install_resources ;;
+  batch) install_batch_clis ;;
   massdns) install_massdns ;;
   python|extras) install_python_extras ;;
   all) install_all; install_massdns; install_python_extras ;;
