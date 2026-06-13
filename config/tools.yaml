@@ -49,6 +49,7 @@ tools:
     integration: cli
     binary: gobuster
     invocation: "gobuster dns -d {domain} -w {dns_wordlist} -q -t 20 --no-color"
+    timeout: 120
     input: domain
     output: subdomain
     output_format: text
@@ -74,6 +75,7 @@ tools:
     integration: cli
     binary: sublist3r
     invocation: "sublist3r -d {domain} -n"
+    timeout: 90
     input: domain
     output: subdomain
     output_format: text
@@ -110,6 +112,7 @@ tools:
     integration: cli
     binary: shuffledns
     invocation: "shuffledns -d {domain} -w {dns_wordlist} -r {resolvers} -silent -mode bruteforce"
+    timeout: 120
     input: domain
     output: subdomain
     output_format: text
@@ -457,6 +460,7 @@ tools:
     # the adapter (which parses stdout) saw nothing. Drop it: amass prints the
     # discovered FQDNs to stdout as plain text, one per line. {domain} fills fine.
     invocation: "amass enum -passive -d {domain}"
+    timeout: 100
     input: domain
     output: subdomain
     output_format: text
