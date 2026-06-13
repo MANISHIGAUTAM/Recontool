@@ -55,11 +55,31 @@ def init_engine(url: str | None = None):
     return _engine
 
 
+# Columns widened to TEXT after the SQLite->Postgres move (Postgres enforces
+# varchar length; SQLite didn't). create_all() only CREATES missing tables — it
+# never ALTERs an existing column — so widen them idempotently here for DBs that
+# predate the model change. Postgres only; on SQLite varchar/text are equivalent.
+_TEXT_WIDENINGS = (("work_item", "key"), ("work_item", "parent_key"))
+
+
+def _migrate_widen_text(engine) -> None:
+    if engine.dialect.name != "postgresql":
+        return
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        for table, col in _TEXT_WIDENINGS:
+            try:
+                conn.execute(text(f'ALTER TABLE {table} ALTER COLUMN "{col}" TYPE TEXT'))
+            except Exception:  # noqa: BLE001 — table may not exist yet; harmless
+                pass
+
+
 def create_all() -> None:
     """Create all tables. Idempotent."""
     if _engine is None:
         init_engine()
     Base.metadata.create_all(_engine)
+    _migrate_widen_text(_engine)
 
 
 @contextmanager

@@ -72,12 +72,17 @@ class WorkItem(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     scan_id: Mapped[str] = mapped_column(String(36), index=True)
-    key: Mapped[str] = mapped_column(String(1024))
+    # `key` is the tool's actual input value (a host OR a full URL). Crawl/wayback
+    # URLs can exceed 1024 chars; Postgres enforces varchar length (SQLite didn't)
+    # so a long-URL key overflowed and the work item was LOST. Text = no limit,
+    # no truncation (truncating would feed the tool a broken URL); not indexed
+    # (the indexed dedupe_key is a fixed-width hash), so no btree size concern.
+    key: Mapped[str] = mapped_column(Text)
     key_type: Mapped[str] = mapped_column(String(64), index=True)
     tool_slug: Mapped[str] = mapped_column(String(128), index=True)
     dedupe_key: Mapped[str] = mapped_column(String(64), index=True)
     status: Mapped[str] = mapped_column(String(16), default="pending", index=True)
-    parent_key: Mapped[Optional[str]] = mapped_column(String(1024))
+    parent_key: Mapped[Optional[str]] = mapped_column(Text)
     depth: Mapped[int] = mapped_column(Integer, default=0)
     output_path: Mapped[Optional[str]] = mapped_column(Text)
     new_keys_found: Mapped[int] = mapped_column(Integer, default=0)
