@@ -278,6 +278,103 @@ class NmapServiceScan(Adapter):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# P6 — sslyze TLS audit (handwritten: the generic emit can't navigate sslyze's
+# deeply-nested server_scan_results[].scan_result.{...}.result tree to fan out
+# the dozen heterogeneous finding types). Maps the result to TLS findings.
+# ─────────────────────────────────────────────────────────────────────────────
+# protocol-scan key -> (label, severity) when accepted_cipher_suites is non-empty
+_DEPRECATED_TLS = {
+    "ssl_2_0_cipher_suites": ("SSLv2", "critical"),
+    "ssl_3_0_cipher_suites": ("SSLv3", "high"),
+    "tls_1_0_cipher_suites": ("TLS 1.0", "medium"),
+    "tls_1_1_cipher_suites": ("TLS 1.1", "medium"),
+}
+
+
+def _parse_sslyze_json(text: str, fallback_host: str, tool: str) -> list[Event]:
+    """sslyze --json_out -> TLS findings. raw_decode() because sslyze appends
+    trailing content after the JSON document."""
+    events: list[Event] = []
+    try:
+        d, _ = json.JSONDecoder().raw_decode(text.lstrip())
+    except (ValueError, json.JSONDecodeError):
+        return events
+    for r in d.get("server_scan_results", []):
+        loc = r.get("server_location") or {}
+        host = loc.get("hostname") or fallback_host
+        target = f"{host}:{loc.get('port', 443)}"
+        sr = r.get("scan_result") or {}
+
+        def _res(key: str):
+            v = sr.get(key) or {}
+            return (v.get("result") or {}) if v.get("status") == "COMPLETED" else {}
+
+        def _add(title: str, kind: str, severity: str, cve: str | None = None):
+            events.append(Event.finding(tool, kind, title, severity=severity,
+                                        asset_value=target, cve_id=cve, detector=tool))
+
+        if _res("heartbleed").get("is_vulnerable_to_heartbleed"):
+            _add(f"Heartbleed on {target}", "tls_vuln", "critical", "CVE-2014-0160")
+        if _res("openssl_ccs_injection").get("is_vulnerable_to_ccs_injection"):
+            _add(f"OpenSSL CCS injection on {target}", "tls_vuln", "high", "CVE-2014-0224")
+        robot = str(_res("robot").get("robot_result", ""))
+        if robot.startswith("VULNERABLE"):
+            _add(f"ROBOT attack ({robot}) on {target}", "tls_vuln", "high")
+        for key, (label, sev) in _DEPRECATED_TLS.items():
+            if _res(key).get("accepted_cipher_suites"):
+                _add(f"Deprecated protocol {label} enabled on {target}", "weak_tls", sev)
+        for dep in _res("certificate_info").get("certificate_deployments", []):
+            if dep.get("verified_chain_has_sha1_signature"):
+                _add(f"SHA-1 signature in certificate chain on {target}", "weak_tls", "medium")
+            for pv in dep.get("path_validation_results", []):
+                if pv.get("was_validation_successful") is False:
+                    err = pv.get("validation_error") or "validation failed"
+                    _add(f"Certificate validation failed on {target}: {err}", "cert_invalid", "high")
+                    break
+    return events
+
+
+@register("p6_vuln")
+class SslyzeScan(Adapter):
+    name = "sslyze"
+    category = "CAT-24"
+    is_active = True
+    default_on = False            # deep TLS audit; available but opt-in
+    consumes = ("subdomain",)
+    produces = ("finding",)
+
+    def available(self, ctx: AdapterContext) -> bool:
+        return shutil.which("sslyze") is not None
+
+    async def run(self, ctx: AdapterContext) -> list[Event]:
+        targets = [h for h in sorted(set(ctx.seeds_of("subdomain")))
+                   if _scoped(ctx, "subdomain", h)][:50]
+        if not targets:
+            return []
+        events: list[Event] = []
+        sem = asyncio.Semaphore(max(2, (ctx.profile.global_concurrency or 8) // 4))
+
+        async def scan(host: str):
+            async with sem:
+                proc = None
+                try:
+                    proc = await asyncio.create_subprocess_exec(
+                        "sslyze", "--quiet", "--json_out=/dev/stdout", f"{host}:443",
+                        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+                    )
+                    out, _ = await asyncio.wait_for(proc.communicate(), timeout=180)
+                except Exception:  # noqa: BLE001 — timeout/spawn: reap + skip
+                    if proc is not None and proc.returncode is None:
+                        proc.kill()
+                        await proc.wait()
+                    return
+                events.extend(_parse_sslyze_json(out.decode(errors="ignore"), host, self.name))
+
+        await asyncio.gather(*(scan(h) for h in targets))
+        return events
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # P5 — JS analysis: read JS harvested to the FS, extract endpoints + secrets
 # ─────────────────────────────────────────────────────────────────────────────
 @register("p5_deep")
