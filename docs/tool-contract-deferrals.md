@@ -1,17 +1,33 @@
-# Tool-contract deferrals — what's left and exactly why
+# Tool-contract deferrals — ALL RESOLVED
 
 Status from the reproducible auditor
 (`python3 .claude/skills/recon-integration-tracker/scripts/tool_contract_audit.py`):
-**261 runnable, 254 clean, 7 INPUT issues** (nmap, item 3 below, is now DONE —
-handwritten adapter `3fc26be`, live-verified). Every issue below is a tool whose
-invocation still references a token the generic CLI adapter cannot fill
-(`{outfile}`, `{infile}`, `{repo}`, …). None is fixable by the existing mechanisms
-(stdin/stdout plumbing, aux-token resolution, variant expansion, `non_executable`);
-each needs a specific, separately-scoped change. Listed cheapest → most involved.
+**267 runnable, 267 clean, 0 INPUT / 0 NOEXEC / 0 OUTPUT issues.** Every tool that
+was deferred below has been implemented. Kept as a record of what each blocker
+was and how it was solved.
 
-The reason these are *documented* rather than force-fixed: a wrong parse spec on a
-tool I can't live-verify would look "fixed" in the audit while still producing 0 —
-worse than an honest deferral. Each entry says exactly what's needed to unblock it.
+Resolution summary:
+- **nmap** (`3fc26be`) — handwritten `NmapServiceScan` (XML -> service per port).
+- **sslyze** (`029fd84`) — handwritten `SslyzeScan` (nested JSON -> TLS findings).
+- **gitleaks** (`f99382d`) — `repo` producer (`github_org_repos`) + handwritten
+  `GitleaksScan` (clone + scan + redact). `repo` type now produced AND consumed.
+- **whatweb** (`c37f225`) — handwritten `WhatWebScan` (--log-json tempfile ->
+  `tech` findings); live-verified. Establishes the "tech as findings" model.
+- **gowitness** (`c37f225`) — handwritten `GoWitness` evidence tool (screenshots
+  into the artifact dir -> `screenshot` assets; needs chromium to produce images).
+- **kiterunner** (`c37f225`) — /dev/stdin + `{kite_wordlist}` aux token; routes-
+  small.kite added to install_tools.sh (routes-large ~1GB intentionally not shipped).
+- **waymore** (`c37f225`) — `-oU /dev/stdout` + URL line_regex -> endpoints.
+- **github_search** (`c37f225`, bonus) — variant-expanded over secret dorks -> repo
+  assets that feed gitleaks/trufflehog.
+
+Operational notes: sslyze/gitleaks/kiterunner/gowitness need their binary or data
+dep present (a `docker compose build recontool` runs the updated install_tools.sh);
+each degrades to a clean skip when absent.
+
+---
+
+The original blocker write-ups follow (for the record).
 
 ---
 
