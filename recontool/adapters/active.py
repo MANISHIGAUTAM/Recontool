@@ -196,6 +196,88 @@ class PortScan(Adapter):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# P5 — nmap service/version scan (handwritten: the generic CLI adapter has no XML
+# parser, and nmap's greppable output can't be split into one service-per-port).
+# Deep -sV/-sC on top of naabu's fast discovery; opt-in (default_on=False).
+# ─────────────────────────────────────────────────────────────────────────────
+def _parse_nmap_xml(xml_text: str, fallback_host: str, tool: str) -> list[Event]:
+    """One Event.service per OPEN port from nmap -oX output, with version info."""
+    import xml.etree.ElementTree as ET
+
+    events: list[Event] = []
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError:
+        return events
+    for host_el in root.findall("host"):
+        addr = next((a.get("addr") for a in host_el.findall("address")
+                     if a.get("addrtype") in ("ipv4", "ipv6")), None)
+        hn = host_el.find("hostnames/hostname")
+        host = (hn.get("name") if hn is not None else None) or addr or fallback_host
+        for port_el in host_el.findall("ports/port"):
+            state = port_el.find("state")
+            if state is None or state.get("state") != "open":
+                continue
+            svc = port_el.find("service")
+            attrs: dict = {}
+            if svc is not None:
+                if svc.get("name"):
+                    attrs["service_name"] = svc.get("name")
+                product = " ".join(x for x in (svc.get("product"), svc.get("version")) if x)
+                if product:
+                    attrs["product"] = product
+            try:
+                events.append(Event.service(tool, host, int(port_el.get("portid")), **attrs))
+            except (TypeError, ValueError):
+                continue
+    return events
+
+
+@register("p5_deep")
+class NmapServiceScan(Adapter):
+    name = "nmap"
+    category = "CAT-21"
+    is_active = True
+    default_on = False            # heavy -sV/-sC; available but opt-in
+    consumes = ("ip", "subdomain")
+    produces = ("service",)
+
+    def available(self, ctx: AdapterContext) -> bool:
+        return shutil.which("nmap") is not None
+
+    async def run(self, ctx: AdapterContext) -> list[Event]:
+        targets = sorted(set(ctx.seeds_of("ip") + ctx.seeds_of("subdomain")))
+        targets = [t for t in targets
+                   if _scoped(ctx, "ip", t) or _scoped(ctx, "subdomain", t)][:50]
+        if not targets:
+            return []
+        port_args = {"top-100": ["--top-ports", "100"],
+                     "top-1000": ["--top-ports", "1000"],
+                     "full": ["-p-"]}.get(ctx.profile.port_set, ["--top-ports", "100"])
+        events: list[Event] = []
+        sem = asyncio.Semaphore(max(2, (ctx.profile.global_concurrency or 8) // 4))
+
+        async def scan(host: str):
+            async with sem:
+                proc = None
+                try:
+                    proc = await asyncio.create_subprocess_exec(
+                        "nmap", "-sV", "-sC", "-T4", "-Pn", *port_args, "-oX", "-", host,
+                        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+                    )
+                    out, _ = await asyncio.wait_for(proc.communicate(), timeout=600)
+                except Exception:  # noqa: BLE001 — timeout/spawn failure: reap + skip
+                    if proc is not None and proc.returncode is None:
+                        proc.kill()
+                        await proc.wait()
+                    return
+                events.extend(_parse_nmap_xml(out.decode(errors="ignore"), host, self.name))
+
+        await asyncio.gather(*(scan(h) for h in targets))
+        return events
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # P5 — JS analysis: read JS harvested to the FS, extract endpoints + secrets
 # ─────────────────────────────────────────────────────────────────────────────
 @register("p5_deep")

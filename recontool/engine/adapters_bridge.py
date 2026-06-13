@@ -86,7 +86,9 @@ def _spec_for(cls: type) -> dict:
         "output_types": produces,
         "source": "curated",
         "enabled": True,
-        "default_on": True,
+        # Default-on unless the adapter opts out (heavy tools like nmap -sV set
+        # default_on=False so they're available but not run in the default profile).
+        "default_on": bool(getattr(cls, "default_on", True)),
         "requires_key": key_env,
         # key_optional: a keyed adapter still runs (keyless/limited) — the adapter's
         # own available()/run() decide. Mark optional so selection never hard-drops it.
