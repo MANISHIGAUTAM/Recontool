@@ -6,9 +6,11 @@ active-authorization gate. Each is keyless/free unless noted.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 import shutil
+import tempfile
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -329,3 +331,90 @@ def _looks_ip(s: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# gitleaks — secret scanning of a discovered repo. The `repo` entity (clone URL)
+# comes from github_org_repos; this is the missing CONSUMER. gitleaks v8 only
+# scans a LOCAL path, so the adapter shallow-clones each repo, scans, and emits
+# REDACTED secret findings (never the raw secret). Passive OSINT (public repos,
+# no target interaction); opt-in (default_on=False).
+# ─────────────────────────────────────────────────────────────────────────────
+def _mask_secret(s: str) -> str:
+    return "*" * len(s) if len(s) <= 8 else s[:4] + "*" * (len(s) - 8) + s[-4:]
+
+
+def _parse_gitleaks(text: str, repo_url: str, tool: str) -> list[Event]:
+    """gitleaks --report-format json (a JSON array) -> redacted secret findings."""
+    events: list[Event] = []
+    try:
+        data = json.loads(text or "[]")
+    except json.JSONDecodeError:
+        return events
+    if not isinstance(data, list):
+        return events
+    for f in data:
+        if not isinstance(f, dict):
+            continue
+        secret = str(f.get("Secret") or f.get("Match") or "")
+        rule = f.get("RuleID") or "secret"
+        fpath = f.get("File") or ""
+        events.append(Event.finding(
+            tool, "secret", f"Secret in repo ({rule}): {fpath}",
+            severity="high", detector=f"gitleaks:{rule}", asset_value=repo_url,
+            cve_id=None,
+            evidence_redacted={
+                "rule": rule, "file": fpath, "line": f.get("StartLine"),
+                "preview": _mask_secret(secret),
+                "sha1": hashlib.sha1(secret.encode()).hexdigest() if secret else "",
+            },
+        ))
+    return events
+
+
+@register("p3_enrichment")
+class GitleaksScan(Adapter):
+    name = "gitleaks"
+    category = "CAT-9"
+    is_active = False
+    default_on = False
+    consumes = ("repo",)
+    produces = ("finding",)
+
+    def available(self, ctx: AdapterContext) -> bool:
+        return shutil.which("gitleaks") is not None and shutil.which("git") is not None
+
+    async def run(self, ctx: AdapterContext) -> list[Event]:
+        repos = list(dict.fromkeys(ctx.seeds_of("repo")))[:20]
+        if not repos:
+            return []
+        events: list[Event] = []
+        sem = asyncio.Semaphore(max(2, (ctx.profile.global_concurrency or 8) // 4))
+
+        async def scan(url: str):
+            async with sem:
+                tmp = tempfile.mkdtemp(prefix="gl_")
+                clone = proc = None
+                try:
+                    clone = await asyncio.create_subprocess_exec(
+                        "git", "clone", "--depth", "1", "--quiet", url, tmp,
+                        stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+                    await asyncio.wait_for(clone.communicate(), timeout=120)
+                    if clone.returncode != 0:
+                        return
+                    proc = await asyncio.create_subprocess_exec(
+                        "gitleaks", "detect", "--source", tmp, "--report-format", "json",
+                        "--report-path", "/dev/stdout", "--no-banner", "--exit-code", "0",
+                        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+                    out, _ = await asyncio.wait_for(proc.communicate(), timeout=180)
+                    events.extend(_parse_gitleaks(out.decode(errors="ignore"), url, self.name))
+                except Exception:  # noqa: BLE001 — clone/scan failure or timeout: reap + skip
+                    for p in (clone, proc):
+                        if p is not None and p.returncode is None:
+                            p.kill()
+                            await p.wait()
+                finally:
+                    shutil.rmtree(tmp, ignore_errors=True)
+
+        await asyncio.gather(*(scan(u) for u in repos))
+        return events

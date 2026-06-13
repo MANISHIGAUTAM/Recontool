@@ -337,6 +337,7 @@ class ToolRegistry:
             "invocation", "output_format", "requires_key", "default_on",
             "chains_to", "notes", "timeout", "parse", "stdin", "max_records",
             "non_executable", "non_executable_reason",
+            "headers", "key_optional", "bucket", "max_inputs",
         ):
             if key in raw:
                 result[key] = raw[key]

@@ -872,6 +872,29 @@ tools:
     default_on: false
     notes: "30 req/min code search + strict secondary limits -> queue + token rotation."
 
+  # Producer for the `repo` entity type: lists an org's public repos so gitleaks/
+  # trufflehog have something to scan. key_optional -> works keyless (60 req/hr)
+  # and uses the token (Authorization header) when present.
+  github_org_repos:
+    category: 9
+    phase: p2_expansion
+    type: passive
+    integration: api
+    invocation: "GET https://api.github.com/orgs/{org}/repos?per_page=100&type=public"
+    headers:
+      Authorization: "Bearer {key}"
+    input: org
+    output: repo
+    output_format: json
+    parse:
+      format: json
+      emit:
+        - {entity: asset, value: "{clone_url}", type: repo}
+    requires_key: GITHUB_TOKEN
+    key_optional: true
+    default_on: false
+    notes: "List a GitHub org's public repos -> repo assets for secret scanners."
+
   # ===========================================================================
   # CATEGORY 10 — Cloud & Storage Recon   [PASSIVE -> ACTIVE]
   # ===========================================================================
