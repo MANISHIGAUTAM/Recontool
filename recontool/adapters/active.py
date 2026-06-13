@@ -121,6 +121,14 @@ class HttpProbe(Adapter):
                     )
                 )
                 events.append(Event.asset(self.name, "subdomain", host, is_live=True, tech=tech))
+                # Emit the confirmed-live root URL as a RECURSABLE url asset (not
+                # just an endpoint). discovered_assets() only re-feeds entity=asset,
+                # so without this no `url` key is ever enqueued and url-only tools
+                # (nuclei, arjun, the Cat-10 url scanners) never run. Scoped to the
+                # bounded set of LIVE hosts (~tens), never the gau/wayback firehose
+                # (~100k endpoints), so the exploitation layer is reachable without
+                # amplifying. produces already declares "url"; this honors it.
+                events.append(Event.asset(self.name, "url", url, is_live=True))
                 break  # one successful scheme is enough
         await asyncio.gather(*(probe(h) for h in hosts))
         return events
