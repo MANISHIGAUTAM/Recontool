@@ -129,7 +129,26 @@ def test_input_values_filters_oversized_cidrs_for_mapcidr():
         def seeds_of(self, atype):
             return {"cidr": ["1.2.3.0/24", "10.0.0.0/8", "2400:cb00:768::/48"]}.get(atype, [])
 
-    assert _input_values(_Ctx(), ("cidr",), cap=50) == ["1.2.3.0/24"]
+    assert _input_values(_Ctx(), ("cidr",)) == ["1.2.3.0/24"]
+
+
+def test_fan_out_processes_every_input_in_rotating_batches():
+    """_fan_out must run EVERY input (no cap/drop), batching only to bound
+    in-flight concurrency."""
+    import asyncio
+
+    from recontool.adapters.generic import _fan_out
+
+    seen = []
+
+    async def one(v):
+        seen.append(v)
+        return [v]
+
+    inputs = [f"h{i}.example.com" for i in range(125)]   # > any batch size
+    out = asyncio.run(_fan_out(inputs, one, batch_size=10))
+    assert sorted(seen) == sorted(inputs)   # all 125 ran, none dropped
+    assert len(out) == 125
 
 
 def test_emit_edge_service_endpoint_finding():

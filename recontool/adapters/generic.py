@@ -290,11 +290,18 @@ def _kill_proc_group(proc) -> None:
             pass
 
 
-def _input_values(ctx: AdapterContext, consumes: tuple[str, ...], cap: int) -> list[str]:
+def _input_values(ctx: AdapterContext, consumes: tuple[str, ...]) -> list[str]:
+    """All distinct input values a tool should run on. NO cap — every input is
+    processed (the old out[:cap] silently SKIPPED inputs beyond max_inputs, i.e.
+    dropped recon coverage). Fan-out concurrency/memory is bounded by rotating
+    batches in `_fan_out`, not by discarding inputs."""
     vals: list[str] = []
     for ctype in consumes:
         seeds = ctx.seeds_of(ctype)
         if ctype == "cidr":
+            # Oversized blocks (e.g. a CDN's IPv6 /48 = 2^80 addrs) are skipped at
+            # fan-out — not a coverage cap but a physical-impossibility guard; the
+            # full block is preserved in the raw artifact for manual pivoting.
             seeds = [v for v in seeds if _expandable_cidr(v)]
         vals.extend(seeds)
     seen, out = set(), []
@@ -302,7 +309,23 @@ def _input_values(ctx: AdapterContext, consumes: tuple[str, ...], cap: int) -> l
         if v not in seen:
             seen.add(v)
             out.append(v)
-    return out[:cap]
+    return out
+
+
+async def _fan_out(inputs: list[str], one, batch_size: int) -> list[Event]:
+    """Run ``one(v)`` over EVERY input, in rotating batches of ``batch_size``.
+
+    Bounds how many calls (and their buffers) are in flight at once WITHOUT
+    dropping any input — the batch is the rotation window, processed back-to-back
+    until all inputs are done. Replaces the old `out[:cap]` truncation (which just
+    skipped the tail) with batch-and-rotate, honoring 'never trade completeness'.
+    """
+    out: list[Event] = []
+    bs = max(1, batch_size)
+    for i in range(0, len(inputs), bs):
+        for batch in await asyncio.gather(*(one(v) for v in inputs[i:i + bs])):
+            out.extend(batch)
+    return out
 
 
 # -- the two generic executors ------------------------------------------------
@@ -321,7 +344,7 @@ class GenericApiAdapter(Adapter):
         key = settings.api_key(spec["requires_key"]) if spec.get("requires_key") else ""
         bucket = spec.get("bucket", spec["name"])
         seed = _seed_domain(ctx)
-        inputs = _input_values(ctx, self.consumes, cap=spec.get("max_inputs", 100))
+        inputs = _input_values(ctx, self.consumes)
         sem = asyncio.Semaphore(max(2, ctx.profile.per_host_concurrency * 4))
 
         async def one(v: str) -> list[Event]:
@@ -346,14 +369,13 @@ class GenericApiAdapter(Adapter):
             ctx.artifacts.save_raw(spec["name"], resp.json() if resp.json_ok else resp.text)
             recs = parse_records(spec["parse"],
                                  resp.text, json_obj=resp.json() if resp.json_ok else None)
-            cap = spec.get("max_records")
-            if cap:
-                recs = recs[: int(cap)]   # bound large API result sets
+            # No max_records truncation — every record is emitted; downstream
+            # memory is bounded by the worker's event batching, not by dropping.
             return emit_events(spec["parse"], recs, spec["name"], seed)
 
-        # PARALLEL fan-out across inputs (bounded by profile concurrency + rate limiter)
-        batches = await asyncio.gather(*(one(v) for v in inputs))
-        return [e for batch in batches for e in batch]
+        # Process ALL inputs in rotating batches (no input dropped); per-call
+        # concurrency is further bounded by `sem` + the HTTP rate limiter.
+        return await _fan_out(inputs, one, spec.get("max_inputs") or 100)
 
 
 def _aux_tokens(spec: dict, ctx: AdapterContext) -> dict[str, str]:
@@ -408,7 +430,7 @@ class GenericCliAdapter(Adapter):
     async def run(self, ctx: AdapterContext) -> list[Event]:
         spec = self.spec
         seed = _seed_domain(ctx)
-        inputs = _input_values(ctx, self.consumes, cap=spec.get("max_inputs", 50))
+        inputs = _input_values(ctx, self.consumes)
         sem = asyncio.Semaphore(max(2, ctx.profile.global_concurrency or 10))
 
         use_stdin = bool(spec.get("stdin"))
@@ -458,14 +480,13 @@ class GenericCliAdapter(Adapter):
             text = out.decode(errors="ignore")
             ctx.artifacts.save_text(spec["name"], f"{v}.out", text)
             recs = parse_records(spec["parse"], text)
-            cap = spec.get("max_records")
-            if cap:
-                recs = recs[: int(cap)]   # bound firehose tools (gau/waybackurls)
+            # No max_records truncation — a firehose tool (gau/waybackurls) emits
+            # every line; the worker's event batching bounds memory, not a cap.
             return emit_events(spec["parse"], recs, spec["name"], seed)
 
-        # PARALLEL fan-out across inputs (bounded by profile concurrency)
-        batches = await asyncio.gather(*(one(v) for v in inputs))
-        return [e for batch in batches for e in batch]
+        # Process ALL inputs in rotating batches (no input dropped); per-call
+        # concurrency is further bounded by `sem`.
+        return await _fan_out(inputs, one, spec.get("max_inputs") or 50)
 
 
 def build_adapter_class(spec: dict) -> type[Adapter]:
