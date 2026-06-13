@@ -850,10 +850,21 @@ tools:
     integration: cli
     binary: s3scanner
     install: {method: go, ref: "github.com/sa7mon/s3scanner@latest"}
-    invocation: "s3scanner -bucket-file {infile} -json"
+    # -bucket-file {infile} -> ""; use single-bucket mode on the consumed value.
+    # -json emits one JSONL object per bucket; flag the ones that exist/are open.
+    invocation: "s3scanner -bucket {bucket} -json"
     input: bucket
     output: finding
     output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - entity: finding
+          when: {exists: "3"}        # s3scanner: 3 = exists
+          title: "Open/again-readable S3 bucket: {bucket}"
+          kind: exposed_bucket
+          severity: medium
+          asset_value: "{bucket}"
     requires_key: false
     default_on: false
 
@@ -938,10 +949,17 @@ tools:
     integration: cli
     binary: ffuf
     install: {method: go, ref: "github.com/ffuf/ffuf/v2@latest"}
-    invocation: "ffuf -u {url}/FUZZ -w {wordlist} -of json -o {outfile} -mc 200,204,301,302,307,401,403"
+    # {wordlist} resolves to a SecLists path now; -s silences progress so -o
+    # /dev/stdout carries ONLY the result JSON ({"results":[{url,status},...]}).
+    invocation: "ffuf -u {url}/FUZZ -w {wordlist} -mc 200,204,301,302,307,401,403 -of json -o /dev/stdout -s"
     input: url
     output: url
     output_format: json
+    parse:
+      format: json
+      list_path: results
+      emit:
+        - {entity: endpoint, url: "{url}"}
     requires_key: false
     default_on: false
     chains_to: [25, 27]
@@ -954,10 +972,16 @@ tools:
     integration: cli
     binary: feroxbuster
     install: {method: binary, ref: "https://github.com/epi052/feroxbuster"}
-    invocation: "feroxbuster -u {url} -w {wordlist} --json -o {outfile}"
+    # {wordlist} resolves now; --json writes JSONL events to stdout when -o is
+    # omitted. Each line has a "type"; only type=response rows are real hits.
+    invocation: "feroxbuster -u {url} -w {wordlist} --json --silent"
     input: url
     output: url
     output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - {entity: endpoint, url: "{url}", when: {type: response}}
     requires_key: false
     default_on: false
 
@@ -1052,16 +1076,27 @@ tools:
     chains_to: [22, 25]
     notes: "JS-aware crawler; discovers js_file + endpoints. New hosts loop to httpx."
 
+  # NOTE linkfinder/secretfinder were integration:python with `python script.py`
+  # and no handwritten adapter -> no executor (invalid contract). Reclassified to
+  # cli with the pip console-script name; they SKIP cleanly if the binary is
+  # absent. Both are superseded by jsluice (below) + the handwritten pycrawl/
+  # jsanalyze (which already pull JS endpoints + secrets) -- kept as available
+  # alternatives, not default_on.
   linkfinder:
     category: 22
     phase: p5_deep
     type: passive
-    integration: python
-    install: {method: git, ref: "https://github.com/GerbenJavado/LinkFinder"}
-    invocation: "python linkfinder.py -i {js_file} -o cli"
+    integration: cli
+    binary: linkfinder
+    install: {method: pip, ref: "linkfinder"}
+    invocation: "linkfinder -i {js_file} -o cli"
     input: js_file
     output: url
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: endpoint, url: "{_value}"}
     requires_key: false
     default_on: false
 
@@ -1069,15 +1104,20 @@ tools:
     category: 22
     phase: p5_deep
     type: passive
-    integration: python
-    install: {method: git, ref: "https://github.com/m4ll0k/SecretFinder"}
-    invocation: "python SecretFinder.py -i {js_file} -o cli"
+    integration: cli
+    binary: secretfinder
+    install: {method: pip, ref: "secretfinder"}
+    invocation: "secretfinder -i {js_file} -o cli"
     input: js_file
     output: finding
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: finding, title: "Possible secret in JS: {_value}", kind: secret, severity: medium}
     requires_key: false
     default_on: false
-    notes: "API keys in JS. Store redacted only."
+    notes: "API keys in JS. Store redacted only. Superseded by jsluice/pycrawl."
 
   jsluice:
     category: 22
@@ -1098,16 +1138,24 @@ tools:
   # CATEGORY 23 — API & GraphQL Recon   [ACTIVE]   (NEW)
   # ===========================================================================
 
+  # Was integration:python with `python main.py` (no executor). Reclassified to
+  # cli with the console-script name; skips cleanly if absent. GraphQL engine
+  # fingerprinting is unique (not covered elsewhere), so kept as an alternative.
   graphw00f:
     category: 23
     phase: p5_deep
     type: active
-    integration: python
-    install: {method: git, ref: "https://github.com/dolevf/graphw00f"}
-    invocation: "python main.py -d -f -t {url}"
+    integration: cli
+    binary: graphw00f
+    install: {method: pip, ref: "graphw00f"}
+    invocation: "graphw00f -d -f -t {url}"
     input: url
     output: finding
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: finding, title: "GraphQL fingerprint: {_value}", kind: graphql, severity: info}
     requires_key: false
     default_on: false
 
@@ -1191,10 +1239,18 @@ tools:
     integration: cli
     binary: subjack
     install: {method: go, ref: "github.com/haccer/subjack@latest"}
-    invocation: "subjack -w {infile} -ssl -o {outfile} -ssl"
+    # -w reads the candidate list from /dev/stdin (one piped per item); -c points
+    # at the now-installed fingerprints DB ({fingerprints}); -o dropped so results
+    # go to stdout. subjack prints only takeover-able hosts, each becomes a finding.
+    invocation: "subjack -w /dev/stdin -c {fingerprints} -ssl"
+    stdin: true
     input: subdomain
     output: finding
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: finding, title: "Possible subdomain takeover: {_value}", kind: takeover, severity: high, asset_value: "{_value}"}
     requires_key: false
     default_on: false
     notes: "Subdomain takeover detection (dangling CNAME)."
