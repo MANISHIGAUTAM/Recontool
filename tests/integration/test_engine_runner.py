@@ -113,9 +113,12 @@ async def test_noise_gate_stops_out_of_scope_recursion(tmp_path, monkeypatch):
     subdomain-consuming tool never runs. With it OFF, it does. Proves G4 wiring."""
     monkeypatch.setattr(settings, "artifact_dir", tmp_path / "artifacts")
     registry = ToolRegistry(tools={
-        # emits an OUT-OF-SCOPE subdomain with NO adapter-level scope_filter
-        "leak": _emit_tool("leak", ["domain"], ["subdomain"], "x.evil.com", scope_filter=False),
-        "downstream": _emit_tool("downstream", ["subdomain"], ["subdomain"],
+        # Emits an OUT-OF-SCOPE ip with NO adapter-level scope_filter. (An
+        # out-of-scope *subdomain* is now dropped at the emit layer — a host typed
+        # `subdomain` must be under the seed — so we use an ip, which the emit
+        # host-scope check doesn't apply to, to exercise the re-feed NOISE gate.)
+        "leak": _emit_tool("leak", ["domain"], ["ip"], "9.9.9.9", scope_filter=False),
+        "downstream": _emit_tool("downstream", ["ip"], ["subdomain"],
                                  "deep.example.com", scope_filter=False),
     })
 

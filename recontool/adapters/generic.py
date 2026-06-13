@@ -121,6 +121,44 @@ def emit_events(parse_spec: dict, records: list[dict], tool: str,
     return events
 
 
+# A syntactically valid DNS hostname: dot-separated labels, alpha TLD. Underscore
+# is allowed (real records like _dmarc.example.com). Crucially this REJECTS tool
+# banner/usage lines that text-parsers would otherwise ingest as hosts — e.g.
+# paramspider prints an ASCII-art banner ("_  __", "with <3 by @0xasm0d3us")
+# whose lines contain spaces / art characters and never match.
+_HOST_RE = re.compile(r"^(?=.{1,253}$)([a-z0-9_](?:[a-z0-9_-]{0,62})?\.)+[a-z]{2,63}$")
+
+
+def _valid_emit(etype: str, value: str) -> bool:
+    """Shape-check an emitted value against its declared entity type, so a tool's
+    banner / help / progress text can't masquerade as a discovered asset."""
+    if not value:
+        return False
+    if etype in ("subdomain", "domain"):
+        return bool(_HOST_RE.match(value))
+    if etype == "url":
+        return "://" in value and " " not in value
+    if etype == "ip":
+        try:
+            ipaddress.ip_address(value)
+            return True
+        except ValueError:
+            return False
+    return True
+
+
+def _accept(etype: str, value: str, rule: dict, seed_domain: str | None) -> bool:
+    """Full emit gate: valid shape, in-scope for host types, and any explicit
+    rule-level scope_filter. A `subdomain`/`domain` must actually be under the
+    seed domain — crawlers/wayback surface external links (apps.apple.com,
+    bit.ly, …) that must NOT be stored as subdomains of the target."""
+    if not _valid_emit(etype, value):
+        return False
+    if etype in ("subdomain", "domain") and seed_domain and not is_subdomain_of(value, seed_domain):
+        return False
+    return _scope_ok(rule, value, seed_domain)
+
+
 def _scope_ok(rule: dict, value: str, seed_domain: str | None) -> bool:
     sf = rule.get("scope_filter")
     if not sf:
@@ -165,20 +203,22 @@ def _emit_one(rule: dict, rec: dict, tool: str, seed_domain: str | None) -> list
         lst = _get(rec, rule["value_each"]) or []
         if isinstance(lst, str):
             lst = lst.splitlines()
+        etype = rule.get("type", "subdomain")
         for item in lst:
             v = str(item).strip().lstrip("*.").lower()
-            if v and _scope_ok(rule, v, seed_domain):
-                out.append(Event.asset(tool, rule.get("type", "subdomain"), v))
+            if v and _accept(etype, v, rule, seed_domain):
+                out.append(Event.asset(tool, etype, v))
         return out
 
     if entity == "asset":
         v = render_template(rule.get("value", ""), rec).strip()
         if not v:
             return out
-        if rule.get("type") in ("subdomain", "domain"):
+        etype = rule.get("type", "subdomain")
+        if etype in ("subdomain", "domain"):
             v = v.lstrip("*.").lower()
-        if _scope_ok(rule, v, seed_domain):
-            out.append(Event.asset(tool, rule.get("type", "subdomain"), v))
+        if _accept(etype, v, rule, seed_domain):
+            out.append(Event.asset(tool, etype, v))
     elif entity == "service":
         host = render_template(rule.get("host", ""), rec).strip()
         port = str(render_template(rule.get("port", ""), rec)).strip()
@@ -187,7 +227,7 @@ def _emit_one(rule: dict, rec: dict, tool: str, seed_domain: str | None) -> list
                                      product=render_template(rule.get("product", ""), rec) or None))
     elif entity == "endpoint":
         url = render_template(rule.get("url", ""), rec).strip()
-        if url:
+        if url and _valid_emit("url", url):
             out.append(Event.endpoint(tool, url, source=tool))
     elif entity == "finding":
         title = render_template(rule.get("title", "finding"), rec)

@@ -72,6 +72,27 @@ def test_emit_value_each_with_scope_filter():
     assert "evil.attacker.com" not in vals     # out-of-scope dropped
 
 
+def test_emit_drops_tool_banner_lines_and_out_of_scope_hosts():
+    """Emit-layer shape+scope gate: a text-parsed tool's banner/usage lines must
+    NOT become assets (paramspider regression), and a value typed `subdomain`
+    that isn't under the seed must be dropped (out-of-scope host regression),
+    even with NO explicit scope_filter on the rule."""
+    # paramspider-style: stdout banner parsed as text -> emitted as url
+    url_spec = {"format": "text", "emit": [
+        {"entity": "asset", "value": "{_value}", "type": "url"}]}
+    banner = parse_records(url_spec, "_    __\nwith <3 by @0xasm0d3us\nhttps://groww.in/?q=1")
+    vals = [e.data["value"] for e in _ev(emit_events(url_spec, banner, "paramspider", "groww.in"), "asset")]
+    assert vals == ["https://groww.in/?q=1"]     # banner art dropped, real url kept
+
+    # subdomain emit with no scope_filter: out-of-scope host dropped, apex+real kept
+    sub_spec = {"format": "text", "emit": [
+        {"entity": "asset", "value": "{_value}", "type": "subdomain"}]}
+    recs = parse_records(sub_spec, "app.groww.in\napps.apple.com\nbit.ly\ngroww.in")
+    got = [e.data["value"] for e in _ev(emit_events(sub_spec, recs, "crawler", "groww.in"), "asset")]
+    assert "app.groww.in" in got and "groww.in" in got
+    assert "apps.apple.com" not in got and "bit.ly" not in got
+
+
 def test_emit_bgpview_cidr():
     spec = {"format": "json", "list_path": "data.ipv4_prefixes",
             "emit": [{"entity": "asset", "value": "{prefix}", "type": "cidr"}]}
