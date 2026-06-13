@@ -56,6 +56,27 @@ async def test_no_router_falls_back_to_heuristic():
 
 
 # ── (c) incremental ──────────────────────────────────────────────────────────
+def test_reuse_eligible_blocks_active_and_vuln_tools():
+    """Incremental reuse must NEVER reuse an active/vuln tool's stale output —
+    target state changes between scans, so reusing nuclei/nmap/httpx would miss
+    newly introduced services/vulns. Passive discovery IS reusable."""
+    from recontool.engine.worker import _reuse_eligible
+
+    class _Spec:
+        def __init__(self, type="passive", is_active=False, incremental_safe=False):
+            self.type, self.is_active, self.incremental_safe = type, is_active, incremental_safe
+
+    # passive discovery -> reusable
+    assert _reuse_eligible(_Spec(type="passive", is_active=False)) is True
+    # active probing -> NOT reusable (must re-run)
+    assert _reuse_eligible(_Spec(type="active", is_active=True)) is False
+    # passive-typed but is_active flag set -> NOT reusable
+    assert _reuse_eligible(_Spec(type="passive", is_active=True)) is False
+    # explicit override forces reuse even for an active tool
+    assert _reuse_eligible(_Spec(type="active", is_active=True, incremental_safe=True)) is True
+    assert _reuse_eligible(None) is False
+
+
 def test_find_fresh_completed_is_cross_scan_and_fresh(tmp_path):
     db.init_engine(f"sqlite:///{tmp_path / 'i.db'}")
     db.create_all()

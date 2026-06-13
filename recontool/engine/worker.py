@@ -60,6 +60,25 @@ def _now() -> dt.datetime:
     return dt.datetime.now(dt.timezone.utc)
 
 
+def _reuse_eligible(spec) -> bool:
+    """Whether a tool's prior run may be REUSED on an incremental rescan.
+
+    Incremental reuse is only correct when a tool's output for a given input is
+    STABLE across the freshness window. Passive discovery (crt.sh, wayback, OSINT
+    APIs) qualifies. ACTIVE / vulnerability tools (httpx probing, nuclei, nmap,
+    naabu, …) must ALWAYS re-execute: the target's live state changes between
+    scans, so reusing a stale nuclei/nmap result would silently miss newly
+    introduced services or vulnerabilities — a correctness/security failure. The
+    registry is the source of truth: an explicit ``incremental_safe=True`` forces
+    reuse; otherwise it's derived from the (populated) passive/active flags.
+    """
+    if spec is None:
+        return False
+    if getattr(spec, "incremental_safe", False):
+        return True
+    return getattr(spec, "type", "passive") == "passive" and not getattr(spec, "is_active", False)
+
+
 def _load_typed_events(paths: list[str], tool: str) -> list:
     """Reconstruct events from a prior run's typed ``out/*.jsonl`` files (reuse).
 
@@ -355,7 +374,7 @@ class WorkerPool:
 
         # Incremental: reuse a fresh prior run of this EXACT (tool, input) instead
         # of re-executing it — re-ingest its typed outputs into this scan + re-feed.
-        if self.incremental and spec is not None:
+        if self.incremental and _reuse_eligible(spec):
             reused = await self._try_incremental(item, scan_id, fp)
             if reused is not None:
                 await self._db(self._finish_item, item.id, "completed", reused)
