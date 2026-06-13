@@ -296,10 +296,17 @@ tools:
     integration: cli
     binary: github-subdomains
     install: {method: go, ref: "github.com/gwen001/github-subdomains@latest"}
-    invocation: "github-subdomains -d {domain} -t {key} -o {outfile}"
+    # {key} now resolves to the GITHUB_TOKEN (_aux_tokens); the CLI adapter's
+    # available() skips this tool cleanly when the token is absent. -o dropped:
+    # github-subdomains prints discovered subdomains to stdout.
+    invocation: "github-subdomains -d {domain} -t {key}"
     input: domain
     output: subdomain
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
     requires_key: GITHUB_TOKEN
     default_on: false
     chains_to: [2, 9]
@@ -375,10 +382,18 @@ tools:
     integration: cli
     binary: puredns
     install: {method: go, ref: "github.com/d3mondev/puredns/v2@latest"}
-    invocation: "puredns resolve {infile} -r {resolvers} --write {outfile}"
+    # {resolvers} now resolves to config/resolvers.txt (_aux_tokens); reads the
+    # candidate list from /dev/stdin (one piped per item) and prints resolved,
+    # wildcard-filtered names to stdout (--write dropped). -q = results only.
+    invocation: "puredns resolve /dev/stdin -r {resolvers} -q"
+    stdin: true
     input: subdomain
     output: subdomain     # resolving + wildcard-filtered
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
     requires_key: false
     default_on: false
     chains_to: [4, 5]
@@ -391,10 +406,18 @@ tools:
     integration: cli
     binary: massdns
     install: {method: git, ref: "https://github.com/blechschmidt/massdns"}
-    invocation: "massdns -r {resolvers} -t A -o S -w {outfile} {infile}"
+    # {resolvers} resolves now; read names from /dev/stdin, write -o S (simple:
+    # "name. A 1.2.3.4") to /dev/stdout. line_regex pulls the resolved A record.
+    invocation: "massdns -r {resolvers} -t A -o S -w /dev/stdout /dev/stdin"
+    stdin: true
     input: subdomain
     output: ip
     output_format: text
+    parse:
+      format: text
+      line_regex: '^\S+\s+A\s+(?P<_value>\d+\.\d+\.\d+\.\d+)'
+      emit:
+        - {entity: asset, value: "{_value}", type: ip, scope_filter: ip}
     requires_key: false
     default_on: false
     notes: "Internet-scale resolver; used under puredns/shuffledns."
@@ -981,10 +1004,18 @@ tools:
     integration: cli
     binary: masscan
     install: {method: apt, ref: "masscan"}
-    invocation: "masscan {cidr} -p{ports} --rate {rate} -oJ {outfile}"
+    # {ports}/{rate} resolve from the active profile now; drop -oJ {outfile} and
+    # parse masscan's default stdout ("Discovered open port 443/tcp on 1.2.3.4").
+    # Oversized CIDRs are already dropped upstream by _expandable_cidr.
+    invocation: "masscan {cidr} -p{ports} --rate {rate}"
     input: cidr
     output: host_port
-    output_format: json
+    output_format: text
+    parse:
+      format: text
+      line_regex: 'Discovered open port (?P<port>\d+)/\w+ on (?P<host>\d+\.\d+\.\d+\.\d+)'
+      emit:
+        - {entity: service, host: "{host}", port: "{port}"}
     requires_key: false
     default_on: false
     notes: "For huge ranges. Respect rate profile (very noisy)."

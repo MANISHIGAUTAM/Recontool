@@ -32,6 +32,9 @@ from recontool.engine.runner import load_engine_registry
 
 TOKEN = re.compile(r"\{([a-zA-Z0-9_.]+)\}")
 DEFAULT_PARSE_OK = {"subdomain", "domain", "live_host", "url", "endpoint"}
+# Aux tokens the CLI adapter fills from resources/profile/keys (generic.py:_aux_tokens).
+AUX_TOKENS = {"resolvers", "wordlist", "dns_wordlist", "fingerprints",
+              "ports", "rate", "threads", "key"}
 
 
 def audit(mode: str = "all") -> dict[str, list]:
@@ -57,6 +60,8 @@ def audit(mode: str = "all") -> dict[str, list]:
             base = {"value", "domain", "ip", "host"}
             if integ == "api":
                 base |= {"asn", "key"}
+            else:
+                base |= AUX_TOKENS          # CLI adapter resolves these at runtime
             fillable = consumes | base
             bad = sorted({t for t in TOKEN.findall(tmpl) if t not in fillable})
             if bad:

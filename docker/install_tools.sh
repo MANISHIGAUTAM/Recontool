@@ -142,16 +142,44 @@ install_massdns() {
     && cp /tmp/massdns/bin/massdns "$GOBIN/" && ok "installed massdns" || warn "failed: massdns"
 }
 
-# ── SecLists + a clean resolver list ──────────────────────────────────────────
+# ── SecLists + a clean resolver list + tool data-files ────────────────────────
+# Many CLI tools need a DATA dependency, not just a binary: gf needs ~/.gf/*.json
+# patterns, subjack needs a fingerprints.json takeover-signature DB, puredns/
+# massdns need a trusted resolver list. Without these the tool runs but produces
+# nothing. install_resources provisions them and writes paths the {resolvers}/
+# {fingerprints} tokens (adapters/generic.py:_aux_tokens) resolve to.
 install_resources() {
-  log "Fetching resources (wordlists + resolvers)..."
+  log "Fetching resources (wordlists + resolvers + tool data-files)..."
   if [ ! -d /opt/SecLists ]; then
     git clone --depth 1 https://github.com/danielmiessler/SecLists /opt/SecLists 2>/dev/null \
       && ok "SecLists -> /opt/SecLists" || warn "SecLists clone failed"
   fi
-  if have dnsvalidator; then
-    dnsvalidator -tL https://public-dns.info/nameservers.txt -threads 50 \
-      -o config/resolvers.txt 2>/dev/null && ok "resolvers -> config/resolvers.txt" || true
+
+  # Resolvers: validate a fresh list if dnsvalidator is present, else fall back
+  # to a known-good static list (the build often has no time/network for the
+  # full validation pass, which is why config/resolvers.txt was missing before).
+  if have dnsvalidator && dnsvalidator -tL https://public-dns.info/nameservers.txt \
+       -threads 50 -o config/resolvers.txt 2>/dev/null && [ -s config/resolvers.txt ]; then
+    ok "resolvers (validated) -> config/resolvers.txt"
+  elif curl -fsSL https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt \
+       -o config/resolvers.txt 2>/dev/null && [ -s config/resolvers.txt ]; then
+    ok "resolvers (trickest static) -> config/resolvers.txt"
+  else
+    printf '1.1.1.1\n8.8.8.8\n9.9.9.9\n8.8.4.4\n1.0.0.1\n' > config/resolvers.txt
+    warn "resolvers: fell back to a 5-entry built-in list"
+  fi
+
+  # subjack takeover fingerprints (the -c signature DB).
+  if [ ! -s config/fingerprints.json ]; then
+    curl -fsSL https://raw.githubusercontent.com/haccer/subjack/master/fingerprints.json \
+      -o config/fingerprints.json 2>/dev/null && ok "subjack fingerprints -> config/fingerprints.json" \
+      || warn "fingerprints.json fetch failed (subjack will skip)"
+  fi
+
+  # gf patterns -> ~/.gf (grep-pattern DB for ssrf/xss/sqli/... url triage).
+  if [ ! -d "$HOME/.gf" ]; then
+    git clone --depth 1 https://github.com/1ndianl33t/Gf-Patterns "$HOME/.gf" 2>/dev/null \
+      && ok "gf patterns -> ~/.gf" || warn "gf patterns clone failed"
   fi
 }
 

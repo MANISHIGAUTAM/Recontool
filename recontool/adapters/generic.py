@@ -294,12 +294,53 @@ class GenericApiAdapter(Adapter):
         return [e for batch in batches for e in batch]
 
 
+def _aux_tokens(spec: dict, ctx: AdapterContext) -> dict[str, str]:
+    """Resolve the non-entity tokens a CLI invocation may reference — resource
+    files (wordlists/resolvers/fingerprints), scan-config scalars (ports/rate/
+    threads), and an API key for key-gated CLI tools.
+
+    Resource paths come from settings.resource() (config `resources:` section)
+    with image-install defaults, so an operator can point them anywhere without
+    touching tools.yaml. Without this, tokens like {resolvers}/{wordlist}/{key}
+    render to "" -> malformed argv -> the tool silently produces nothing.
+    """
+    prof = ctx.profile
+    # masscan/naabu want a numeric port spec; map the profile's port_set.
+    ports = {"top-100": "1-1000", "top-1000": "1-10000",
+             "full": "1-65535"}.get(getattr(prof, "port_set", ""), "1-1000")
+    rate = str(max(100, int(getattr(prof, "requests_per_second", 100) * 60)))  # pps for masscan
+    threads = str(getattr(prof, "global_concurrency", 20) or 20)
+    aux = {
+        "resolvers": settings.resource("resolvers", "config/resolvers.txt"),
+        "wordlist": settings.resource(
+            "content_wordlist",
+            "/opt/SecLists/Discovery/Web-Content/raft-medium-directories.txt"),
+        "dns_wordlist": settings.resource(
+            "dns_wordlist",
+            "/opt/SecLists/Discovery/DNS/subdomains-top1million-5000.txt"),
+        "fingerprints": settings.resource("fingerprints", "config/fingerprints.json"),
+        "ports": ports, "rate": rate, "threads": threads,
+    }
+    key_env = spec.get("requires_key")
+    if key_env:
+        aux["key"] = settings.api_key(key_env) or ""
+    return {k: v for k, v in aux.items() if v}
+
+
 class GenericCliAdapter(Adapter):
     spec: dict = {}
 
     def available(self, ctx: AdapterContext) -> bool:
         binary = self.spec.get("binary")
-        return bool(binary) and shutil.which(binary) is not None
+        if not (binary and shutil.which(binary) is not None):
+            return False
+        # Key-gated CLI tools (e.g. github-subdomains needs a GitHub token) skip
+        # cleanly when the key is absent — same contract as the API adapter, so
+        # they log `⊘ skip` instead of running a broken keyless invocation.
+        key_env = self.spec.get("requires_key")
+        if key_env and not self.spec.get("key_optional") and not settings.api_key(key_env):
+            return False
+        return True
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
         spec = self.spec
@@ -311,8 +352,10 @@ class GenericCliAdapter(Adapter):
 
         async def one(v: str) -> list[Event]:
             # Alias every consumed type name (e.g. {url}, {subdomain}, {cidr})
-            # to the single input value too, on top of the fixed aliases below.
-            extra = {t: v for t in self.consumes}
+            # to the single input value too, on top of the fixed aliases below,
+            # plus resolved aux tokens (resolvers/wordlist/ports/rate/key/...).
+            extra = dict(_aux_tokens(spec, ctx))
+            extra.update({t: v for t in self.consumes})
             extra.update({"value": v, "domain": v, "ip": v, "host": v})
             cmd = render_template(spec["invocation"], {}, extra)
             async with sem:
