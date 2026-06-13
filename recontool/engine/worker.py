@@ -602,6 +602,20 @@ async def run_queue_scan(
     from recontool.core.models import Asset, Scan
 
     create_all()
+    # Silence benign subprocess-teardown noise: a stdin-fed CLI tool
+    # (puredns/massdns/tlsx) that exits without draining all of stdin, or a
+    # SIGKILL'd process, leaves an unretrieved BrokenPipeError on the stdin write
+    # transport ("Future exception was never retrieved"). It does not affect
+    # results — drop it; everything else goes to the default handler.
+    _loop = asyncio.get_running_loop()
+    _prev_handler = _loop.get_exception_handler()
+
+    def _ignore_pipe_noise(loop, context):
+        if isinstance(context.get("exception"), (BrokenPipeError, ConnectionResetError)):
+            return
+        (_prev_handler or loop.default_exception_handler)(context)
+
+    _loop.set_exception_handler(_ignore_pipe_noise)
     profile, scope, http, api_keys = build_scan_infra(seed, seed_type, profile_name)
     registry = load_engine_registry(
         tools, authorize_active=authorize_active, registry=registry

@@ -201,12 +201,14 @@ class Normalizer:
                 if (a.id, tool) in pairs:
                     continue
                 pairs.add((a.id, tool))
-                new_sources.append(AssetSource(
+                new_sources.append(dict(
                     asset_id=a.id, tool=tool,
                     source_confidence=source_weight(tool), raw_ref=_cap(raw_ref, _RAW_REF_MAX)))
-        if new_sources:
-            self.s.add_all(new_sources)
-            self.s.flush()
+        # Insert-or-ignore: AssetSource (asset_id, tool) races between concurrent
+        # workers that both first-see the same asset — same uq_source race as
+        # endpoints. Atomic dedupe means the loser is skipped, not an error.
+        _insert_ignore(self.s, AssetSource, new_sources)
+        self.s.flush()
 
         # 4. recompute confidence from the full distinct-tool set per asset.
         tools_by_asset: dict[int, set[str]] = {}
