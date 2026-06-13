@@ -7,8 +7,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import re
 import shutil
+import tempfile
 
 from recontool.adapters.base import Adapter, AdapterContext, Event
 from recontool.adapters.registry import register
@@ -332,6 +334,136 @@ def _parse_sslyze_json(text: str, fallback_host: str, tool: str) -> list[Event]:
                     _add(f"Certificate validation failed on {target}: {err}", "cert_invalid", "high")
                     break
     return events
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# P5 — whatweb tech fingerprint (handwritten: whatweb's --log-json is a JSON
+# ARRAY whose element has a `plugins` DICT — the generic emit can iterate a list
+# but not a dict's keys; and the plain-text summary pollutes stdout. Writing
+# --log-json to a temp file sidesteps both. Establishes the "tech as findings"
+# model the pipeline otherwise lacks.)
+# ─────────────────────────────────────────────────────────────────────────────
+def _parse_whatweb_json(text: str, target: str, tool: str) -> list[Event]:
+    """whatweb --log-json (a JSON array) -> one tech finding per target listing
+    the detected technologies (the `plugins` dict keys)."""
+    events: list[Event] = []
+    try:
+        data = json.loads(text or "[]")
+    except json.JSONDecodeError:
+        return events
+    if not isinstance(data, list):
+        return events
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+        plugins = entry.get("plugins") or {}
+        techs = sorted(k for k in plugins if isinstance(k, str))
+        if not techs:
+            continue
+        events.append(Event.finding(
+            tool, "tech", f"Tech stack on {target}: {', '.join(techs[:20])}",
+            severity="info", detector=tool, asset_value=target,
+            evidence_redacted={"technologies": techs},
+        ))
+    return events
+
+
+@register("p5_deep")
+class WhatWebScan(Adapter):
+    name = "whatweb"
+    category = "CAT-5"
+    is_active = True
+    default_on = False
+    consumes = ("subdomain",)
+    produces = ("finding",)
+
+    def available(self, ctx: AdapterContext) -> bool:
+        return shutil.which("whatweb") is not None
+
+    async def run(self, ctx: AdapterContext) -> list[Event]:
+        hosts = [h for h in sorted(set(ctx.seeds_of("subdomain")))
+                 if _scoped(ctx, "subdomain", h)][:50]
+        if not hosts:
+            return []
+        events: list[Event] = []
+        sem = asyncio.Semaphore(max(2, (ctx.profile.global_concurrency or 8) // 2))
+
+        async def scan(host: str):
+            async with sem:
+                fd, tmp = tempfile.mkstemp(suffix=".json", prefix="ww_")
+                os.close(fd)
+                proc = None
+                try:
+                    proc = await asyncio.create_subprocess_exec(
+                        "whatweb", "--no-errors", "--quiet", f"--log-json={tmp}",
+                        f"https://{host}",
+                        stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+                    await asyncio.wait_for(proc.communicate(), timeout=90)
+                    with open(tmp, encoding="utf-8", errors="ignore") as fh:
+                        events.extend(_parse_whatweb_json(fh.read(), host, self.name))
+                except Exception:  # noqa: BLE001 — timeout/spawn/read failure: reap + skip
+                    if proc is not None and proc.returncode is None:
+                        proc.kill()
+                        await proc.wait()
+                finally:
+                    try:
+                        os.unlink(tmp)
+                    except OSError:
+                        pass
+
+        await asyncio.gather(*(scan(h) for h in hosts))
+        return events
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# P5 — gowitness screenshots (handwritten: it's an EVIDENCE tool — output is PNG
+# files + a DB, not stdout entities. Runs gowitness into the scan's artifact dir,
+# then emits a `screenshot` asset per image it produced, so the visual evidence is
+# inventoried/queryable. The CLI form is version-robust: screenshot, then glob.)
+# ─────────────────────────────────────────────────────────────────────────────
+@register("p5_deep")
+class GoWitness(Adapter):
+    name = "gowitness"
+    category = "CAT-13"
+    is_active = True
+    default_on = False
+    consumes = ("subdomain",)
+    produces = ("screenshot",)
+
+    def available(self, ctx: AdapterContext) -> bool:
+        return shutil.which("gowitness") is not None
+
+    async def run(self, ctx: AdapterContext) -> list[Event]:
+        hosts = [h for h in sorted(set(ctx.seeds_of("subdomain")))
+                 if _scoped(ctx, "subdomain", h)][:50]
+        if not hosts:
+            return []
+        shotdir = ctx.artifacts.root / "screenshots"
+        shotdir.mkdir(parents=True, exist_ok=True)
+        before = set(shotdir.glob("*.jpeg")) | set(shotdir.glob("*.png"))
+        fd, listfile = tempfile.mkstemp(suffix=".txt", prefix="gw_")
+        with os.fdopen(fd, "w") as fh:
+            fh.write("\n".join(f"https://{h}" for h in hosts))
+        proc = None
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "gowitness", "scan", "file", "-f", listfile,
+                "--screenshot-path", str(shotdir), "--timeout", "15",
+                stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+            await asyncio.wait_for(proc.communicate(), timeout=600)
+        except Exception:  # noqa: BLE001 — timeout/spawn: reap + continue (glob anyway)
+            if proc is not None and proc.returncode is None:
+                proc.kill()
+                await proc.wait()
+        finally:
+            try:
+                os.unlink(listfile)
+            except OSError:
+                pass
+        new_shots = (set(shotdir.glob("*.jpeg")) | set(shotdir.glob("*.png"))) - before
+        return [Event.asset(self.name, "screenshot",
+                            str(img.relative_to(settings.artifact_dir)))
+                for img in sorted(new_shots)]
 
 
 @register("p6_vuln")

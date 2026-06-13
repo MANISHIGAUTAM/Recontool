@@ -319,6 +319,7 @@ def _aux_tokens(spec: dict, ctx: AdapterContext) -> dict[str, str]:
             "dns_wordlist",
             "/opt/SecLists/Discovery/DNS/subdomains-top1million-5000.txt"),
         "fingerprints": settings.resource("fingerprints", "config/fingerprints.json"),
+        "kite_wordlist": settings.resource("kite_wordlist", "/opt/kite/routes-small.kite"),
         "ports": ports, "rate": rate, "threads": threads,
     }
     key_env = spec.get("requires_key")

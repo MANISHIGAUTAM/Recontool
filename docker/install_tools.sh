@@ -181,6 +181,15 @@ install_resources() {
     git clone --depth 1 https://github.com/1ndianl33t/Gf-Patterns "$HOME/.gf" 2>/dev/null \
       && ok "gf patterns -> ~/.gf" || warn "gf patterns clone failed"
   fi
+
+  # kiterunner API-route wordlist (the SMALL routes set, ~10MB; routes-large is
+  # ~1GB and intentionally not shipped). Path is the {kite_wordlist} default.
+  if [ ! -s /opt/kite/routes-small.kite ]; then
+    mkdir -p /opt/kite
+    curl -fsSL https://github.com/assetnote/wordlists/releases/download/data/routes-small.kite \
+      -o /opt/kite/routes-small.kite 2>/dev/null \
+      && ok "kiterunner routes-small.kite -> /opt/kite" || warn "routes-small.kite fetch failed (kiterunner will skip)"
+  fi
 }
 
 # ── Optional Python extras (API server, JS-render browser, favicon pivot) ─────

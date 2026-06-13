@@ -796,10 +796,17 @@ tools:
     integration: cli
     binary: waymore
     install: {method: pip, ref: "waymore"}
-    invocation: "waymore -i {domain} -mode U -oU {outfile}"
+    # -oU /dev/stdout streams the URLs; line_regex keeps only URL lines (waymore's
+    # progress/banner also reaches stdout). Broader source set than gau/wayback.
+    invocation: "waymore -i {domain} -mode U -oU /dev/stdout -p 4"
     input: domain
     output: url
     output_format: text
+    parse:
+      format: text
+      line_regex: '^(?P<_value>https?://\S+)$'
+      emit:
+        - {entity: endpoint, url: "{_value}"}
     requires_key: false
     default_on: false
     chains_to: [22, 25]
@@ -859,15 +866,30 @@ tools:
     requires_key: false
     default_on: false
 
+  # github code-search is one tool per dork: `variants` expands it into
+  # github_search-api_key, github_search-filename:.env, ... each searching the
+  # org's code for a secret pattern and emitting the matching file's repo (which
+  # gitleaks/trufflehog then deep-scan). Code search REQUIRES auth -> no
+  # key_optional, so available() skips it without a GITHUB_TOKEN.
   github_search:
     category: 9
     phase: p3_enrichment
     type: passive
     integration: api
     invocation: "GET https://api.github.com/search/code?q={dork}+org:{org}"
+    headers:
+      Authorization: "Bearer {key}"
     input: org
     output: repo
     output_format: json
+    parse:
+      format: json
+      list_path: items
+      emit:
+        - {entity: asset, value: "{repository.html_url}", type: repo}
+    variants:
+      field: dork
+      items: [api_key, secret_key, aws_access_key_id, "filename:.env", "filename:.npmrc", "filename:id_rsa"]
     requires_key: GITHUB_TOKEN
     default_on: false
     notes: "30 req/min code search + strict secondary limits -> queue + token rotation."
@@ -1256,10 +1278,18 @@ tools:
     integration: cli
     binary: kr
     install: {method: binary, ref: "https://github.com/assetnote/kiterunner"}
-    invocation: "kr scan {infile} -w routes-large.kite -o json -O {outfile}"
+    # Reads targets from /dev/stdin; {kite_wordlist} resolves to the installed
+    # routes .kite (config `resources.kite_wordlist`, default /opt/kite/...).
+    # -o json streams matched routes to stdout (one JSON object per line).
+    invocation: "kr scan /dev/stdin -w {kite_wordlist} -o json --quiet"
+    stdin: true
     input: url
     output: url
-    output_format: json
+    output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - {entity: endpoint, url: "{url}"}
     requires_key: false
     default_on: false
 

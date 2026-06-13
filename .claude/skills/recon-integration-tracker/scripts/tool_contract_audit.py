@@ -34,7 +34,7 @@ TOKEN = re.compile(r"\{([a-zA-Z0-9_.]+)\}")
 DEFAULT_PARSE_OK = {"subdomain", "domain", "live_host", "url", "endpoint"}
 # Aux tokens the CLI adapter fills from resources/profile/keys (generic.py:_aux_tokens).
 AUX_TOKENS = {"resolvers", "wordlist", "dns_wordlist", "fingerprints",
-              "ports", "rate", "threads", "key"}
+              "kite_wordlist", "artifact_dir", "ports", "rate", "threads", "key"}
 
 
 def audit(mode: str = "all") -> dict[str, list]:

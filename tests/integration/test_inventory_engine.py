@@ -216,9 +216,9 @@ def test_curated_contracts_not_downgraded():
 
 def test_curated_count_is_preserved():
     reg = ToolRegistry.load()
-    # 81 base + 10 net from variant expansion (gf/unfurl) + 1 (github_org_repos,
-    # the `repo` producer for the gitleaks slice) = 92.
-    assert len(reg.curated_tools()) == 92
+    # 81 + 10 (gf/unfurl variants) + 1 (github_org_repos) + 5 (github_search
+    # dork variants: 1 base -> 6) = 97.
+    assert len(reg.curated_tools()) == 97
 
 
 def test_generic_spec_roundtrip_for_curated_cli():
