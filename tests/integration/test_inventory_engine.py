@@ -216,7 +216,9 @@ def test_curated_contracts_not_downgraded():
 
 def test_curated_count_is_preserved():
     reg = ToolRegistry.load()
-    assert len(reg.curated_tools()) == 81
+    # 81 base + 10 net from variant expansion: gf {pattern} -> 10 gf-* and
+    # unfurl {mode} -> 2 unfurl-* replace the 2 base entries (+12 -2 = +10).
+    assert len(reg.curated_tools()) == 91
 
 
 def test_generic_spec_roundtrip_for_curated_cli():

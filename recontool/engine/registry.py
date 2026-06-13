@@ -214,8 +214,11 @@ class ToolRegistry:
                 for name, spec in raw_tools.items():
                     if not isinstance(spec, dict):
                         continue
-                    spec_data = cls._normalize_tools_yaml(name, spec)
-                    _register(name, spec_data, slugify(name))
+                    # A tool with `variants` (e.g. gf {pattern}, unfurl {mode})
+                    # expands into one runnable tool per mode — see _expand_variants.
+                    for vname, vspec in cls._expand_variants(name, spec):
+                        spec_data = cls._normalize_tools_yaml(vname, vspec)
+                        _register(vname, spec_data, slugify(vname))
             except Exception:  # noqa: BLE001
                 pass
 
@@ -285,6 +288,40 @@ class ToolRegistry:
         meta["inventory_classification"] = inv.get("classification", "")
         result["metadata"] = meta
         return result
+
+    @staticmethod
+    def _expand_variants(name: str, raw: dict[str, Any]):
+        """Expand a multi-mode tool into one spec per mode.
+
+        Some CLI tools are really N tools selected by a mode/pattern argument
+        (gf {pattern} over ssrf/xss/sqli/...; unfurl {mode} over domains/keys).
+        A single tools.yaml entry with a `variants` block:
+
+            variants:
+              field: pattern            # the {token} in `invocation` to bake in
+              items: [ssrf, xss, ...]   # str, or {value:.., output:.., parse:..}
+
+        expands into `<name>-<value>` specs with the field token replaced by the
+        literal value, so each mode is an independently-routable, parseable tool.
+        Yields (name, spec) unchanged when there is no `variants` block.
+        """
+        variants = raw.get("variants")
+        if not isinstance(variants, dict) or not variants.get("items"):
+            yield name, raw
+            return
+        field = variants["field"]
+        base = {k: v for k, v in raw.items() if k != "variants"}
+        for item in variants["items"]:
+            overrides = {}
+            value = item
+            if isinstance(item, dict):
+                value = item["value"]
+                overrides = {k: v for k, v in item.items() if k != "value"}
+            v = dict(base)
+            if "invocation" in v:
+                v["invocation"] = v["invocation"].replace("{" + field + "}", str(value))
+            v.update(overrides)               # per-variant output/parse/etc.
+            yield f"{name}-{value}", v
 
     @staticmethod
     def _normalize_tools_yaml(name: str, raw: dict[str, Any]) -> dict[str, Any]:

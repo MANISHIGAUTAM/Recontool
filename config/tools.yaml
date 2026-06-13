@@ -608,33 +608,62 @@ tools:
     default_on: false
     notes: "Subset of gau (wayback only)."
 
+  # gf is really N tools, one per pattern (the ~/.gf/*.json DB). `variants`
+  # expands it into gf-ssrf, gf-xss, ... (engine/registry.py:_expand_variants),
+  # each reading the URL corpus from stdin and emitting a vuln-CANDIDATE finding
+  # for matching URLs (the detector = tool name carries which pattern matched).
   gf:
     category: 4
     phase: p5_deep
     type: passive
     integration: cli
     binary: gf
-    install: {method: go, ref: "github.com/tomnomnom/gf@latest"}
-    invocation: "cat {infile} | gf {pattern}"
+    invocation: "gf {pattern}"
+    stdin: true
     input: url
-    output: url
+    output: finding
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: finding, title: "URL matches gf pattern: {_value}", kind: vuln_candidate, severity: info, asset_value: "{_value}"}
+    variants:
+      field: pattern
+      items: [ssrf, xss, sqli, ssti, lfi, rce, redirect, idor, interestingparams, debug_logic]
     requires_key: false
     default_on: false
     chains_to: [25]
     notes: "Pattern-match URLs (ssrf/xss/redirect/idor) to triage attack surface."
 
+  # unfurl extracts URL components; each mode produces a DIFFERENT entity type,
+  # so the variants carry per-mode output + parse. -u = unique. domains can
+  # surface NEW in-scope subdomains from the URL corpus; keys yields param names.
   unfurl:
     category: 4
     phase: p5_deep
     type: passive
     integration: cli
     binary: unfurl
-    install: {method: go, ref: "github.com/tomnomnom/unfurl@latest"}
-    invocation: "cat {infile} | unfurl {mode}"
+    invocation: "unfurl -u {mode}"
+    stdin: true
     input: url
-    output: url
+    output: subdomain        # primary mode; each variant overrides per-mode
     output_format: text
+    variants:
+      field: mode
+      items:
+        - value: domains
+          output: subdomain
+          parse:
+            format: text
+            emit:
+              - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+        - value: keys
+          output: param
+          parse:
+            format: text
+            emit:
+              - {entity: asset, value: "{_value}", type: param}
     requires_key: false
     default_on: false
 
