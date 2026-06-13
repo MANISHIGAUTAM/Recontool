@@ -160,8 +160,13 @@ class Normalizer:
                 result[a.dedupe_key] = a
                 self._asset_cache[a.dedupe_key] = a
 
-        # 2. create the genuinely new assets, then ONE flush to assign ids.
-        new_created = []
+        # 2. create the genuinely new assets via INSERT ... ON CONFLICT DO NOTHING
+        #    then read them back. Two concurrent workers first-seeing the same asset
+        #    would otherwise both INSERT (scan_id, dedupe_key) and the loser raises
+        #    uq_asset_dedupe (impossible on 1-thread SQLite, real on Postgres). The
+        #    insert-ignore makes it atomic; the read-back returns the winner's row
+        #    regardless of who won, so every key still resolves to an id.
+        new_rows, new_keys = [], []
         for key, (atype, canon) in key_info.items():
             if key in result:
                 continue
@@ -175,15 +180,19 @@ class Normalizer:
             if len(canon) > _ASSET_VALUE_MAX:
                 stored = canon[:_ASSET_VALUE_MAX]
                 attrs = {"value_full": canon}
-            a = Asset(scan_id=self.scan_id, type=atype, value=stored, dedupe_key=key,
-                      in_scope=in_scope, attributes=attrs, tech=[], tags=[])
-            self.s.add(a)
-            new_created.append((key, a))
-        if new_created:
+            new_rows.append(dict(
+                scan_id=self.scan_id, type=atype, value=stored, dedupe_key=key,
+                in_scope=in_scope, attributes=attrs, tech=[], tags=[], confidence=0.0))
+            new_keys.append(key)
+        if new_rows:
+            _insert_ignore(self.s, Asset, new_rows)
             self.s.flush()
-            for key, a in new_created:
-                result[key] = a
-                self._asset_cache[key] = a
+            for a in self.s.execute(
+                select(Asset).where(Asset.scan_id == self.scan_id,
+                                    Asset.dedupe_key.in_(new_keys))
+            ).scalars().all():
+                result[a.dedupe_key] = a
+                self._asset_cache[a.dedupe_key] = a
 
         # 3. AssetSource: batch-load existing (asset_id, tool), bulk-add the new.
         asset_ids = [a.id for a in result.values()]
