@@ -227,6 +227,12 @@ install_batch_clis() {
   apt_install dnsrecon dnsrecon
   apt_install exiftool libimage-exiftool-perl
   apt_install binwalk binwalk
+  # nikto: not in Debian -> git + perl wrapper
+  if ! have nikto; then
+    git clone --depth 1 https://github.com/sullo/nikto /opt/nikto 2>/dev/null && \
+      printf '#!/bin/sh\nexec perl /opt/nikto/program/nikto.pl "$@"\n' > "$GOBIN/nikto" && \
+      chmod +x "$GOBIN/nikto" && ok "nikto -> /opt/nikto" || warn "nikto clone failed"
+  fi
 }
 
 case "$SET" in

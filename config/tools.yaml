@@ -30,6 +30,30 @@ meta:
 # CATEGORY 1 — Internet-Wide Search Engines & Asset Discovery   [PASSIVE]
 # ===========================================================================
 tools:
+  nikto:
+    category: 11
+    phase: p6_vuln
+    type: active
+    integration: cli
+    binary: nikto
+    invocation: "nikto -h {url} -nointeractive -maxtime 90s -ask no"
+    input: url
+    output: finding
+    output_format: text
+    parse: {format: text, line_regex: '^\+ (?P<msg>.+)$', emit: [{entity: finding, title: "nikto: {msg}", kind: web_exposure, severity: info, asset_value: "{msg}"}]}
+    default_on: false
+  gobuster:
+    category: 2
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: gobuster
+    invocation: "gobuster dns -d {domain} -w {dns_wordlist} -q -t 20 --no-color"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, line_regex: 'Found:\s*(?P<_value>[a-z0-9][a-z0-9_.-]*\.[a-z]{2,})', emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
   # ── batch-wired CLI tools (installed via install_tools.sh) ──────────────────
   assetfinder:
     category: 2
