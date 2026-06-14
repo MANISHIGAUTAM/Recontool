@@ -48,7 +48,7 @@ tools:
     type: active
     integration: cli
     binary: gobuster
-    invocation: "gobuster dns -d {domain} -w {dns_wordlist} -q -t 20 --no-color"
+    invocation: "gobuster dns --domain {domain} -w {dns_wordlist} -q -t 20 --no-color"
     input: domain
     output: subdomain
     output_format: text
@@ -730,14 +730,14 @@ tools:
     integration: cli
     binary: gau
     install: {method: go, ref: "github.com/lc/gau/v2/cmd/gau@latest"}
-    invocation: "gau {domain} --threads 5 --providers wayback,otx,urlscan --timeout 15"
+    invocation: "gau {domain} --threads 5 --providers wayback --timeout 45"
     input: domain
     output: url
     output_format: text
     requires_key: false
     default_on: true
     chains_to: [22, 25]
-    notes: "Wayback+OTX+URLScan (commoncrawl dropped: slow/flaky, stalled scans ~5min for 0 results); --timeout 15 fails fast. Plain-text output to match the parser."
+    notes: "Wayback URL miner. Reduced to the wayback provider only (otx/urlscan are flaky and already covered by the dedicated alienvault_otx + urlscan adapters) and --timeout 45 so the large wayback response can download (--timeout 15 + 3 providers returned 0 on groww.in while waybackurls got 227k). Redundant with waybackurls; both run."
 
   waybackurls:
     category: 4
@@ -752,7 +752,7 @@ tools:
     output_format: text
     requires_key: false
     default_on: false
-    notes: "Subset of gau (wayback only)."
+    notes: "Reliable Wayback source — streams (227k urls on groww.in where gau returned 0). Emits endpoints (terminal), not recursable url assets."
 
   # gf is really N tools, one per pattern (the ~/.gf/*.json DB). `variants`
   # expands it into gf-ssrf, gf-xss, ... (engine/registry.py:_expand_variants),
