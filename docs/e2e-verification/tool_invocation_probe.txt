@@ -1,0 +1,13 @@
+### tool_invocation_probe — each CLI tool's rendered command run in isolation (groww.in)
+TOOL                 RENDERED COMMAND                                                            OUT    TIME  VERDICT
+--------------------------------------------------------------------------------------------------------------------------------------------
+amass                amass enum -passive -d groww.in                                              -1 90037ms  TIMEOUT  (90s timeout)
+assetfinder          assetfinder --subs-only groww.in                                           1620 20904ms  PRODUCES
+dnsenum              dnsenum --noreverse -o /dev/null groww.in                                    -1 90015ms  TIMEOUT  (90s timeout)
+fierce               fierce --domain groww.in                                                     -1 90039ms  TIMEOUT  (90s timeout)
+gau                  gau groww.in --threads 5 --providers wayback,otx,urlscan --timeout 15        -1 90083ms  TIMEOUT  (90s timeout)
+gauplus              gauplus -t 5 groww.in                                                         0 12834ms  empty(rc=0)
+gobuster             gobuster dns -d groww.in -w /opt/SecLists/Discovery/DNS/subdomains-top     2074    57ms  PRODUCES  2026/06/14 21:00:39 invalid value "groww.in" for flag -d: parse error
+shuffledns           shuffledns -d groww.in -w /opt/SecLists/Discovery/DNS/subdomains-top1m      294 37176ms  PRODUCES
+waybackurls          waybackurls groww.in                                                         -1 90115ms  TIMEOUT  (90s timeout)
+waymore              waymore -i groww.in -mode U -oU /dev/stdout -p 4                             -1 90037ms  TIMEOUT  (90s timeout)
