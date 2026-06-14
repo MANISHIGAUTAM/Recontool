@@ -25,11 +25,23 @@ warn() { printf '\033[1;33m[!]\033[0m %s\n' "$*"; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# retry <attempts> <cmd...> — run cmd up to N times with linear backoff. Network
+# fetches in a Docker build are flaky (rate limits, transient DNS); one attempt
+# is why SecLists/gitleaks/etc. intermittently "failed". Returns cmd's status.
+retry() {
+  local n="$1"; shift; local i=1
+  while :; do
+    "$@" && return 0
+    [ "$i" -ge "$n" ] && return 1
+    warn "retry $i/$n failed: $1 …"; sleep $((i * 3)); i=$((i + 1))
+  done
+}
+
 go_install() {  # go_install <binary> <module@version>
   local bin="$1" mod="$2"
   if have "$bin"; then ok "$bin already installed"; return; fi
   log "go install $mod"
-  if go install "$mod" 2>/dev/null; then ok "installed $bin"; else warn "failed: $bin"; fi
+  if retry 3 go install "$mod" 2>/dev/null; then ok "installed $bin"; else warn "failed: $bin"; fi
 }
 
 # Like go_install, but for binary names that collide with a non-Go tool of the
@@ -44,14 +56,14 @@ go_install_verified() {  # go_install_verified <binary> <module@version> <versio
     ok "$bin already installed"; return
   fi
   log "go install $mod"
-  if go install "$mod" 2>/dev/null; then ok "installed $bin"; else warn "failed: $bin"; fi
+  if retry 3 go install "$mod" 2>/dev/null; then ok "installed $bin"; else warn "failed: $bin"; fi
 }
 
 pip_install() { # pip_install <binary> <pkg>
   local bin="$1" pkg="$2"
   if have "$bin"; then ok "$bin already installed"; return; fi
   log "pip install $pkg"
-  if pipx install "$pkg" 2>/dev/null || pip3 install --quiet "$pkg" 2>/dev/null; then
+  if retry 3 sh -c "pipx install '$pkg' 2>/dev/null || pip3 install --quiet '$pkg' 2>/dev/null"; then
     ok "installed $bin"; else warn "failed: $bin"; fi
 }
 
@@ -150,11 +162,37 @@ install_massdns() {
 # massdns need a trusted resolver list. Without these the tool runs but produces
 # nothing. install_resources provisions them and writes paths the {resolvers}/
 # {fingerprints} tokens (adapters/generic.py:_aux_tokens) resolve to.
+# fetch_url <url> <dest> [maxtime] — resilient single-file download (curl's own
+# --retry for transient HTTP + our retry() for total failures); succeeds only if
+# the file is non-empty. -L follows GitHub release redirects.
+fetch_url() {
+  local url="$1" dest="$2" maxtime="${3:-180}"
+  [ -s "$dest" ] && return 0
+  mkdir -p "$(dirname "$dest")"
+  retry 3 curl -fsSL -L --retry 3 --retry-delay 2 --max-time "$maxtime" "$url" -o "$dest" \
+    && [ -s "$dest" ]
+}
+
 install_resources() {
   log "Fetching resources (wordlists + resolvers + tool data-files)..."
-  if [ ! -d /opt/SecLists ]; then
-    git clone --depth 1 https://github.com/danielmiessler/SecLists /opt/SecLists 2>/dev/null \
-      && ok "SecLists -> /opt/SecLists" || warn "SecLists clone failed"
+
+  # SecLists: a FULL clone is ~2.6GB and frequently times out in the build (the
+  # recurring 'SecLists clone failed'). Fetch ONLY the wordlists the wired tools
+  # reference ({content_wordlist}/{dns_wordlist} in adapters/generic.py, a few MB)
+  # via raw URLs with retries; fall back to a shallow full clone only if those
+  # fail. Keeps ffuf/gobuster/feroxbuster working without the giant repo.
+  local SL="https://raw.githubusercontent.com/danielmiessler/SecLists/master"
+  local wc="/opt/SecLists/Discovery/Web-Content/raft-medium-directories.txt"
+  local dns="/opt/SecLists/Discovery/DNS/subdomains-top1million-5000.txt"
+  if [ ! -s "$wc" ] || [ ! -s "$dns" ]; then
+    if fetch_url "$SL/Discovery/Web-Content/raft-medium-directories.txt" "$wc" \
+       && fetch_url "$SL/Discovery/DNS/subdomains-top1million-5000.txt" "$dns"; then
+      ok "SecLists (targeted wordlists) -> /opt/SecLists"
+    elif retry 2 git clone --depth 1 https://github.com/danielmiessler/SecLists /opt/SecLists; then
+      ok "SecLists (full clone) -> /opt/SecLists"
+    else
+      warn "SecLists fetch failed (ffuf/gobuster/feroxbuster content-discovery will skip)"
+    fi
   fi
 
   # Resolvers: validate a fresh list if dnsvalidator is present, else fall back
@@ -163,8 +201,8 @@ install_resources() {
   if have dnsvalidator && dnsvalidator -tL https://public-dns.info/nameservers.txt \
        -threads 50 -o config/resolvers.txt 2>/dev/null && [ -s config/resolvers.txt ]; then
     ok "resolvers (validated) -> config/resolvers.txt"
-  elif curl -fsSL https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt \
-       -o config/resolvers.txt 2>/dev/null && [ -s config/resolvers.txt ]; then
+  elif fetch_url https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt \
+       config/resolvers.txt 60; then
     ok "resolvers (trickest static) -> config/resolvers.txt"
   else
     printf '1.1.1.1\n8.8.8.8\n9.9.9.9\n8.8.4.4\n1.0.0.1\n' > config/resolvers.txt
@@ -172,25 +210,26 @@ install_resources() {
   fi
 
   # subjack takeover fingerprints (the -c signature DB).
-  if [ ! -s config/fingerprints.json ]; then
-    curl -fsSL https://raw.githubusercontent.com/EdOverflow/can-i-take-over-xyz/master/fingerprints.json \
-      -o config/fingerprints.json 2>/dev/null && ok "subjack fingerprints -> config/fingerprints.json" \
-      || warn "fingerprints.json fetch failed (subjack will skip)"
+  if fetch_url https://raw.githubusercontent.com/EdOverflow/can-i-take-over-xyz/master/fingerprints.json \
+       config/fingerprints.json 60; then
+    ok "subjack fingerprints -> config/fingerprints.json"
+  else
+    warn "fingerprints.json fetch failed (subjack will skip)"
   fi
 
   # gf patterns -> ~/.gf (grep-pattern DB for ssrf/xss/sqli/... url triage).
   if [ ! -d "$HOME/.gf" ]; then
-    git clone --depth 1 https://github.com/1ndianl33t/Gf-Patterns "$HOME/.gf" 2>/dev/null \
+    retry 2 git clone --depth 1 https://github.com/1ndianl33t/Gf-Patterns "$HOME/.gf" \
       && ok "gf patterns -> ~/.gf" || warn "gf patterns clone failed"
   fi
 
   # kiterunner API-route wordlist (the SMALL routes set, ~10MB; routes-large is
   # ~1GB and intentionally not shipped). Path is the {kite_wordlist} default.
-  if [ ! -s /opt/kite/routes-small.kite ]; then
-    mkdir -p /opt/kite
-    curl -fsSL https://github.com/assetnote/wordlists/releases/download/data/routes-small.kite \
-      -o /opt/kite/routes-small.kite 2>/dev/null \
-      && ok "kiterunner routes-small.kite -> /opt/kite" || warn "routes-small.kite fetch failed (kiterunner will skip)"
+  if fetch_url https://github.com/assetnote/wordlists/releases/download/data/routes-small.kite \
+       /opt/kite/routes-small.kite 300; then
+    ok "kiterunner routes-small.kite -> /opt/kite"
+  else
+    warn "routes-small.kite fetch failed (kiterunner will skip)"
   fi
 }
 
