@@ -21,6 +21,7 @@ import re
 import shutil
 import signal
 from typing import Any
+from urllib.parse import urlsplit
 
 from recontool.adapters.base import Adapter, AdapterContext, Event
 from recontool.config import settings
@@ -270,6 +271,40 @@ def _expandable_cidr(value: str, max_host_bits: int = 8) -> bool:
     return (net.max_prefixlen - net.prefixlen) <= max_host_bits
 
 
+def _is_ip(v: str) -> bool:
+    try:
+        ipaddress.ip_address(v)
+        return True
+    except ValueError:
+        return False
+
+
+def _shape_tokens(value: str) -> dict[str, str]:
+    """Render each invocation token in the SHAPE its tool expects, regardless of
+    which key type triggered the run.
+
+    The recursion routes a `url` key to host/domain-consuming tools (and vice
+    versa via subsumption). Without shaping, a host tool (nmap/dnsx/massdns) fed a
+    url key would receive the full ``https://host/path`` as its {host}/{domain}
+    target — malformed argv → silent empty output. So:
+      * {host}/{domain}/{subdomain}/{live_host} -> the BARE hostname
+      * {url} -> a full scheme://host URL (built as https://host if the key is bare)
+      * {ip} -> the value if it's an IP, else the host
+    """
+    v = (value or "").strip()
+    if "://" in v:
+        parts = urlsplit(v)
+        host = parts.hostname or v
+        url = v
+    else:
+        host = v.split("/", 1)[0]
+        url = v if _is_ip(v) else f"https://{host}"
+    return {
+        "value": v, "host": host, "domain": host, "subdomain": host,
+        "live_host": host, "url": url, "ip": v if _is_ip(v) else host,
+    }
+
+
 def _kill_proc_group(proc) -> None:
     """SIGKILL the subprocess AND its whole process group.
 
@@ -349,10 +384,12 @@ class GenericApiAdapter(Adapter):
 
         async def one(v: str) -> list[Event]:
             iv = re.sub(r"[^0-9]", "", v) if (self.consumes and self.consumes[0] == "asn") else v
-            # Alias every consumed type name (e.g. {cve}, {cpe}, {keyword}, {org})
-            # to the single input value too, on top of the fixed aliases below.
-            extra = {t: iv for t in self.consumes}
-            extra.update({"value": iv, "domain": iv, "ip": iv, "asn": iv, "host": iv, "key": key})
+            # Shape host/url/ip tokens correctly; non-host consumed types (cve,
+            # cpe, keyword, org, …) get the raw value.
+            extra = _shape_tokens(iv)
+            for t in self.consumes:
+                extra.setdefault(t, iv)
+            extra.update({"value": iv, "asn": iv, "key": key})
             url = render_template(spec["endpoint"], {}, extra)
             headers = {}
             for k, val in (spec.get("headers") or {}).items():
@@ -471,13 +508,18 @@ class GenericCliAdapter(Adapter):
         use_stdin = bool(spec.get("stdin"))
 
         async def one(v: str) -> list[Event]:
-            # Alias every consumed type name (e.g. {url}, {subdomain}, {cidr})
-            # to the single input value too, on top of the fixed aliases below,
-            # plus resolved aux tokens (resolvers/wordlist/ports/rate/key/...).
+            # Aux tokens (resolvers/wordlist/ports/...) + SHAPE-correct host/url/ip
+            # tokens (a host tool fed a url key gets the bare host, a url tool fed a
+            # bare host gets https://host) + raw value for any other consumed type.
             extra = dict(_aux_tokens(spec, ctx))
-            extra.update({t: v for t in self.consumes})
-            extra.update({"value": v, "domain": v, "ip": v, "host": v})
+            extra.update(_shape_tokens(v))
+            for t in self.consumes:
+                extra.setdefault(t, v)
             cmd = render_template(spec["invocation"], {}, extra)
+            # stdin tools (dnsx/puredns/massdns read hosts; httpx reads urls) must
+            # receive the SHAPED form of their primary input — piping a raw url to
+            # a host-reading tool yields nothing.
+            stdin_val = extra.get(self.consumes[0], v) if self.consumes else v
             async with sem:
                 try:
                     proc = await asyncio.create_subprocess_exec(
@@ -491,7 +533,7 @@ class GenericCliAdapter(Adapter):
                     return []
                 try:
                     out, _ = await asyncio.wait_for(
-                        proc.communicate(input=v.encode() if use_stdin else None),
+                        proc.communicate(input=stdin_val.encode() if use_stdin else None),
                         timeout=spec.get("timeout", 1800))
                 except asyncio.CancelledError:
                     # Pool shutdown: kill the group (incl. any chromium) and let

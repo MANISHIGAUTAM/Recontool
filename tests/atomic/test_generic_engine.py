@@ -115,6 +115,24 @@ def test_firehose_url_tools_emit_endpoints_not_recursable_assets():
     assert offenders == [], f"firehose tools emit recursable url assets: {offenders}"
 
 
+def test_shape_tokens_gives_each_tool_its_input_form():
+    """A host tool fed a url key must get the BARE host; a url tool fed a bare
+    host must get a scheme://host URL — otherwise the argv is malformed and the
+    tool silently produces nothing."""
+    from recontool.adapters.generic import _shape_tokens
+
+    # url key -> host tools get bare host, url tools get the full url
+    t = _shape_tokens("https://www.groww.in/p?a=1")
+    assert t["host"] == "www.groww.in" and t["domain"] == "www.groww.in"
+    assert t["url"] == "https://www.groww.in/p?a=1"
+    # bare host key -> url tools get a built https url; host stays bare
+    t = _shape_tokens("api.groww.in")
+    assert t["host"] == "api.groww.in" and t["url"] == "https://api.groww.in"
+    # ip key -> {ip} is the ip
+    t = _shape_tokens("104.18.37.214")
+    assert t["ip"] == "104.18.37.214"
+
+
 def test_emit_bgpview_cidr():
     spec = {"format": "json", "list_path": "data.ipv4_prefixes",
             "emit": [{"entity": "asset", "value": "{prefix}", "type": "cidr"}]}
