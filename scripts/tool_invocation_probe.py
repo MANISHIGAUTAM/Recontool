@@ -42,7 +42,7 @@ def _render(spec, value: str) -> str | None:
     return render_template(inv, {}, extra)
 
 
-def probe(domain: str, url: str, only: set[str] | None):
+def probe(domain: str, url: str, only: set[str] | None, cap: int = 90):
     reg = load_engine_registry(tools="all", authorize_active=True)
     rows = []
     for name, spec in sorted(reg.all_tools().items()):
@@ -66,12 +66,12 @@ def probe(domain: str, url: str, only: set[str] | None):
         try:
             p = subprocess.run(
                 cmd.split(), input=(stdin_val + "\n").encode() if stdin_val else None,
-                capture_output=True, timeout=90)
+                capture_output=True, timeout=cap)
             out_b = len(p.stdout)
             err = (p.stderr.decode(errors="ignore").strip().replace("\n", " ")[:80])
             verdict = "PRODUCES" if out_b > 0 else ("empty(rc=%d)" % p.returncode)
         except subprocess.TimeoutExpired:
-            out_b, err, verdict = -1, "(90s timeout)", "TIMEOUT"
+            out_b, err, verdict = -1, f"({cap}s timeout)", "TIMEOUT"
         except Exception as exc:  # noqa: BLE001
             out_b, err, verdict = -1, str(exc)[:80], "ERROR"
         dur = int((time.monotonic() - t0) * 1000)
@@ -88,9 +88,10 @@ def main():
     ap.add_argument("domain", nargs="?", default="groww.in")
     ap.add_argument("url", nargs="?", default="https://groww.in")
     ap.add_argument("--only", default=None, help="comma-separated tool names")
+    ap.add_argument("--timeout", type=int, default=90)
     args = ap.parse_args()
     only = set(args.only.split(",")) if args.only else None
-    probe(args.domain, args.url, only)
+    probe(args.domain, args.url, only, args.timeout)
 
 
 if __name__ == "__main__":
