@@ -37,11 +37,20 @@ RUN pipx ensurepath || true
 
 WORKDIR /app
 
+# Make pip resilient to transient PyPI blips during the build (the network that
+# also flakes SecLists). Retries + a real timeout so a momentary outage doesn't
+# hang the build for 40min then fail.
+ENV PIP_RETRIES=5 PIP_DEFAULT_TIMEOUT=60
+
 # ── Dependency + tool layers FIRST (heavy + rarely changing) ─────────────────
 # Install Python deps from requirements (NOT the editable package yet) so that
 # editing app code further down never invalidates these expensive layers.
 COPY requirements.txt ./
-RUN pip3 install --no-cache-dir -r requirements.txt \
+# Upgrade the build backend (setuptools>=68/wheel) in the MAIN env up front, so
+# the editable install below can use --no-build-isolation and never re-fetch
+# build deps in an isolated env (that isolated fetch is what hung+failed before).
+RUN pip3 install --no-cache-dir -U pip "setuptools>=68" wheel \
+    && pip3 install --no-cache-dir -r requirements.txt \
     && pip3 install --no-cache-dir fastapi uvicorn mmh3
 
 # Install external recon tools (Go + pip + git). This is the ~40-min heavy layer
@@ -54,7 +63,10 @@ RUN bash docker/install_tools.sh all || true
 # bind-mount in docker-compose lets local edits apply with NO rebuild at all.
 COPY pyproject.toml ./
 COPY recontool ./recontool
-RUN pip3 install --no-cache-dir -e .
+# --no-build-isolation: reuse the setuptools/wheel already in the env (installed
+# above) instead of spinning an isolated env that re-downloads build deps from
+# PyPI — that isolated fetch hung ~44min then failed on a transient outage.
+RUN pip3 install --no-cache-dir --no-build-isolation -e .
 
 # Copy the rest (config, docs).
 COPY . .
