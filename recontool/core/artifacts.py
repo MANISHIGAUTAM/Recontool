@@ -36,6 +36,12 @@ class ArtifactStore:
         p.parent.mkdir(parents=True, exist_ok=True)
         return p
 
+    def abspath(self, rel: str) -> str:
+        """Absolute filesystem path for a relative artifact key (from save_*),
+        so a downstream tool (jsluice/linkfinder) can open the harvested file
+        regardless of cwd."""
+        return str((settings.artifact_dir / rel).resolve())
+
     def save_raw(self, tool: str, data: Any) -> str:
         """Persist raw tool output as JSON; return the relative key."""
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
