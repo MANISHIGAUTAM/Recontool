@@ -224,7 +224,7 @@ tools:
     category: 22
     integration: cli
     is_active: true
-    consumes: [url]
+    consumes: [live_host]    # M3: crawl only httpx-validated hosts
     produces: [url]
     binary: katana
     invocation: "katana -u {value} -jc -silent -d 2"

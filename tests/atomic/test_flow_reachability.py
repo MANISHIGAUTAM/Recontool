@@ -19,7 +19,8 @@ from recontool.engine.flow_graph import analyze
 # Known in-scope gaps as of M1/M2. Each milestone that closes a route deletes its
 # entry here. The test fails if a type OUTSIDE these sets becomes unreachable —
 # i.e. someone added a consumer/producer with no counterpart (a new broken route).
-DEAD_WEIGHT_BASELINE = {"cpe", "cve", "hash", "keyword", "live_host"}
+# live_host removed by M3 (httpx now produces it; active/deep layer consumes it).
+DEAD_WEIGHT_BASELINE = {"cpe", "cve", "hash", "keyword"}
 DEAD_END_BASELINE = {"cert", "document", "endpoint", "param", "tech"}
 
 

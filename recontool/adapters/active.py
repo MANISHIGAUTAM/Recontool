@@ -11,8 +11,9 @@ import os
 import re
 import shutil
 import tempfile
+from urllib.parse import urlsplit
 
-from recontool.adapters.base import Adapter, AdapterContext, Event
+from recontool.adapters.base import Adapter, AdapterContext, Event, log_tool_io
 from recontool.adapters.registry import register
 from recontool.config import settings
 
@@ -87,7 +88,7 @@ class HttpProbe(Adapter):
     category = "CAT-5"
     is_active = True
     consumes = ("subdomain", "domain")
-    produces = ("url", "service")
+    produces = ("live_host", "service")
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
         hosts = sorted(set(ctx.seeds_of("subdomain") + ctx.seeds_of("domain")))
@@ -123,14 +124,14 @@ class HttpProbe(Adapter):
                     )
                 )
                 events.append(Event.asset(self.name, "subdomain", host, is_live=True, tech=tech))
-                # Emit the confirmed-live root URL as a RECURSABLE url asset (not
-                # just an endpoint). discovered_assets() only re-feeds entity=asset,
-                # so without this no `url` key is ever enqueued and url-only tools
-                # (nuclei, arjun, the Cat-10 url scanners) never run. Scoped to the
-                # bounded set of LIVE hosts (~tens), never the gau/wayback firehose
-                # (~100k endpoints), so the exploitation layer is reachable without
-                # amplifying. produces already declares "url"; this honors it.
-                events.append(Event.asset(self.name, "url", url, is_live=True))
+                # Emit the confirmed-live root as a RECURSABLE `live_host` asset — the
+                # validation gate (M3). Only httpx-confirmed hosts get this type, and the
+                # active/deep layer (whatweb, gowitness, tlsx, katana, ffuf, feroxbuster,
+                # nuclei) consumes `live_host`, so it NEVER fires on an unvalidated
+                # subdomain — exactly "validate live, then scan". Bounded to the live set
+                # (~tens), never the gau/wayback firehose. discovered_assets() re-feeds
+                # entity=asset, so this enqueues the live_host key for the gated tools.
+                events.append(Event.asset(self.name, "live_host", url, is_live=True))
                 break  # one successful scheme is enough
         await asyncio.gather(*(probe(h) for h in hosts))
         return events
@@ -159,11 +160,12 @@ class PortScan(Adapter):
         ports = {"top-100": "100", "top-1000": "1000", "full": "-"}.get(ctx.profile.port_set, "100")
         flag = "-top-ports" if ports != "-" else "-p"
         arg = ports if ports != "-" else "-"
+        argv = ["naabu", "-host", ",".join(targets), flag, arg, "-silent", "-json"]
         proc = await asyncio.create_subprocess_exec(
-            "naabu", "-host", ",".join(targets), flag, arg, "-silent", "-json",
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+            *argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
         )
         out, _ = await proc.communicate()
+        log_tool_io("naabu", ",".join(targets), argv, out.decode(errors="ignore"))
         for line in out.decode(errors="ignore").splitlines():
             try:
                 rec = json.loads(line)
@@ -263,8 +265,9 @@ class NmapServiceScan(Adapter):
             async with sem:
                 proc = None
                 try:
+                    argv = ["nmap", "-sV", "-sC", "-T4", "-Pn", *port_args, "-oX", "-", host]
                     proc = await asyncio.create_subprocess_exec(
-                        "nmap", "-sV", "-sC", "-T4", "-Pn", *port_args, "-oX", "-", host,
+                        *argv,
                         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
                     )
                     out, _ = await asyncio.wait_for(proc.communicate(), timeout=600)
@@ -273,6 +276,7 @@ class NmapServiceScan(Adapter):
                         proc.kill()
                         await proc.wait()
                     return
+                log_tool_io("nmap", host, argv, out.decode(errors="ignore"))
                 events.extend(_parse_nmap_xml(out.decode(errors="ignore"), host, self.name))
 
         await asyncio.gather(*(scan(h) for h in targets))
@@ -374,33 +378,40 @@ class WhatWebScan(Adapter):
     category = "CAT-5"
     is_active = True
     default_on = False
-    consumes = ("subdomain",)
+    consumes = ("live_host",)  # fingerprint only httpx-validated hosts (M3 gate)
     produces = ("finding",)
 
     def available(self, ctx: AdapterContext) -> bool:
         return shutil.which("whatweb") is not None
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
-        hosts = [h for h in sorted(set(ctx.seeds_of("subdomain")))
-                 if _scoped(ctx, "subdomain", h)][:50]
-        if not hosts:
+        # M3 gate: fingerprint only httpx-validated live hosts (live_host values are
+        # full URLs, e.g. "https://app.example.com"); the host is parsed back out for
+        # the finding's asset linkage.
+        targets = [u for u in sorted(set(ctx.seeds_of("live_host")))
+                   if _scoped(ctx, "live_host", u)][:50]
+        if not targets:
             return []
         events: list[Event] = []
         sem = asyncio.Semaphore(max(2, (ctx.profile.global_concurrency or 8) // 2))
 
-        async def scan(host: str):
+        async def scan(target: str):
+            host = urlsplit(target).hostname or target
             async with sem:
                 fd, tmp = tempfile.mkstemp(suffix=".json", prefix="ww_")
                 os.close(fd)
                 proc = None
                 try:
+                    argv = ["whatweb", "--no-errors", "--quiet", f"--log-json={tmp}",
+                            target]
                     proc = await asyncio.create_subprocess_exec(
-                        "whatweb", "--no-errors", "--quiet", f"--log-json={tmp}",
-                        f"https://{host}",
+                        *argv,
                         stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
                     await asyncio.wait_for(proc.communicate(), timeout=90)
                     with open(tmp, encoding="utf-8", errors="ignore") as fh:
-                        events.extend(_parse_whatweb_json(fh.read(), host, self.name))
+                        ww_out = fh.read()
+                    log_tool_io("whatweb", target, argv, ww_out)
+                    events.extend(_parse_whatweb_json(ww_out, host, self.name))
                 except Exception:  # noqa: BLE001 — timeout/spawn/read failure: reap + skip
                     if proc is not None and proc.returncode is None:
                         proc.kill()
@@ -411,7 +422,7 @@ class WhatWebScan(Adapter):
                     except OSError:
                         pass
 
-        await asyncio.gather(*(scan(h) for h in hosts))
+        await asyncio.gather(*(scan(t) for t in targets))
         return events
 
 
@@ -427,28 +438,31 @@ class GoWitness(Adapter):
     category = "CAT-13"
     is_active = True
     default_on = False
-    consumes = ("subdomain",)
+    consumes = ("live_host",)  # screenshot only httpx-validated hosts (M3 gate)
     produces = ("screenshot",)
 
     def available(self, ctx: AdapterContext) -> bool:
         return shutil.which("gowitness") is not None
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
-        hosts = [h for h in sorted(set(ctx.seeds_of("subdomain")))
-                 if _scoped(ctx, "subdomain", h)][:50]
-        if not hosts:
+        # M3 gate: screenshot only httpx-validated live hosts (live_host values are
+        # already full URLs, written straight to the target list).
+        targets = [u for u in sorted(set(ctx.seeds_of("live_host")))
+                   if _scoped(ctx, "live_host", u)][:50]
+        if not targets:
             return []
         shotdir = ctx.artifacts.root / "screenshots"
         shotdir.mkdir(parents=True, exist_ok=True)
         before = set(shotdir.glob("*.jpeg")) | set(shotdir.glob("*.png"))
         fd, listfile = tempfile.mkstemp(suffix=".txt", prefix="gw_")
         with os.fdopen(fd, "w") as fh:
-            fh.write("\n".join(f"https://{h}" for h in hosts))
+            fh.write("\n".join(targets))
+        argv = ["gowitness", "scan", "file", "-f", listfile,
+                "--screenshot-path", str(shotdir), "--timeout", "15"]
         proc = None
         try:
             proc = await asyncio.create_subprocess_exec(
-                "gowitness", "scan", "file", "-f", listfile,
-                "--screenshot-path", str(shotdir), "--timeout", "15",
+                *argv,
                 stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
             await asyncio.wait_for(proc.communicate(), timeout=600)
         except Exception:  # noqa: BLE001 — timeout/spawn: reap + continue (glob anyway)
@@ -461,6 +475,8 @@ class GoWitness(Adapter):
             except OSError:
                 pass
         new_shots = (set(shotdir.glob("*.jpeg")) | set(shotdir.glob("*.png"))) - before
+        log_tool_io("gowitness", f"{len(targets)} hosts", argv,
+                    note=f"wrote {len(new_shots)} screenshots → {shotdir.name}/")
         return [Event.asset(self.name, "screenshot",
                             str(img.relative_to(settings.artifact_dir)))
                 for img in sorted(new_shots)]
@@ -490,8 +506,9 @@ class SslyzeScan(Adapter):
             async with sem:
                 proc = None
                 try:
+                    argv = ["sslyze", "--quiet", "--json_out=/dev/stdout", f"{host}:443"]
                     proc = await asyncio.create_subprocess_exec(
-                        "sslyze", "--quiet", "--json_out=/dev/stdout", f"{host}:443",
+                        *argv,
                         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
                     )
                     out, _ = await asyncio.wait_for(proc.communicate(), timeout=180)
@@ -500,6 +517,7 @@ class SslyzeScan(Adapter):
                         proc.kill()
                         await proc.wait()
                     return
+                log_tool_io("sslyze", f"{host}:443", argv, out.decode(errors="ignore"))
                 events.extend(_parse_sslyze_json(out.decode(errors="ignore"), host, self.name))
 
         await asyncio.gather(*(scan(h) for h in targets))
@@ -558,27 +576,31 @@ class Nuclei(Adapter):
     name = "nuclei"
     category = "CAT-10"
     is_active = True
-    consumes = ("url",)
+    consumes = ("live_host", "url")  # validated hosts + crawled URLs (M3 gate)
     produces = ("finding",)
 
     def available(self, ctx: AdapterContext) -> bool:
         return shutil.which("nuclei") is not None
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
-        urls = ctx.seeds_of("url")
+        # M3 gate: scan httpx-validated live hosts AND crawled URLs (both are URL
+        # strings). Never fires on a bare, unvalidated subdomain.
+        urls = sorted(set(ctx.seeds_of("live_host")) | set(ctx.seeds_of("url")))
         if not urls:
             return []
         list_path = settings.artifact_dir / ctx.scan_id / "nuclei_targets.txt"
         list_path.parent.mkdir(parents=True, exist_ok=True)
         list_path.write_text("\n".join(urls))
         sev = ",".join(ctx.profile.nuclei_severities) or "low,medium,high,critical"
+        argv = ["nuclei", "-l", str(list_path), "-jsonl", "-silent", "-severity", sev,
+                "-rl", str(int(ctx.profile.requests_per_second))]
         proc = await asyncio.create_subprocess_exec(
-            "nuclei", "-l", str(list_path), "-jsonl", "-silent", "-severity", sev,
-            "-rl", str(int(ctx.profile.requests_per_second)),
+            *argv,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
         )
         out, _ = await proc.communicate()
         raw_text = out.decode(errors="ignore")
+        log_tool_io("nuclei", urls, argv, raw_text)
         # Always archive nuclei's raw output per primary key (appended, never
         # overwritten) — so even a 0-finding run on a WAF-blocked host leaves a
         # nuclei record on disk (out/nuclei.raw.jsonl) showing exactly which

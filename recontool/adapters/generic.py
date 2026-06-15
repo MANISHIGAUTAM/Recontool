@@ -137,7 +137,7 @@ def _valid_emit(etype: str, value: str) -> bool:
         return False
     if etype in ("subdomain", "domain"):
         return bool(_HOST_RE.match(value))
-    if etype == "url":
+    if etype in ("url", "live_host"):
         return "://" in value and " " not in value
     if etype == "ip":
         try:

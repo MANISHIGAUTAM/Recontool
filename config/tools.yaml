@@ -845,20 +845,20 @@ tools:
     invocation: "httpx -json -sc -title -tech-detect -tls-grab -cdn -ip -cname -web-server -silent"
     stdin: true
     input: subdomain
-    output: url
+    output: live_host    # M3: confirmed-live host gates the active/deep layer
     output_format: jsonl
     parse:
       format: jsonl
       emit:
         - {entity: endpoint, url: "{url}"}
-        # Recursable url ASSET for each httpx-confirmed LIVE host. httpx only
-        # emits JSON for hosts that responded, so every {url} here is live — this
-        # gives nuclei + the url-only tools a RELIABLE, COMPLETE live-host set
-        # (httpx is robust: retries/threading/Cloudflare-aware) instead of relying
-        # only on the flaky httpx_probe, whose live count swung 52->6 across runs
-        # and capped nuclei coverage. Bounded to live roots (not the wayback
-        # firehose), deduped against httpx_probe's url assets — no explosion.
-        - {entity: asset, value: "{url}", type: url}
+        # Recursable live_host ASSET for each httpx-confirmed LIVE host (M3 gate).
+        # httpx only emits JSON for hosts that responded, so every {url} here is
+        # live — this is the RELIABLE, COMPLETE live-host set that gates the
+        # active/deep layer (nuclei, whatweb, gowitness, katana all consume
+        # live_host). httpx runs via the generic CLI path, so this emit — not the
+        # httpx_probe adapter — is the real runtime producer of live_host. Bounded
+        # to live roots (not the wayback firehose) and deduped, so no explosion.
+        - {entity: asset, value: "{url}", type: live_host}
         - {entity: asset, value_each: a, type: ip, scope_filter: ip}
     requires_key: false
     default_on: true
@@ -873,7 +873,7 @@ tools:
     binary: whatweb
     install: {method: apt, ref: "whatweb"}
     invocation: "whatweb --log-json={outfile} {url}"
-    input: url
+    input: live_host    # M3: fingerprint only httpx-validated hosts
     output: tech
     output_format: json
     requires_key: false
@@ -1191,7 +1191,7 @@ tools:
     binary: gowitness
     install: {method: go, ref: "github.com/sensepost/gowitness@latest"}
     invocation: "gowitness scan file -f {infile} --write-db --screenshot-path {outdir}"
-    input: url
+    input: live_host    # M3: screenshot only httpx-validated hosts
     output: screenshot
     output_format: screenshot
     requires_key: false
@@ -1324,7 +1324,7 @@ tools:
     invocation: "katana -jc -js-crawl -d 3 -ct 90 -silent"
     stdin: true
     timeout: 150
-    input: url
+    input: live_host    # M3: crawl only httpx-validated hosts; emits discovered URLs
     output: url
     output_format: text
     parse:
@@ -1492,7 +1492,7 @@ tools:
     binary: nuclei
     install: {method: go, ref: "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"}
     invocation: "nuclei -l {infile} -jsonl -silent -severity {severities} -rl {rate}"
-    input: url
+    input: [live_host, url]    # M3: validated hosts + crawled URLs (never raw subdomains)
     output: finding
     output_format: jsonl
     requires_key: false
