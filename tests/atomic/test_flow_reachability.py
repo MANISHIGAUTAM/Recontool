@@ -14,14 +14,18 @@ Pure: no network, no DB, no subprocess.
 """
 from __future__ import annotations
 
+from recontool.adapters.base import Event
 from recontool.engine.flow_graph import analyze
+from recontool.engine.runner import discovered_assets
 
 # Known in-scope gaps as of M1/M2. Each milestone that closes a route deletes its
 # entry here. The test fails if a type OUTSIDE these sets becomes unreachable —
 # i.e. someone added a consumer/producer with no counterpart (a new broken route).
 # live_host removed by M3 (httpx now produces it; active/deep layer consumes it).
 DEAD_WEIGHT_BASELINE = {"cpe", "cve", "hash", "keyword"}
-DEAD_END_BASELINE = {"cert", "document", "endpoint", "param", "tech"}
+# M6 reclassified endpoint/param/tech/cert as recursion-terminals (evidence, not
+# re-fed — see flow_graph.TERMINAL_TYPES). Only `document` remains (M8 wires it).
+DEAD_END_BASELINE = {"document"}
 
 
 def test_canonical_vocabulary_complete():
@@ -40,6 +44,21 @@ def test_no_new_broken_routes():
     new_de = set(r["dead_end_in_scope"]) - DEAD_END_BASELINE
     assert not new_dw, f"NEW dead-weight routes (consumed, nothing produces): {sorted(new_dw)}"
     assert not new_de, f"NEW dead-end routes (produced, nothing consumes): {sorted(new_de)}"
+
+
+def test_endpoints_are_not_re_fed_no_rescan():
+    """M6 no-rescan invariant: endpoint events (the gau/katana firehose) must NOT
+    become recursion keys — only asset events re-feed. Re-feeding every crawled URL
+    would explode the scan. A bounded live_host/url ASSET still recurses."""
+    events = [
+        Event.endpoint("katana", "https://app.example.com/a?x=1", source="katana"),
+        Event.endpoint("gau", "https://app.example.com/old/page.php", source="gau"),
+        Event.asset("httpx", "live_host", "https://app.example.com", is_live=True),
+    ]
+    refed = {t for t, _ in discovered_assets(events)}
+    assert "endpoint" not in refed, "endpoints must not be re-fed (firehose guard)"
+    assert "url" not in refed, "raw endpoint URLs must not be re-fed as url keys"
+    assert "live_host" in refed, "bounded validated assets still recurse"
 
 
 def test_graph_has_core_chains():

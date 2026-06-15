@@ -32,7 +32,17 @@ _CATEGORIES_YAML = REPO_ROOT / "config" / "categories.yaml"
 
 # Types that legitimately terminate a chain (evidence / intel / reports). A producer
 # of one of these is NOT a dead-end even though nothing consumes it.
-TERMINAL_TYPES = {"finding", "screenshot", "ioc", "report", "tag", "secret", "onion"}
+#
+# endpoint/param/tech/cert are RECURSION-terminal by design (M6): they are recorded
+# evidence that feeds reports + bounded analysis (nuclei runs on the validated
+# live_host+url set), but they are deliberately NOT re-fed as new keys. Re-feeding the
+# gau/katana endpoint firehose (100k+ URLs) would explode the scan — "endpoints should
+# not go for rescan / don't scan everything". The no-rescan invariant is pinned in
+# tests/atomic/test_flow_reachability.py.
+TERMINAL_TYPES = {
+    "finding", "screenshot", "ioc", "report", "tag", "secret", "onion",
+    "endpoint", "param", "tech", "cert",
+}
 
 # Sentinel input markers for seed/entrypoint tools (no real upstream entity).
 SENTINEL_TYPES = {"none", "any", "seed"}
