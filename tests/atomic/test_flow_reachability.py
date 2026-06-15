@@ -64,6 +64,16 @@ def test_endpoints_are_not_re_fed_no_rescan():
     assert "live_host" in refed, "bounded validated assets still recurse"
 
 
+def test_subsumption_narrowed_no_scan_everything():
+    """M9: a url / live_host must not subsume up to subdomain/domain — a crawled URL
+    or validated host must not re-trigger subdomain enumeration or the ~340-tool domain
+    wave. Only subdomain still feeds domain-declared discovery (legitimate recursion)."""
+    from recontool.engine.router import _eligible_types
+    assert _eligible_types("url") == {"url"}
+    assert _eligible_types("live_host") == {"live_host"}
+    assert "domain" in _eligible_types("subdomain")
+
+
 def test_graph_has_core_chains():
     """Sanity: the working core chains are present in the live graph."""
     r = analyze()

@@ -21,10 +21,17 @@ from recontool.engine.models import ToolRow, WorkItem
 # to tools that consume any of its supertypes. A discovered subdomain must be
 # eligible for every domain-consuming source (that is how recursion fans out); a
 # live_host is also a subdomain and a domain for input purposes.
+# M9 — narrowed to stop "scan everything". A `url` or `live_host` no longer subsumes
+# up to subdomain/domain: a crawled URL must NOT re-trigger subdomain enumeration or
+# the whole domain-consuming wave (~340 tools), and a validated live_host routes only
+# to the active/deep layer that consumes live_host — not back into discovery. Only
+# `subdomain -> domain` is kept: that is the legitimate recursive subdomain discovery
+# the engine is built on (a discovered subdomain feeds CT/passive-DNS sources declared
+# on `domain`), and idempotent keys make the overlap free.
 SUBSUMES: dict[str, list[str]] = {
     "subdomain": ["domain"],
-    "live_host": ["subdomain", "domain"],
-    "url": ["live_host", "subdomain", "domain"],
+    "live_host": [],
+    "url": [],
     "cidr": ["asn"],
     "ip": [],
 }
