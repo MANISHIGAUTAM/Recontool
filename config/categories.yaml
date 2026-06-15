@@ -43,6 +43,18 @@ meta:
     onion:      "onion:{addr}"
     wordlist:   "wl:{name}:{sha256}"
     regex_pack: "rx:{name}:{sha256}"
+    # ── completed vocabulary: types the category contracts already use but were
+    #    missing a canonical dedupe form (so routing/lint can treat them as first-class).
+    org:          "org:{lower_name}"
+    host_port:    "hostport:{host}:{port}"
+    keyword:      "kw:{lower}"
+    cpe:          "cpe:{cpe23}"
+    cve:          "cve:{id}"
+    hash:         "hash:{algo}:{value}"
+    coords:       "coords:{lat},{lon}"
+    bssid:        "bssid:{mac}"
+    handle:       "handle:{platform}:{name}"
+    analytics_id: "analytics:{id}"
   retry_profiles:
     api_standard: {max_attempts: 3, backoff: exp_jitter,      retry_on: [429, 500, 502, 503, 504, timeout]}
     api_strict:   {max_attempts: 5, backoff: exp_jitter_long, retry_on: [403_secondary, 429, 5xx, timeout]}
