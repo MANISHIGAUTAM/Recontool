@@ -437,6 +437,13 @@ class WorkerPool:
                     run_id, scan_id, item.tool_slug, duration_ms=0,
                     entity_count=0, key_type=item.key_type,
                     artifact_paths=["(reused prior run — incremental)"])
+                await asyncio.to_thread(store.append_jsonl, f"{item.tool_slug}.runs", [{
+                    "ts": _now().isoformat(), "tool": item.tool_slug,
+                    "key": item.key, "key_type": item.key_type, "depth": item.depth,
+                    "status": "completed", "tool_status": "reused-incremental",
+                    "skip_reason": None, "error": None, "events": 0, "findings": 0,
+                    "new_keys": reused, "duration_ms": 0, "out_paths": [],
+                }])
                 self.skipped += 1
                 self.processed += 1
                 return
@@ -488,6 +495,20 @@ class WorkerPool:
         # input fingerprint that powers incremental delta-only reruns.
         await self._db(self._record_run, scan_id, item.tool_slug, fp, status,
                                 len(events), out_paths, dur_ms=dur_ms, error=reason)
+        # Per-primary-key execution ledger: append ONE line per run to
+        # out/<tool>.runs.jsonl (append-only — a later key never overwrites an
+        # earlier one). EVERY tool leaves a per-key footprint here, including
+        # runs that found nothing (e.g. nuclei on a WAF-blocked host), so the
+        # archive always shows exactly what ran on each primary key.
+        await asyncio.to_thread(store.append_jsonl, f"{item.tool_slug}.runs", [{
+            "ts": _now().isoformat(), "tool": item.tool_slug,
+            "key": item.key, "key_type": item.key_type, "depth": item.depth,
+            "status": status, "tool_status": tool_status,
+            "skip_reason": skip_reason or None, "error": reason or None,
+            "events": len(events),
+            "findings": sum(1 for e in events if getattr(e, "entity", "") == "finding"),
+            "new_keys": new_keys, "duration_ms": dur_ms, "out_paths": out_paths,
+        }])
         if status == "failed":
             self.log.log_tool_fail(run_id, scan_id, item.tool_slug, reason)
         else:

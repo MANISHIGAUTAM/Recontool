@@ -578,8 +578,18 @@ class Nuclei(Adapter):
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
         )
         out, _ = await proc.communicate()
+        raw_text = out.decode(errors="ignore")
+        # Always archive nuclei's raw output per primary key (appended, never
+        # overwritten) — so even a 0-finding run on a WAF-blocked host leaves a
+        # nuclei record on disk (out/nuclei.raw.jsonl) showing exactly which
+        # targets were scanned at which severities, and any raw matches.
+        ctx.artifacts.append_jsonl("nuclei.raw", [{
+            "targets": urls, "severity": sev,
+            "matched": len([ln for ln in raw_text.splitlines() if ln.strip()]),
+            "stdout": raw_text,
+        }])
         events: list[Event] = []
-        for line in out.decode(errors="ignore").splitlines():
+        for line in raw_text.splitlines():
             try:
                 rec = json.loads(line)
             except json.JSONDecodeError:

@@ -69,6 +69,18 @@ class ArtifactStore:
         p.write_text(text)
         return str(p.relative_to(settings.artifact_dir))
 
+    def append_jsonl(self, name: str, records: list[dict]) -> str:
+        """Append dict records to out/<name>.jsonl — append-only, so a later
+        primary key never overwrites an earlier one. Used for the per-tool,
+        per-primary-key execution ledger (out/<tool>.runs.jsonl), which records
+        EVERY run — including runs that found nothing — so every tool leaves a
+        per-key footprint in the archive even when it produces no entities."""
+        p = self._path("out", f"{name}.jsonl")
+        with open(p, "a") as fh:
+            for r in records:
+                fh.write(json.dumps(r, default=str) + "\n")
+        return str(p.relative_to(settings.artifact_dir))
+
     def save_typed(self, tool: str, entity_type: str, values: list[str]) -> str:
         """Append discovered entities to a typed, append-only output file:
         out/<tool>.<entity_type>.jsonl — one JSON object per line. This is the
