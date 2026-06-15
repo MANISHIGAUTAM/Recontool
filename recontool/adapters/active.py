@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import tempfile
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from recontool.adapters.base import Adapter, AdapterContext, Event, log_tool_io
@@ -532,15 +533,18 @@ class JsAnalyze(Adapter):
     name = "js_analyze"
     category = "CAT-4"
     is_active = False  # operates on already-downloaded files
-    consumes = ("url",)
+    consumes = ("js_file",)  # M5: gated to harvested .js files, not every url
     produces = ("url", "finding")
 
     async def run(self, ctx: AdapterContext) -> list[Event]:
+        # M5: process exactly the JS files pycrawl harvested and emitted as js_file
+        # assets (absolute paths) — "js scan on js files only", not a blind rescan of
+        # the whole js dir on every discovered url.
         events: list[Event] = []
-        js_dir = settings.artifact_dir / ctx.scan_id / "js"
-        if not js_dir.exists():
-            return events
-        for path in js_dir.rglob("*.js"):
+        for js_path in ctx.seeds_of("js_file"):
+            path = Path(js_path)
+            if not path.exists():
+                continue
             try:
                 text = path.read_text(errors="ignore")
             except Exception:
