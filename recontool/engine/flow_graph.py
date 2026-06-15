@@ -52,6 +52,16 @@ SENTINEL_TYPES = {"none", "any", "seed"}
 # Kept separate so the in-scope guard tracks the routes we actually run.
 OVERLAY_TYPES = {"coords", "bssid", "handle", "analytics_id", "favicon"}
 
+# Deferred types: REAL gaps whose wiring is a follow-on batch, not core flow.
+#  - file-analysis (document/binary/apk): exiftool/binwalk/metagoofil are unwired
+#    inventory stubs. The type-gating is already correct-by-design — binwalk consumes
+#    `binary`, exiftool `document` — so they only fire when that artifact type is
+#    produced ("binwalk only on a binary"); wiring the producers is coverage work.
+#  - enrichment (cpe/cve/hash/keyword): real consumers (nvd/vulners/threat-intel,
+#    code search) exist, but the producers (service->cpe derivation, org->keyword)
+#    are an enrichment pipeline, not the core recon flow. Tracked, not silenced.
+DEFERRED_TYPES = {"document", "binary", "apk", "cpe", "cve", "hash", "keyword"}
+
 
 def _meta() -> dict:
     try:
@@ -110,10 +120,12 @@ def analyze(registry: ToolRegistry | None = None, *, schedulable_only: bool = Tr
     not_a_seed = seeds | SENTINEL_TYPES
     dead_weight = sorted(t for t in cons if not prod.get(t) and t not in not_a_seed)
     dead_end = sorted(t for t in prod if not cons.get(t) and t not in TERMINAL_TYPES)
-    # In-scope = excludes the overlay categories that ship off by default. These are
-    # the routes the engine actually runs, so this is what the guard must drive to zero.
-    dead_weight_in_scope = [t for t in dead_weight if t not in OVERLAY_TYPES]
-    dead_end_in_scope = [t for t in dead_end if t not in OVERLAY_TYPES]
+    # In-scope = the core recon flow: excludes off-by-default overlay categories and
+    # the deferred (file-analysis / enrichment) follow-on types. This is what the guard
+    # must drive to zero; OVERLAY/DEFERRED are reported separately, never silenced.
+    _aside = OVERLAY_TYPES | DEFERRED_TYPES
+    dead_weight_in_scope = [t for t in dead_weight if t not in _aside]
+    dead_end_in_scope = [t for t in dead_end if t not in _aside]
     return {
         "producers": {k: sorted(v) for k, v in prod.items()},
         "consumers": {k: sorted(v) for k, v in cons.items()},

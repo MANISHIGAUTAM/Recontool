@@ -46,8 +46,8 @@ def main() -> int:
          r["dead_weight_in_scope"], "tools consuming these can never be scheduled")
     show("dead-end IN SCOPE (produced, 0 consumers, not terminal)",
          r["dead_end_in_scope"], "recursion stops here")
-    show("overlay gaps (off-by-default geo/social/favicon — informational)",
-         overlay_dw + overlay_de, "accepted while those categories ship off")
+    show("overlay/deferred gaps (off-by-default + file-analysis/enrichment follow-on)",
+         overlay_dw + overlay_de, "tracked, not core-flow breaks — see flow_graph")
 
     in_scope = (len(r["non_canonical"]) + len(r["dead_weight_in_scope"])
                 + len(r["dead_end_in_scope"]))

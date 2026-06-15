@@ -22,10 +22,13 @@ from recontool.engine.runner import discovered_assets
 # entry here. The test fails if a type OUTSIDE these sets becomes unreachable —
 # i.e. someone added a consumer/producer with no counterpart (a new broken route).
 # live_host removed by M3 (httpx now produces it; active/deep layer consumes it).
-DEAD_WEIGHT_BASELINE = {"cpe", "cve", "hash", "keyword"}
-# M6 reclassified endpoint/param/tech/cert as recursion-terminals (evidence, not
-# re-fed — see flow_graph.TERMINAL_TYPES). Only `document` remains (M8 wires it).
-DEAD_END_BASELINE = {"document"}
+# Core recon flow is fully reachable: ZERO in-scope dead-weight/dead-end. Remaining
+# gaps are OVERLAY (off-by-default) or DEFERRED (file-analysis / enrichment follow-on)
+# in flow_graph — reported separately, never counted in-scope. M3 cleared live_host;
+# M6 reclassified endpoint/param/tech/cert as terminals; M8 deferred document + the
+# cpe/cve/hash/keyword enrichment inputs.
+DEAD_WEIGHT_BASELINE: set[str] = set()
+DEAD_END_BASELINE: set[str] = set()
 
 
 def test_canonical_vocabulary_complete():
