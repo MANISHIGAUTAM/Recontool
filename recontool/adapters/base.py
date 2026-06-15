@@ -14,6 +14,8 @@ Every adapter:
 from __future__ import annotations
 
 import abc
+import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -23,6 +25,41 @@ from recontool.core.scope import Scope
 from recontool.net.http_client import HttpClient
 
 EntityType = Literal["asset", "service", "endpoint", "finding", "edge"]
+
+# ── live tool I/O logging ─────────────────────────────────────────────────────
+# Emit every tool's command + (bounded) raw output to stdout so `docker logs`
+# shows exactly what each tool ran and produced — like running it by hand. On by
+# default; set RECON_LOG_TOOL_IO=0 to silence. Output is capped so a firehose tool
+# (hakrawler/katana emitting 100k+ lines) logs a preview, not gigabytes.
+_TOOL_IO = logging.getLogger("recontool.toolio")
+_IO_MAX_LINES = 15
+_IO_ENABLED = os.environ.get("RECON_LOG_TOOL_IO", "1") != "0"
+
+
+def log_tool_io(tool: str, target: Any, cmd: Any, output: str = "", *, note: str = "") -> None:
+    """Log one tool execution's command + raw output to docker logs (INFO).
+
+    ``cmd`` may be the argv list or a string; ``output`` is the captured stdout
+    (use ``note`` instead for tools that write to a file, e.g. "→ 3 findings").
+    """
+    if not _IO_ENABLED:
+        return
+    if isinstance(cmd, (list, tuple)):
+        cmd = " ".join(str(c) for c in cmd)
+    if isinstance(target, (list, tuple)):
+        target = ",".join(str(t) for t in target)
+    target = str(target)[:160]
+    lines = output.splitlines()
+    nbytes = len(output.encode("utf-8", "ignore"))
+    if note:
+        body = f"  | {note}"
+    elif not lines:
+        body = "  | (no stdout)"
+    else:
+        body = "\n".join("  | " + ln[:500] for ln in lines[:_IO_MAX_LINES])
+        if len(lines) > _IO_MAX_LINES:
+            body += f"\n  | … (+{len(lines) - _IO_MAX_LINES} more lines, {nbytes} bytes total)"
+    _TOOL_IO.info("[tool-io] %s  target=%s\n  $ %s\n%s", tool, target, cmd, body)
 
 
 @dataclass

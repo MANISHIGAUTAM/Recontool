@@ -23,7 +23,7 @@ import signal
 from typing import Any
 from urllib.parse import urlsplit
 
-from recontool.adapters.base import Adapter, AdapterContext, Event
+from recontool.adapters.base import Adapter, AdapterContext, Event, log_tool_io
 from recontool.config import settings
 from recontool.core.scope import is_subdomain_of
 
@@ -555,6 +555,7 @@ class GenericCliAdapter(Adapter):
                         pass
                     return []
             text = out.decode(errors="ignore")
+            log_tool_io(spec["name"], v, cmd, text)
             ctx.artifacts.save_text(spec["name"], f"{v}.out", text)
             recs = parse_records(spec["parse"], text)
             # No max_records truncation — a firehose tool (gau/waybackurls) emits
