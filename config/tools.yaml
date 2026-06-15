@@ -851,11 +851,19 @@ tools:
       format: jsonl
       emit:
         - {entity: endpoint, url: "{url}"}
+        # Recursable url ASSET for each httpx-confirmed LIVE host. httpx only
+        # emits JSON for hosts that responded, so every {url} here is live — this
+        # gives nuclei + the url-only tools a RELIABLE, COMPLETE live-host set
+        # (httpx is robust: retries/threading/Cloudflare-aware) instead of relying
+        # only on the flaky httpx_probe, whose live count swung 52->6 across runs
+        # and capped nuclei coverage. Bounded to live roots (not the wayback
+        # firehose), deduped against httpx_probe's url assets — no explosion.
+        - {entity: asset, value: "{url}", type: url}
         - {entity: asset, value_each: a, type: ip, scope_filter: ip}
     requires_key: false
     default_on: true
     chains_to: [13, 20, 22, 27]
-    notes: "The active hub. Sets is_live, tech[], cdn/waf tags, TLS, content hash."
+    notes: "The active hub. Sets is_live, tech[], cdn/waf tags, TLS, content hash. Emits live url assets -> feeds nuclei/url tools."
 
   whatweb:
     category: 5
