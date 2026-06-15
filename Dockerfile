@@ -24,12 +24,17 @@ ENV DEBIAN_FRONTEND=noninteractive \
     GOTOOLCHAIN=auto \
     PYTHONUNBUFFERED=1 \
     PIP_BREAK_SYSTEM_PACKAGES=1 \
-    PATH="/root/.local/bin:${PATH}"
+    PATH="/root/.local/bin:${PATH}" \
+    # metabigor (and other go4.org/unsafe consumers) panic under the go1.24
+    # runtime unless this opt-in is set — the documented workaround.
+    ASSUME_NO_MOVING_GC_UNSAFE_RISK_IT_WITH=go1.24
 
 # System deps: python, build tools, git, pipx, and libs the scanners need.
+# libjson-perl: nikto requires Perl's JSON module ("Required module not found:
+# JSON") for -Format json output, else it errors out and produces nothing.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-pip python3-venv pipx \
-        git make gcc libpcap-dev ca-certificates curl \
+        git make gcc libpcap-dev ca-certificates curl libjson-perl \
         nmap masscan whatweb whois dnsutils \
     && rm -rf /var/lib/apt/lists/*
 

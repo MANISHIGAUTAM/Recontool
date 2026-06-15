@@ -1502,7 +1502,7 @@ tools:
     # -w reads the candidate list from /dev/stdin (one piped per item); -c points
     # at the now-installed fingerprints DB ({fingerprints}); -o dropped so results
     # go to stdout. subjack prints only takeover-able hosts, each becomes a finding.
-    invocation: "subjack -w /dev/stdin -c {fingerprints} -ssl"
+    invocation: "subjack -w /dev/stdin -ssl"
     stdin: true
     input: subdomain
     output: finding
