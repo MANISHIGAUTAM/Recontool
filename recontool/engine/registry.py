@@ -226,24 +226,36 @@ class ToolRegistry:
             except Exception:  # noqa: BLE001
                 pass
 
-        # --- Layer 3: tools_generic.yaml (declarative generic specs) --------
-        generic_yaml = config_dir / "tools_generic.yaml"
-        if generic_yaml.exists():
-            try:
-                import yaml
+        # --- Layer 3: tools_generic.yaml + tools_generic.d/*.yaml (declarative) ---
+        # The monolithic file plus a per-family directory (Batch-12). Directory
+        # contracts ship OFF by default — available but never auto-run, so wiring a
+        # whole family can never grow the default profile ("not unnecessarily triggered").
+        import yaml
 
-                data = yaml.safe_load(generic_yaml.read_text()) or {}
+        generic_files: list[tuple[Path, bool]] = []
+        main_generic = config_dir / "tools_generic.yaml"
+        if main_generic.exists():
+            generic_files.append((main_generic, False))
+        gdir = config_dir / "tools_generic.d"
+        if gdir.is_dir():
+            generic_files += [(f, True) for f in sorted(gdir.glob("*.yaml"))]
+        for gfile, force_off in generic_files:
+            try:
+                data = yaml.safe_load(gfile.read_text()) or {}
                 raw_list = data.get("tools", [])
-                if isinstance(raw_list, list):
-                    for spec in raw_list:
-                        if not isinstance(spec, dict):
-                            continue
-                        name = spec.get("name", "")
-                        if not name or name in tools:
-                            # Do not override tools.yaml entries (existing behavior)
-                            continue
-                        spec_data = cls._normalize_generic_yaml(spec)
-                        _register(name, spec_data, slugify(name))
+                if not isinstance(raw_list, list):
+                    continue
+                for spec in raw_list:
+                    if not isinstance(spec, dict):
+                        continue
+                    name = spec.get("name", "")
+                    if not name or name in tools:
+                        # Do not override tools.yaml / earlier-file entries.
+                        continue
+                    spec_data = cls._normalize_generic_yaml(spec)
+                    if force_off:
+                        spec_data["default_on"] = False
+                    _register(name, spec_data, slugify(name))
             except Exception:  # noqa: BLE001
                 pass
 

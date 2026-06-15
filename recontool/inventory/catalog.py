@@ -49,9 +49,15 @@ def contracted_slugs() -> set[str]:
                 m = re.match(r"^  ([A-Za-z0-9_\-]+):\s*$", line)
                 if m:
                     out.add(_norm(m.group(1)))
+    generic_files = []
     tg = CONFIG / "tools_generic.yaml"
     if tg.exists():
-        for m in re.finditer(r"^\s*-\s*name:\s*([A-Za-z0-9_\-]+)", tg.read_text(), re.M):
+        generic_files.append(tg)
+    gdir = CONFIG / "tools_generic.d"          # Batch-12 per-family contract files
+    if gdir.is_dir():
+        generic_files += sorted(gdir.glob("*.yaml"))
+    for gf in generic_files:
+        for m in re.finditer(r"^\s*-\s*name:\s*([A-Za-z0-9_\-]+)", gf.read_text(), re.M):
             out.add(_norm(m.group(1)))
     if ADAPTERS.is_dir():
         for py in ADAPTERS.glob("*.py"):

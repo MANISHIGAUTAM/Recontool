@@ -55,6 +55,11 @@ meta:
     bssid:        "bssid:{mac}"
     handle:       "handle:{platform}:{name}"
     analytics_id: "analytics:{id}"
+    # ── Batch-12 foundation: new first-class types for the elite-methodology flows.
+    dns_record:   "dns:{host}:{rtype}:{value}"   # MX/TXT/NS/CAA/SPF/DMARC (CNAME stays an edge)
+    vhost:        "vhost:{ip}:{host}"            # virtual host on a shared IP
+    credential:   "cred:{kind}:{sha256}"         # a VERIFIED-live secret (vs raw `secret`)
+    vulnerability: "vuln:{asset}:{id}"           # CONFIRMED (exploitation layer) vs detected `finding`
   retry_profiles:
     api_standard: {max_attempts: 3, backoff: exp_jitter,      retry_on: [429, 500, 502, 503, 504, timeout]}
     api_strict:   {max_attempts: 5, backoff: exp_jitter_long, retry_on: [403_secondary, 429, 5xx, timeout]}
