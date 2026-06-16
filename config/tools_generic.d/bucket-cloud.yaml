@@ -1,0 +1,31 @@
+# Batch-12 — cloud-storage bucket discovery (opt-in family; all default_on:false).
+# Source-verified output formats (READMEs document invocation but not output, so the
+# parsers are grounded in each tool's actual print statements / source).
+#
+# DEFERRED (output not safely parseable from a declarative stdout contract — need a hand
+# adapter or a captured runtime sample):
+#   - CloudFail (m0rtem/CloudFail): stdout is timestamped + ANSI-colored multi-field lines
+#     ("[HH:MM:SS] [FOUND:IP] <ip>") — fragile to parse; defer.
+#   - CloudBrute (0xsha/CloudBrute): writes results to a FILE (-o out.txt), not stdout —
+#     the generic adapter captures stdout only; defer (needs a file-reading adapter).
+#   - blobhunter / bucketloot / awsbucketdump: output schema unconfirmed; defer pending source/probe.
+tools:
+  # https://github.com/RhinoSecurityLabs/GCPBucketBrute — `gcpbucketbrute -k <keyword> -u`
+  # (unauthenticated). check_permissions() prints, one per line (leading spaces stripped):
+  #   "EXISTS: <bucket>", "UNAUTHENTICATED ACCESS ALLOWED: <bucket>",
+  #   "AUTHENTICATED ACCESS ALLOWED: <bucket>"  — bucket name, no gs:// prefix.
+  - name: gcpbucketbrute
+    phase: p3_enrichment
+    category: 10
+    integration: cli
+    is_active: true
+    default_on: false
+    consumes: [org]          # the org/keyword to permute into bucket names (org is a seed)
+    produces: [bucket]
+    binary: gcpbucketbrute
+    invocation: "gcpbucketbrute -k {value} -u"
+    parse:
+      format: text
+      line_regex: '^(?:UNAUTHENTICATED ACCESS ALLOWED|AUTHENTICATED ACCESS ALLOWED|EXISTS):\s*(?P<bucket>[A-Za-z0-9][A-Za-z0-9._-]+)'
+      emit:
+        - {entity: asset, value: "{bucket}", type: bucket}
