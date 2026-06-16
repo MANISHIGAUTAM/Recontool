@@ -1,0 +1,30 @@
+# Batch-12 F1 — DNS-record intelligence (opt-in family; all default_on:false).
+#
+# Augments the default dnsx (a/aaaa/cname -> ip) with the records it does not capture:
+#   - NS hostnames that are IN SCOPE become subdomains (self-hosted DNS infra; third-party
+#     nameservers like ns1.cloudflare.com are dropped by scope_filter).
+#   - MX / TXT / CAA are recorded as `dns_record` evidence (mail provider, SaaS-verification
+#     TXT, CAA pinning) for the OSINT/forest layer + future SaaS/NS-takeover & mail-posture
+#     analyzers (documented follow-on — no analyzer is invented here).
+#
+# JSON keys (ns/mx/txt/caa) are dnsx's real schema — the same shape the default dnsx
+# contract already parses for `a`/`aaaa`. Off by default; opt-in via the dns-records profile.
+tools:
+  - name: dnsx-records
+    phase: p2_expansion
+    category: 2
+    integration: cli
+    is_active: false
+    default_on: false
+    consumes: [subdomain]
+    produces: [subdomain, dns_record]
+    binary: dnsx
+    invocation: "dnsx -ns -mx -txt -caa -json -silent"
+    stdin: true
+    parse:
+      format: jsonl
+      emit:
+        - {entity: asset, value_each: ns, type: subdomain, scope_filter: subdomain}
+        - {entity: asset, value_each: mx, type: dns_record}
+        - {entity: asset, value_each: txt, type: dns_record}
+        - {entity: asset, value_each: caa, type: dns_record}

@@ -216,9 +216,10 @@ def test_curated_contracts_not_downgraded():
 
 def test_curated_count_is_preserved():
     reg = ToolRegistry.load()
-    # 81 + 10 (gf/unfurl variants) + 1 (github_org_repos) + 5 (github_search
-    # dork variants: 1 base -> 6) = 97.
-    assert len(reg.curated_tools()) == 106
+    # Floor, not exact: the curated set GROWS as per-family contracts land in
+    # config/tools_generic.d/ (Batch-12). 106 = the pre-Batch-12 baseline; the guard is
+    # that we never LOSE curated tools, while wiring new families is allowed.
+    assert len(reg.curated_tools()) >= 106
 
 
 def test_generic_spec_roundtrip_for_curated_cli():

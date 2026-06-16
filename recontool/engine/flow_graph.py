@@ -42,6 +42,9 @@ _CATEGORIES_YAML = REPO_ROOT / "config" / "categories.yaml"
 TERMINAL_TYPES = {
     "finding", "screenshot", "ioc", "report", "tag", "secret", "onion",
     "endpoint", "param", "tech", "cert",
+    # dns_record (F1): recorded MX/TXT/CAA intelligence — feeds reports + OSINT/forest +
+    # future SaaS/NS-takeover & mail-posture analyzers; not re-fed as a recursion key.
+    "dns_record",
 }
 
 # Sentinel input markers for seed/entrypoint tools (no real upstream entity).

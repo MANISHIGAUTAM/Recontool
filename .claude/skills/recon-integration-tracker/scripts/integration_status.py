@@ -82,14 +82,22 @@ def tools_yaml_names(root: Path) -> set[str]:
 
 
 def generic_yaml_names(root: Path) -> set[str]:
-    """`- name: foo` entries in config/tools_generic.yaml."""
-    path = root / "config" / "tools_generic.yaml"
-    if not path.exists():
-        return set()
-    return {
-        norm(m.group(1))
-        for m in re.finditer(r"^\s*-\s*name:\s*([A-Za-z0-9_\-]+)", path.read_text(), re.M)
-    }
+    """`- name: foo` entries in config/tools_generic.yaml + config/tools_generic.d/*.yaml
+    (Batch-12 per-family contract files)."""
+    files = []
+    main = root / "config" / "tools_generic.yaml"
+    if main.exists():
+        files.append(main)
+    gdir = root / "config" / "tools_generic.d"
+    if gdir.is_dir():
+        files += sorted(gdir.glob("*.yaml"))
+    out: set[str] = set()
+    for path in files:
+        out |= {
+            norm(m.group(1))
+            for m in re.finditer(r"^\s*-\s*name:\s*([A-Za-z0-9_\-]+)", path.read_text(), re.M)
+        }
+    return out
 
 
 def adapter_names(root: Path) -> set[str]:
