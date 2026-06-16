@@ -842,7 +842,7 @@ tools:
     # -l {infile} rendered to "" (unsupported token) -> httpx got no targets and
     # produced 0. httpx reads hosts from stdin when -l is omitted; -json writes
     # JSONL to stdout (which the adapter captures). One host piped per work item.
-    invocation: "httpx -json -sc -title -tech-detect -tls-grab -cdn -ip -cname -web-server -silent"
+    invocation: "httpx -json -sc -title -tech-detect -tls-grab -cdn -ip -cname -web-server -favicon -silent"
     stdin: true
     input: subdomain
     output: live_host    # M3: confirmed-live host gates the active/deep layer
@@ -860,6 +860,9 @@ tools:
         # to live roots (not the wayback firehose) and deduped, so no explosion.
         - {entity: asset, value: "{url}", type: live_host}
         - {entity: asset, value_each: a, type: ip, scope_filter: ip}
+        # F3: httpx -favicon emits the mmh3 favicon hash -> `favicon` asset, unlocking the
+        # opt-in favicon pivot (favfreak / fav-up / favicon-shodan: hash -> more hosts).
+        - {entity: asset, value: "{favicon}", type: favicon}
     requires_key: false
     default_on: true
     chains_to: [13, 20, 22, 27]
