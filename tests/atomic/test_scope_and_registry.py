@@ -93,7 +93,8 @@ def test_chain_outputs_feed_some_consumer():
     # rather than a handwritten adapter — js_file is consumed by jsluice /
     # linkfinder / secretfinder (CLI), which aren't in all_adapters() here.
     terminal = {"finding", "tag", "screenshot", "service", "cert", "bucket",
-                "email", "cidr", "asn", "org", "js_file"}
+                "email", "cidr", "asn", "org", "js_file",
+                "tech", "dns_record"}  # recorded evidence (flow_graph.TERMINAL_TYPES)
     for name, cls in all_adapters().items():
         for out in cls.produces:
             assert out in consumed or out in terminal, \

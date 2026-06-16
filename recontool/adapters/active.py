@@ -365,6 +365,11 @@ def _parse_whatweb_json(text: str, target: str, tool: str) -> list[Event]:
         techs = sorted(k for k in plugins if isinstance(k, str))
         if not techs:
             continue
+        # F2: emit each detected technology as a first-class `tech` asset (recorded
+        # evidence — feeds OSINT/forest, reporting, prioritization, and the future
+        # CMS->scanner / tech->CPE->CVE flows). Grounded in whatweb's real plugin keys.
+        for t in techs:
+            events.append(Event.asset(tool, "tech", t))
         events.append(Event.finding(
             tool, "tech", f"Tech stack on {target}: {', '.join(techs[:20])}",
             severity="info", detector=tool, asset_value=target,
@@ -380,7 +385,7 @@ class WhatWebScan(Adapter):
     is_active = True
     default_on = False
     consumes = ("live_host",)  # fingerprint only httpx-validated hosts (M3 gate)
-    produces = ("finding",)
+    produces = ("tech", "finding")  # F2: first-class tech entities + the summary finding
 
     def available(self, ctx: AdapterContext) -> bool:
         return shutil.which("whatweb") is not None
