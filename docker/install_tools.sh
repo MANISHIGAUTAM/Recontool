@@ -259,13 +259,34 @@ install_batch_clis() {
   go_install cariddi     "github.com/edoardottt/cariddi/cmd/cariddi@latest"
   go_install gauplus     "github.com/bp0lr/gauplus@latest"
   go_install gospider    "github.com/jaeles-project/gospider@latest"
+  # Batch-12 F6 url-discovery + passive sources (source-verified install refs).
+  go_install urlfinder   "github.com/projectdiscovery/urlfinder/cmd/urlfinder@latest"
+  go_install galer       "github.com/dwisiswant0/galer@latest"
   pip_install sublist3r sublist3r
   pip_install fierce fierce
   pip_install dnsgen dnsgen
+  # Batch-12 F6 identity-OSINT: holehe (email -> registered-account finding).
+  pip_install holehe holehe
   apt_install dnsenum dnsenum
   apt_install dnsrecon dnsrecon
   apt_install exiftool libimage-exiftool-perl
   apt_install binwalk binwalk
+  # aquatone: prebuilt release binary (Go screenshotter). Needs Chrome/Chromium,
+  # provided by the playwright-chromium layer. Redundant with gowitness but adds
+  # visual-similarity page clustering. Source-verified release asset (v1.7.0).
+  # https://github.com/michenriksen/aquatone/releases
+  if ! have aquatone; then
+    if fetch_url https://github.com/michenriksen/aquatone/releases/download/v1.7.0/aquatone_linux_amd64_1.7.0.zip /tmp/aquatone.zip 120 \
+       && python3 -m zipfile -e /tmp/aquatone.zip /tmp/aquatone-x 2>/dev/null \
+       && cp /tmp/aquatone-x/aquatone "$GOBIN/aquatone" && chmod +x "$GOBIN/aquatone"; then
+      ok "aquatone -> $GOBIN"
+    else warn "failed: aquatone"; fi
+  fi
+  # eyewitness: DEFERRED-install (adapter is wired in recontool/adapters/screenshot.py
+  # and skips cleanly until the binary exists). Its setup pulls a full Firefox +
+  # geckodriver + Ruby/Python stack that is heavy and finicky headless, and it is
+  # redundant with the already-installed gowitness. Install manually if needed:
+  #   git clone https://github.com/RedSiege/EyeWitness && cd EyeWitness/Python/setup && ./setup.sh
   # nikto: not in Debian -> git + perl wrapper
   if ! have nikto; then
     git clone --depth 1 https://github.com/sullo/nikto /opt/nikto 2>/dev/null && \
