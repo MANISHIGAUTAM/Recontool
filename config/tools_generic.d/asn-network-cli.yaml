@@ -1,0 +1,45 @@
+# asn-network-cli — passive network-intel CLIs that turn an org/ASN into IP space
+# (opt-in family; every tool default_on:false, is_active:false — pure passive lookups).
+#
+# Output formats are GROUNDED in each tool's actual source print statements (not the
+# README, which documents invocation only). URLs cited inline. The generic text parser
+# strips each line then applies line_regex (named groups); lines that don't match a CIDR
+# (e.g. the "IP addresses owned by ..." header) are dropped, so no banner text enters
+# the graph.
+#
+# DEFERRED (no NEW canonical entity / output not safely parseable from a stdout contract):
+#   - dsieve (trickest/dsieve): a subdomain FILTER/enricher — slices a subdomain list by
+#     level and emits subdomains it was already given. No new entity type. # defer: formatter
+#     (https://github.com/trickest/dsieve — "Filter and enrich a list of subdomains by level")
+#   - asn (nitefood/asn): native stdout is ANSI-colored ASCII tables; the only machine-
+#     readable path is `-j` JSON piped through `jq` (schema not documented in the README),
+#     which the generic stdout adapter cannot do. # defer: undocumented
+#     (https://github.com/nitefood/asn)
+tools:
+  # https://github.com/yassineaboukir/Asnlookup — `python asnlookup.py -o <Organization>`.
+  # Source-verified output (asnlookup.py): prints a red header line
+  #   print(colored("IP addresses owned by {} are the following:\n".format(organization),"red"))
+  # then one CIDR per line:
+  #   for i in ip_addresses: print(colored(i, "yellow"))   # i == "104.244.42.0/24" (v4 & v6)
+  # (termcolor's colored() degrades to plain text when stdout is a non-TTY pipe, as here.)
+  # org -> the org's announced IPv4/IPv6 ranges (CIDRs). The header line carries no CIDR,
+  # so line_regex drops it; only the per-prefix lines emit.
+  - name: asnlookup
+    phase: p3_enrichment
+    category: 3
+    integration: cli
+    is_active: false
+    default_on: false
+    consumes: [org]
+    produces: [cidr]
+    binary: asnlookup
+    invocation: "asnlookup -o {value}"
+    parse:
+      format: text
+      # asnlookup prints one BARE CIDR per line (v4 or v6); anchoring start-to-end
+      # means only a line that IS a prefix matches — the "IP addresses owned by ..."
+      # header and any banner/narrative line (which is never a bare CIDR) is dropped,
+      # and a stray CIDR embedded mid-sentence can't be mis-emitted.
+      line_regex: '^(?P<cidr>(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9A-Fa-f]*:[0-9A-Fa-f:]*)/\d{1,3})$'
+      emit:
+        - {entity: asset, value: "{cidr}", type: cidr}
