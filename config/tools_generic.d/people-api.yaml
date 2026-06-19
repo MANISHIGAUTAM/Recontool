@@ -1,0 +1,96 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Recontool — PEOPLE / IDENTITY (PII) generic adapter specs.   Category 7.
+#
+# Drop-in fragment for config/tools_generic.d/ — same schema as
+# config/tools_generic.yaml (loaded by recontool/adapters/generic.py via the
+# generic executor). Tools with a hand-written adapter of the same name win.
+#
+# FAMILY POLICY (PII / breach exposure — see config/categories.yaml id:7):
+#   * default_on: false ALWAYS. is_active: false. requires_key always set.
+#   * consumes the NARROWEST seed (email or domain); produces EXISTING canonical
+#     types only: email (asset) | finding.
+#   * Breach/PII data is emitted REDACTED: a finding noting *that* an exposure
+#     exists + the breach SOURCE name only. Raw passwords / hashes / breach
+#     values are NEVER templated into an emitted Event — they stay in the
+#     short-TTL encrypted raw/ dir (operator_notes, cat 7). This mirrors the
+#     evidence_redacted convention in recontool/adapters/active.py (mask+sha1).
+#
+# GROUNDING: each endpoint+shape is confirmed against official API docs and/or a
+# client SOURCE (cited inline). Where the real endpoint is structurally
+# incompatible with the GET-only generic executor (POST-with-body) or has no
+# documented public key-header API, the entry is OMITTED with a `# defer:` note
+# rather than invented — see the DEFERRED block at the bottom of this file.
+# ─────────────────────────────────────────────────────────────────────────────
+tools:
+
+  # ── breachdirectory ────────────────────────────────────────────────────────
+  # email -> finding (breach exposure, REDACTED).
+  # Grounded:
+  #   endpoint + headers + response shape verified against the mosint client
+  #   source (Go struct json tags):
+  #   https://raw.githubusercontent.com/alpkeskin/mosint/master/v3/pkg/services/breachdirectory/breachdirectory.go
+  #   GET https://breachdirectory.p.rapidapi.com/?func=auto&term=<email>
+  #   headers: x-rapidapi-key, x-rapidapi-host
+  #   response: {success, found, result:[{has_password, sources:[...], password, sha1, hash}]}
+  # REDACTION: we emit ONE finding per result[] entry, templating ONLY the breach
+  #   SOURCE name(s) (sources[]) into the title. password/sha1/hash are NEVER
+  #   referenced by any emit rule, so no raw credential can enter an Event — the
+  #   finding records only *that* an exposure exists + which breach corpus.
+  #   (entity:finding cannot use value_each — the generic engine maps value_each
+  #    to assets only (generic.py); {sources} renders the list into the title.)
+  - name: breachdirectory
+    phase: p3_enrichment
+    category: 7
+    integration: api
+    is_active: false
+    default_on: false
+    consumes: [email]
+    produces: [finding]
+    requires_key: BREACHDIRECTORY_API_KEY
+    endpoint: "https://breachdirectory.p.rapidapi.com/?func=auto&term={value}"
+    headers:
+      X-RapidAPI-Key: "{key}"
+      X-RapidAPI-Host: "breachdirectory.p.rapidapi.com"
+    bucket: breachdirectory
+    max_inputs: 50
+    parse:
+      format: json
+      list_path: result
+      emit:
+        # one redacted finding per result[] entry; title cites the breach
+        # source(s) only. No password/hash/sha1 is referenced.
+        - entity: finding
+          kind: breach_exposure
+          title: "Email appears in breach corpus (sources: {sources})"
+          severity: medium
+          detector: breachdirectory
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEFERRED — confirmed real, but not wireable through the GET-only generic
+# executor (recontool/adapters/generic.py issues HTTP GET with header auth only;
+# no POST body, no OAuth). Kept here as documented contracts, NOT registered.
+#
+# apollo-io   # defer: POST-only
+#   POST https://api.apollo.io/api/v1/people/match  (header X-Api-Key)
+#   docs: https://docs.apollo.io/reference/people-enrichment
+#         https://docs.apollo.io/reference/people-api-search
+#   domain -> email: enrichment returns person.email / person.email_status /
+#   person.organization. The endpoint REQUIRES POST with a JSON body, which the
+#   GET-only generic engine cannot issue; the mixed_people/api_search endpoint
+#   is also POST and explicitly returns NO emails. Needs a POST-capable adapter.
+#
+# dehashed   # defer: POST-only
+#   POST https://api.dehashed.com/v2/search  (header Dehashed-Api-Key)
+#   shape verified via client source:
+#   https://raw.githubusercontent.com/Mac84do/macedo-dehashtool/main/dehashed.py
+#   response: {balance, entries:[{email, username, password, hashed_password,
+#   database_name, name, ...}]}.  email -> finding (REDACTED: source/database_name
+#   only). POST-with-JSON-body — incompatible with the GET-only generic executor.
+#
+# beenverified   # defer: undocumented-api
+#   No official public key-header REST API. References are OAuth
+#   (api.beenverified.com/rest/1.0/, OAuth flow) or third-party RapidAPI/SDK
+#   aggregators, none with a documented GET+key-header endpoint+response we can
+#   ground. Omitted rather than invented.
+#   refs: https://blog.rapidapi.com/directory/beenverified/
+# ─────────────────────────────────────────────────────────────────────────────
