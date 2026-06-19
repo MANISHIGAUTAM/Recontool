@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Recontool — GENERIC adapter specs (family: subdomain-cli-3)
+#
+# Passive subdomain-SOURCE CLI tools that consume a `domain` seed and emit
+# `subdomain` assets (one host per line). All OFF by default (default_on: false,
+# is_active: false — passive sources flip on only under explicit authorization).
+#
+# Every wired tool's invocation flags come from the OFFICIAL README and its exact
+# STDOUT shape is confirmed from the tool's SOURCE print statements (both cited
+# inline). Non-host lines / out-of-scope hosts are dropped by the emit gate
+# (scope_filter: subdomain -> is_subdomain_of).
+#
+# ALREADY WIRED elsewhere (NOT duplicated here): ctfr/crobat (subdomain-cli),
+# shosubgo (subdomain-cli-2), assetfinder + findomain (config/tools.yaml /
+# config/tools_generic.yaml). This family adds only the net-new github-subdomains.
+# ─────────────────────────────────────────────────────────────────────────────
+tools:
+
+  # github-subdomains — gwen001/github-subdomains
+  #   README flags: `-d <domain>` (required), `-t <token>` (github token; falls
+  #     back to GITHUB_TOKEN env when omitted), `-raw` (raw output).
+  #     https://github.com/gwen001/github-subdomains  (README.md)
+  #   SOURCE (stdout shape): default output is DECORATED (aurora-colored,
+  #     timestamped "info"/"found" lines). With -raw, only discovered hosts are
+  #     printed bare: `if config.raw && infos_type == "found" { fmt.Println(str) }`.
+  #     Token fallback: `if token == "" { token = os.Getenv("GITHUB_TOKEN") }`.
+  #     https://raw.githubusercontent.com/gwen001/github-subdomains/master/main.go
+  #   -raw is REQUIRED for plain one-host-per-line stdout. Token is supplied via
+  #   the GITHUB_TOKEN env var (the subprocess inherits the parent environment);
+  #   no `-t {key}` flag — the CLI adapter does not template {key}.
+  - name: github-subdomains
+    phase: p2_expansion
+    category: 2
+    integration: cli
+    is_active: false
+    default_on: false
+    consumes: [domain]
+    produces: [subdomain]
+    requires_key: GITHUB_TOKEN     # read from env by the binary when -t is omitted
+    binary: github-subdomains
+    invocation: "github-subdomains -d {domain} -raw"
+    parse:
+      format: text          # one host per line (only in -raw mode)
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  # ── Deferred (output is NOT confirmable as plain stdout) ────────────────────
+  #
+  # sublist3r (https://github.com/aboul3la/Sublist3r)
+  #   defer: ANSI/decorated stdout — ASCII-art banner() + per-engine colored
+  #   status lines, final list emitted green-wrapped (`print(G + subdomain + W)`).
+  #   `-n/--no-color` removes colors but NOT the banner/status noise; `-o` writes a
+  #   FILE. No clean one-host-per-line stdout mode.
+  #   (verified: https://raw.githubusercontent.com/aboul3la/Sublist3r/master/sublist3r.py)
+  #
+  # dnscan (https://github.com/rbsec/dnscan)
+  #   defer: ANSI-colored stdout — found host wrapped in brown ANSI via the `col`
+  #   class (`print(col.brown + domain + col.end)`), even with --no-ip. The generic
+  #   parser strips lines but not ANSI escapes. Active brute-forcer, not a clean
+  #   passive plain source.
+  #   (verified: https://raw.githubusercontent.com/rbsec/dnscan/master/dnscan.py)
