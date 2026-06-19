@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Recontool — "intel-api" tool family (threat-intel / IP-reputation lookups).
+#
+# Declarative GenericApiAdapter specs (recontool/adapters/generic.py). These are
+# PASSIVE lookups: is_active: false, default_on: false. Every tool requires an API
+# key (requires_key) and is OFF by default — the operator opts in per scan.
+#
+# consumes = the narrowest canonical input type; produces = EXISTING canonical
+# types only (ip, domain, subdomain, ioc, finding, tag). Mapping to cat-12
+# (Malware / IOC / Threat Intel): ip/domain -> ioc/finding/tag.
+#
+# GROUNDING: each tool's endpoint + response shape is confirmed against the
+# OFFICIAL API docs AND a real parser/source file (cited inline as a comment).
+# Tools whose real API cannot be expressed by the GET-only / list-or-dict
+# generic adapter are OMITTED with `# defer: <reason>` rather than guessed.
+# ─────────────────────────────────────────────────────────────────────────────
+tools:
+
+  # ── AbuseIPDB — IP reputation / abuse scoring ──────────────────────────────
+  # Docs:   https://docs.abuseipdb.com/  (CHECK endpoint: GET /api/v2/check,
+  #         header "Key", query param "ipAddress")
+  # Shape:  response is {"data": {ipAddress, abuseConfidenceScore, countryCode,
+  #         usageType, isp, domain, totalReports, isTor, ...}} — a single object.
+  #         Verified verbatim example response in the official docs (CHECK).
+  # GET + "Key" header fits the generic adapter exactly (no POST/body needed).
+  - name: abuseipdb
+    phase: p3_enrichment
+    category: 12
+    integration: api
+    is_active: false
+    default_on: false
+    consumes: [ip]
+    produces: [tag, finding]
+    requires_key: ABUSEIPDB_API_KEY
+    endpoint: "https://api.abuseipdb.com/api/v2/check?ipAddress={ip}&maxAgeInDays=90"
+    headers: {Key: "{key}", Accept: "application/json"}
+    bucket: abuseipdb
+    max_inputs: 100
+    parse:
+      format: json
+      list_path: data            # data is a single object -> 1 record
+      emit:
+        # reputation verdict as a tag on the IP (cat-12 storage: tag(malicious))
+        - {entity: asset, value: "abuseipdb:score={abuseConfidenceScore}", type: tag}
+        # threat-intel finding correlating the abuse score back to the IP
+        - {entity: finding, kind: reputation,
+           title: "AbuseIPDB confidence {abuseConfidenceScore} ({usageType}, {isp}, {countryCode})",
+           severity: info, detector: abuseipdb, asset_value: "{ipAddress}"}
+
+  # ── DEFERRED tools (real API cannot be expressed by the generic adapter) ────
+  #
+  # threatfox (abuse.ch) — defer: undocumented-for-this-adapter.
+  #   Real API (https://threatfox.abuse.ch/api/ ; source api.md) is HTTP POST with
+  #   a JSON body {"query":"search_ioc","search_term":...} and now a MANDATORY
+  #   "Auth-Key" header. The GenericApiAdapter is GET-only (ctx.http.get, no body),
+  #   so a GET to /api/v1/ returns no IOC data. Wiring it would emit nothing.
+  #
+  # urlhaus (abuse.ch) — defer: undocumented-for-this-adapter.
+  #   Real API (https://urlhaus-api.abuse.ch/ ; /v1/host/ endpoint) is HTTP POST
+  #   with post-data "host=<value>" and a MANDATORY "Auth-Key" header. GET-only
+  #   generic adapter cannot send the body, so it cannot retrieve the urls[] list.
+  #
+  # bufferover (tls.bufferover.run) — defer: response shape unsupported.
+  #   Confirmed (m8sec/subscraper, m4ll0k/BBTz bufferover.py): GET
+  #   https://tls.bufferover.run/dns?q=.{domain} with header "x-api-key", response
+  #   {"Results": ["<ip>,<sha256>,<org>,<hostname>", ...]} — each entry is a CSV
+  #   STRING whose hostname is one comma-field. The generic value_each emits the
+  #   whole CSV string as the value, which scope_filter:subdomain (is_subdomain_of)
+  #   then rejects; there is no per-item comma extraction, so no subdomain would be
+  #   produced. (Service also now key-gated and intermittently offline.)
