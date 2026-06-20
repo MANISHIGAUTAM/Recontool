@@ -103,10 +103,12 @@ api_keys:
   hibp: ""
   dehashed_user: ""
   dehashed_key: ""
+  breachdirectory: ""   # RapidAPI key; breachdirectory adapter emits REDACTED findings
 
-  # Cat 12 — Vuln intel
+  # Cat 12 — Vuln intel / IOC reputation
   nvd: ""
   vulners: ""
+  abuseipdb: ""         # IP abuse/reputation score (abuseipdb adapter)
 
 # ── Per-category toggles ──────────────────────────────────────────────────────
 # Enable/disable whole categories. Active categories also require --authorize-active.

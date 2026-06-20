@@ -88,6 +88,8 @@ _API_KEY_YAML_MAP = {
     "PUBLICWWW_API_KEY": "publicwww",
     "NVD_API_KEY": "nvd",
     "VULNERS_API_KEY": "vulners",
+    "ABUSEIPDB_API_KEY": "abuseipdb",
+    "BREACHDIRECTORY_API_KEY": "breachdirectory",
 }
 
 
