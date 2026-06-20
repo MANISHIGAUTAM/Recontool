@@ -142,6 +142,10 @@ install_all() {
   apt_install masscan masscan
   apt_install whatweb whatweb
   apt_install whois whois
+  # chromium on PATH so the screenshot tools (gowitness/aquatone/eyewitness) find a
+  # browser. The playwright chromium lives under ~/.cache/ms-playwright (not on PATH),
+  # so gowitness produced 0 screenshots without this. (Requires an image rebuild.)
+  apt_install chromium chromium
 
   install_resources
   install_batch_clis
