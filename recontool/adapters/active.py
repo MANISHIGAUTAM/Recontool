@@ -465,6 +465,13 @@ class GoWitness(Adapter):
             fh.write("\n".join(targets))
         argv = ["gowitness", "scan", "file", "-f", listfile,
                 "--screenshot-path", str(shotdir), "--timeout", "15"]
+        # gowitness v3 DOWNLOADS its own Chrome by default (slow + fails offline →
+        # silent 0 screenshots). Point it at the system chromium when present so it
+        # uses the installed browser instead of fetching one.
+        _chrome = (shutil.which("chromium") or shutil.which("chromium-browser")
+                   or shutil.which("google-chrome") or shutil.which("chrome"))
+        if _chrome:
+            argv += ["--chrome-path", _chrome]
         proc = None
         try:
             proc = await asyncio.create_subprocess_exec(
