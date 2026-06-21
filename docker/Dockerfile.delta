@@ -1,0 +1,19 @@
+# Thin incremental layer over the existing recontool:latest — adds ONLY the
+# missing binaries (chromium for screenshots + the 4 new Batch-12 CLI tools) so we
+# don't pay a 40-min full rebuild. The canonical install_tools.sh already contains
+# all of these; this just lands the delta into the running image fast.
+FROM recontool:latest
+ENV GOTOOLCHAIN=auto GOBIN=/usr/local/bin PIP_BREAK_SYSTEM_PACKAGES=1 DEBIAN_FRONTEND=noninteractive
+
+# chromium on PATH so gowitness/aquatone/eyewitness actually capture screenshots
+# (Gap C: the image only had playwright's bundled chromium, not on PATH).
+RUN apt-get update && apt-get install -y --no-install-recommends chromium \
+    && rm -rf /var/lib/apt/lists/* && command -v chromium
+
+# new Batch-12 CLI tools (urlfinder/galer go; holehe pip; aquatone release zip)
+RUN go install github.com/projectdiscovery/urlfinder/cmd/urlfinder@latest \
+    && go install github.com/dwisiswant0/galer@latest
+RUN pip3 install --no-cache-dir holehe
+RUN curl -fsSL -o /tmp/aq.zip https://github.com/michenriksen/aquatone/releases/download/v1.7.0/aquatone_linux_amd64_1.7.0.zip \
+    && python3 -m zipfile -e /tmp/aq.zip /tmp/aqx && cp /tmp/aqx/aquatone /usr/local/bin/aquatone \
+    && chmod +x /usr/local/bin/aquatone && rm -rf /tmp/aq.zip /tmp/aqx && command -v aquatone
