@@ -14,8 +14,10 @@ memory — so the picture is reproducible every run:
   adapter     : has a hand-written adapter (recontool/adapters/*.py: name = "..")
   tested      : referenced by a test under tests/ (fixture or assertion)
 
-A tool is WIRED when it is `contracted` or has an `adapter`. Everything
-else is a documented stub that the engine will mark runnable=False.
+A tool is WIRED when it is `contracted`, has an `adapter`, or is an `alias`
+of a tool that is (a doc-only sub-feature / mode / rename whose canonical is
+itself wired — see _ALIASES). Everything else is a documented stub that the
+engine will mark runnable=False.
 
 Usage:
     python3 integration_status.py                # summary + gap counts
@@ -48,6 +50,48 @@ def find_root(start: Path) -> Path:
 def norm(slug: str) -> str:
     """Canonical match key: lowercase, strip separators so crt-sh == crtsh."""
     return re.sub(r"[^a-z0-9]", "", slug.lower())
+
+
+# Doc-slug -> the canonical tool it is a sub-feature / mode / rename of. Every
+# canonical below is ALREADY WIRED under its own slug, so these docs describe an
+# already-integrated capability (e.g. `shodan-screenshots` is a facet of the wired
+# `shodan`; `owasp-amass` is just `amass`). Without this, the same capability is
+# double-counted as a "missing" tool. The tracker marks an alias wired (via alias)
+# only if its canonical is actually contracted/adaptered — so a typo can't fake
+# coverage. Verified 2026-07: each canonical resolves to a live contract/adapter.
+_ALIASES = {
+    "alienvault-otx-api": "alienvault-otx",
+    "alienvault-otx-pulse-archive": "alienvault-otx",
+    "alienvault-otx-search": "alienvault-otx",
+    "amass-passive-mode": "amass",
+    "owasp-amass": "amass",
+    "censys-api": "censys",
+    "censys-asm": "censys",
+    "censys-screenshots": "censys",
+    "chaos-dataset": "chaos",
+    "criminalip-api": "criminal-ip",
+    "criminalip-asm": "criminal-ip",
+    "eyewitness-ng": "eyewitness",
+    "greynoise-api": "greynoise",
+    "ipinfo-api": "ipinfo",
+    "katana-screenshots": "katana",
+    "leakix-buckets": "leakix",
+    "netlas-api": "netlas",
+    "netlas-explorer": "netlas",
+    "netlas-hosts": "netlas",
+    "nuclei-templates": "nuclei",
+    "securitytrails-api": "securitytrails",
+    "securitytrails-historical-dns": "securitytrails",
+    "shodan-api": "shodan",
+    "shodan-screenshots": "shodan",
+    "uncover-engine": "uncover",
+    "urlscan-api": "urlscan",
+    "urlscan-history": "urlscan",
+    "urlscan-io": "urlscan",
+    "urlscan-screenshots": "urlscan",
+    "urlscan-search": "urlscan",
+    "virustotal-api": "virustotal",
+}
 
 
 def documented_tools(root: Path) -> dict[str, str]:
@@ -145,16 +189,25 @@ def build(root: Path) -> dict:
     adapters = adapter_names(root)
     tested = tested_names(root, set(docs))
 
+    live = contracted | adapters
+    alias_canon = {norm(k): v for k, v in _ALIASES.items()}   # norm(doc) -> canonical slug
+
     rows = []
     for key, slug in sorted(docs.items(), key=lambda kv: kv[1]):
         has_contract = key in contracted
         has_adapter = key in adapters
-        wired = has_contract or has_adapter
+        # alias covered iff its canonical is a live contract/adapter (no fake coverage)
+        alias_of = None
+        canon = alias_canon.get(key)
+        if not (has_contract or has_adapter) and canon and norm(canon) in live:
+            alias_of = canon
+        wired = has_contract or has_adapter or bool(alias_of)
         rows.append({
             "slug": slug,
             "documented": True,
             "contracted": has_contract,
             "adapter": has_adapter,
+            "alias_of": alias_of,
             "tested": key in tested,
             "wired": wired,
         })
@@ -166,6 +219,7 @@ def build(root: Path) -> dict:
                 "wired": sum(r["wired"] for r in rows),
                 "contracted": sum(r["contracted"] for r in rows),
                 "adapter": sum(r["adapter"] for r in rows),
+                "alias": sum(bool(r["alias_of"]) for r in rows),
                 "tested": sum(r["tested"] for r in rows),
             }}
 
@@ -229,6 +283,7 @@ def main() -> int:
     print(f"  WIRED (runnable)      : {c['wired']}  ({pct}%)")
     print(f"    via contract        : {c['contracted']}")
     print(f"    via python adapter  : {c['adapter']}")
+    print(f"    via alias (covered) : {c.get('alias', 0)}  (sub-feature/rename of a wired tool)")
     print(f"  tested                : {c['tested']}")
     print(f"  unwired stubs         : {c['documented'] - c['wired']}")
     if data["orphans"]:

@@ -66,26 +66,31 @@ tools:
           detector: breachdirectory
 
 # ─────────────────────────────────────────────────────────────────────────────
-# DEFERRED — confirmed real, but not wireable through the GET-only generic
-# executor (recontool/adapters/generic.py issues HTTP GET with header auth only;
-# no POST body, no OAuth). Kept here as documented contracts, NOT registered.
+# DEFERRED — kept here as documented contracts, NOT registered.
+# NOTE (2026-07): the generic adapter now DOES POST (method/body/body_format), so
+# "POST-only" is no longer a blocker. The reasons below are the REMAINING blockers.
 #
-# apollo-io   # defer: POST-only
+# apollo-io   # defer: needs person identifiers + ToS + no-email search endpoint
 #   POST https://api.apollo.io/api/v1/people/match  (header X-Api-Key)
 #   docs: https://docs.apollo.io/reference/people-enrichment
 #         https://docs.apollo.io/reference/people-api-search
-#   domain -> email: enrichment returns person.email / person.email_status /
-#   person.organization. The endpoint REQUIRES POST with a JSON body, which the
-#   GET-only generic engine cannot issue; the mixed_people/api_search endpoint
-#   is also POST and explicitly returns NO emails. Needs a POST-capable adapter.
+#   The people/match enrichment matches on a PERSON (name/email/id), not a bare
+#   domain, so it needs identifiers the recon frontier doesn't have; the
+#   people/search endpoint explicitly returns NO emails. Plus Apollo's ToS
+#   restricts scraping/recon use. Low recon fit — deferred by design, not adapter.
 #
-# dehashed   # defer: POST-only
-#   POST https://api.dehashed.com/v2/search  (header Dehashed-Api-Key)
-#   shape verified via client source:
+# dehashed   # defer: response entries[] schema not authoritatively confirmable
+#   POST https://api.dehashed.com/v2/search  (header Dehashed-Api-Key, JSON body
+#   {"query":"domain:<d>","size":..,"page":1}) — REQUEST is fully confirmed from
+#   the client source (raw file grep, 2026-07):
 #   https://raw.githubusercontent.com/Mac84do/macedo-dehashtool/main/dehashed.py
-#   response: {balance, entries:[{email, username, password, hashed_password,
-#   database_name, name, ...}]}.  email -> finding (REDACTED: source/database_name
-#   only). POST-with-JSON-body — incompatible with the GET-only generic executor.
+#   BUT that client parses only response `balance` (+ rate-limit headers); it does
+#   NOT parse entries[], and DeHashed's official docs are paid/403. So the entry
+#   field names (email/username/database_name/…) cannot be authoritatively
+#   grounded right now — wiring the emit would be guessing output. (Corrects an
+#   earlier over-stated "shape verified" note.) Wire once the entries[] schema is
+#   confirmed from an authoritative source (official docs or a client that parses
+#   them); a REDACTED finding (database_name/count only, no secrets) is the target.
 #
 # beenverified   # defer: undocumented-api
 #   No official public key-header REST API. References are OAuth
