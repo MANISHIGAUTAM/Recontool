@@ -89,6 +89,7 @@ _API_KEY_YAML_MAP = {
     "NVD_API_KEY": "nvd",
     "VULNERS_API_KEY": "vulners",
     "ABUSEIPDB_API_KEY": "abuseipdb",
+    "ABUSECH_AUTH_KEY": "abusech",          # threatfox + urlhaus (abuse.ch Auth-Key)
     "BREACHDIRECTORY_API_KEY": "breachdirectory",
 }
 

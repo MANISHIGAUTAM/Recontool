@@ -398,9 +398,25 @@ class GenericApiAdapter(Adapter):
                 if not rv or rv.lower() in ("bearer", "basic", "token", "apikey"):
                     continue
                 headers[k] = rv
+            # POST-body APIs (abuse.ch threatfox/urlhaus, …) declare method: POST
+            # + body: {..}. body_format json -> JSON body (bools/ints pass through
+            # render_template untouched); form -> application/x-www-form-urlencoded.
+            method = str(spec.get("method", "GET")).upper()
+            body = None
+            if method == "POST":
+                body = {k: render_template(bv, {}, extra)
+                        for k, bv in (spec.get("body") or {}).items()}
             async with sem:
                 try:
-                    resp = await ctx.http.get(url, headers=headers or None, bucket=bucket)
+                    if method == "POST":
+                        if spec.get("body_format") == "form":
+                            resp = await ctx.http.post(
+                                url, headers=headers or None, data=body, bucket=bucket)
+                        else:
+                            resp = await ctx.http.post(
+                                url, headers=headers or None, json=body, bucket=bucket)
+                    else:
+                        resp = await ctx.http.get(url, headers=headers or None, bucket=bucket)
                 except Exception:  # noqa: BLE001
                     return []
             ctx.artifacts.save_raw(spec["name"], resp.json() if resp.json_ok else resp.text)

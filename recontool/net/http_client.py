@@ -70,6 +70,11 @@ class HttpClient:
     async def get(self, url: str, *, bucket: str = "_global", **kw) -> Response:
         return await self.request("GET", url, bucket=bucket, **kw)
 
+    async def post(self, url: str, *, bucket: str = "_global", **kw) -> Response:
+        # `json=`/`data=` are forwarded through request() to httpx (form vs JSON
+        # body). Used by GenericApiAdapter for POST-body APIs (abuse.ch, …).
+        return await self.request("POST", url, bucket=bucket, **kw)
+
     async def request(
         self,
         method: str,
