@@ -37,7 +37,7 @@ tools:
     integration: cli
     binary: nikto
     invocation: "nikto -h {url} -nointeractive -maxtime 90s -ask no"
-    input: url
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
     output: finding
     output_format: text
     parse: {format: text, line_regex: '^\+ (?P<msg>.+)$', emit: [{entity: finding, title: "nikto: {msg}", kind: web_exposure, severity: info, asset_value: "{msg}"}]}
@@ -123,7 +123,7 @@ tools:
     binary: hakrawler
     invocation: "hakrawler -subs"
     stdin: true
-    input: url
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
     output: url
     output_format: text
     parse: {format: text, line_regex: '^(?P<_value>https?://\S+)', emit: [{entity: endpoint, url: "{_value}"}]}
@@ -135,7 +135,7 @@ tools:
     integration: cli
     binary: gospider
     invocation: "gospider -s {url} -q -d 1 -t 5 -m 30"
-    input: url
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
     output: url
     output_format: text
     parse: {format: text, line_regex: '(?P<_value>https?://\S+)', emit: [{entity: endpoint, url: "{_value}"}]}
@@ -148,7 +148,7 @@ tools:
     binary: cariddi
     invocation: "cariddi -plain"
     stdin: true
-    input: url
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
     output: url
     output_format: text
     parse: {format: text, line_regex: '^(?P<_value>https?://\S+)', emit: [{entity: endpoint, url: "{_value}"}]}
@@ -892,7 +892,7 @@ tools:
     # -o /dev/stdout -f json writes the JSON report ([{url,detected,firewall}])
     # to stdout; wafw00f's progress goes to stderr (DEVNULL'd by the adapter).
     invocation: "wafw00f {url} -o /dev/stdout -f json"
-    input: url
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
     output: finding
     output_format: json
     parse:
@@ -1215,7 +1215,7 @@ tools:
     # {wordlist} resolves to a SecLists path now; -s silences progress so -o
     # /dev/stdout carries ONLY the result JSON ({"results":[{url,status},...]}).
     invocation: "ffuf -u {url}/FUZZ -w {wordlist} -mc 200,204,301,302,307,401,403 -of json -o /dev/stdout -s"
-    input: url
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
     output: url
     output_format: json
     parse:
@@ -1238,7 +1238,7 @@ tools:
     # {wordlist} resolves now; --json writes JSONL events to stdout when -o is
     # omitted. Each line has a "type"; only type=response rows are real hits.
     invocation: "feroxbuster -u {url} -w {wordlist} --json --silent"
-    input: url
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
     output: url
     output_format: jsonl
     parse:
@@ -1434,7 +1434,7 @@ tools:
     # -o json streams matched routes to stdout (one JSON object per line).
     invocation: "kr scan /dev/stdin -w {kite_wordlist} -o json --quiet"
     stdin: true
-    input: url
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
     output: url
     output_format: jsonl
     parse:
