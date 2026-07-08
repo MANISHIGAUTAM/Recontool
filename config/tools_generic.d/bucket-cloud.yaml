@@ -22,6 +22,34 @@
 #   - BlobHunter (cyberark/BlobHunter, README web-verified 2026-07-08): `python3 BlobHunter.py`
 #     requires an authenticated Azure CLI login (interactive browser auth) and writes a CSV
 #     result file, not stdout. defer: needs-azure-auth + csv-file-output (not pipeline-invocable).
+#
+# DEFERRED (2026-07-08 closure pass — the remaining catalog stubs in this family):
+#   - bucket_finder (digininja/bucket_finder): the original source repo no longer exists on
+#     GitHub (github.com/digininja/bucket_finder -> 404; confirmed via both direct fetch and
+#     the GitHub search API — only unrelated third-party forks remain, none from digininja).
+#     Same failure class as the asnlookup precedent (verify the install SOURCE still exists,
+#     not just a remembered output format). defer: repo-not-found.
+#   - bucket-stream (eth0izzle/bucket-stream): a long-running certstream TAILER, not a one-shot
+#     scan — "listens to certificate-transparency logs in real-time", no terminating invocation
+#     or documented stdout line format, and the repo states it is "no longer maintained".
+#     defer: streaming-not-batch, unmaintained.
+#   - buckhacker: not a CLI/API tool — a hosted web search engine (buckhacker.com) for leaked
+#     bucket names, no repo/binary to invoke (github.com/nhilium/buckhacker -> 404 too).
+#     defer: reference/website-only, not executable.
+#   - CloudFox (BishopFox/cloudfox, README web-verified 2026-07-08): `cloudfox aws --profile
+#     <profile> all-checks` requires an ALREADY-AUTHENTICATED cloud principal (AWS
+#     profile/env-vars/instance-metadata, Azure viewer role, or GCP ADC) — it enumerates an
+#     account you already have credentials for, not an external org/domain seed. Out of the
+#     recon-frontier model entirely (no seed value to template). defer: needs-cloud-credentials.
+#   - Cloudlist (projectdiscovery/cloudlist, README web-verified 2026-07-08): requires a
+#     `~/.config/cloudlist/{provider-}config.yaml` with per-provider cloud credentials (AWS/GCP/
+#     Azure/etc, keyless instance-identity accepted for some); like cloudfox it lists an
+#     authenticated account's OWN assets, not a target org's — no org/domain seed maps to its
+#     invocation. defer: needs-cloud-credentials.
+#   - AzureHound (BloodHoundAD/AzureHound, README web-verified 2026-07-08): `azurehound list -u
+#     <user> -p <pass> -t <tenant>` (or --jwt/--refresh-token) requires authenticated Azure AD
+#     credentials + tenant ID; it is a BloodHound Azure-graph collector for an account you
+#     already control, not a domain-seeded external recon tool. defer: needs-cloud-credentials.
 tools:
   # https://github.com/RhinoSecurityLabs/GCPBucketBrute — `gcpbucketbrute -k <keyword> -u`
   # (unauthenticated). check_permissions() prints, one per line (leading spaces stripped):
