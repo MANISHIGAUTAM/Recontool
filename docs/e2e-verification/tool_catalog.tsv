@@ -1,0 +1,598 @@
+# TOOL CATALOG — 586 registry entries; runtime evidence from scans: ['1e453aa1778b44c9', 'abae971f853e4a18', '856f38a78a5e471a', 'b57cbcaee2754818']
+## status summary
+   216  disabled
+   159  inventory_stub(no-binary)
+   102  non_executable
+    45  skip_missing_binary
+    30  RAN_produced
+    13  skip_missing_key
+    12  available_not_scheduled(chain-orphan)
+     9  RAN_empty
+
+## TSV (tool	status	kind	integ	consumes	declared_out	observed_out	stage	default_on	stdin	key	parse	invocation	err)
+Abuse.ch	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+AbuseIPDB	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+ADSBExchange	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+AFRINIC	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Ahmia	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+AlienVault OTX API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+AlienVault OTX Pulse Archive	disabled	passive	api	domain,live_host	url,js_file	-	1-domain	False	False				
+AlienVault OTX Search	disabled	passive	api	domain,live_host	url,repo,finding	-	1-domain	False	False				
+alienvault_otx	RAN_produced	passive	python	domain	subdomain,ip	runs:8	1-domain	True	False				
+AltDNS	inventory_stub(no-binary)	active	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+alterx	non_executable	passive	cli	subdomain	subdomain	-	2-subdomain	False	False			alterx -l {infile} -o {outfile}	
+amass	RAN_produced	passive	cli	domain	subdomain	runs:8	1-domain	False	False		text	amass enum -passive -d {domain}	
+Amass Passive Mode	non_executable	passive	cli	domain	subdomain,live_host,finding	-	1-domain	False	False				
+analytics-publicwww	skip_missing_key	passive	api	analytics_id	org	-	other:['analytics_id']	True	False	PUBLICWWW_API_KEY	text	https://publicwww.com/websites/%22{value}%22/?export=urls&key={key}	
+anew	non_executable	passive	cli	any	any	-	other:['any']	False	False			cat {infile} | anew {outfile}	
+Anomali	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+anubis-jldc	RAN_produced	passive	api	domain	subdomain	runs:8	1-domain	True	False		json	https://jldc.me/anubis/subdomains/{domain}	
+ANY.RUN	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+APNIC	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Apollo.io	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Appalyzer	disabled	passive	api	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+Aquatone	inventory_stub(no-binary)	active	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Arachni	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+Archive.today	non_executable	passive		domain,live_host	url,js_file	-	1-domain	False	False				
+ARIN	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Arjun	inventory_stub(no-binary)	active	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+Arquivo.pt	disabled	passive	api	domain,live_host	url,js_file	-	1-domain	False	False				
+ASM tools	inventory_stub(no-binary)	active	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+ASNLookup	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+asnmap	RAN_produced	passive	cli	domain	cidr	runs:8	1-domain	True	False			asnmap -d {domain} -json	
+assetfinder	RAN_produced	passive	cli	domain	subdomain	runs:8,subdomain:41	1-domain	False	False		text	assetfinder --subs-only {domain}	
+AttackSurfaceMapper	inventory_stub(no-binary)	active	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+Awesome Bug Bounty	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+Awesome DFIR	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+Awesome Honeypots	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+Awesome Incident Response	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+Awesome Malware Analysis	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+Awesome OSINT For Everything	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+Awesome Pentest	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+Awesome Search Engines	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+Awesome Threat Intelligence	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+awesome-osint	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+AWSBucketDump	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+AzureHound	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+Baidu Search	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+BBOT	inventory_stub(no-binary)	active	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+BeenVerified	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+bgp.he.net	non_executable	passive	web	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+bgpview	available_not_scheduled(chain-orphan)	passive	api	asn	cidr	-	3-asn	True	False			GET https://api.bgpview.io/asn/{asn}/prefixes	
+BinaryEdge	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+BinaryEdge API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+BinaryEdge Hunt	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Bing Dorks	non_executable	passive	web	domain,live_host	url,repo,finding	-	1-domain	False	False				
+Bing Search	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Binwalk	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+Bitbucket	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+BlackArch Recon Category	non_executable	active	cli	-	-	-	bootstrap/none	False	False				
+Blackbird	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+BlindElephant	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+BlobHunter	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+Botometer	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+BreachDirectory	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+BSSID Search	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+bucket-stream	inventory_stub(no-binary)	passive	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+bucket_finder	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+BucketLoot	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+BuckHacker	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+BufferOver	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Bug Bounty Recon Collection	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+BuiltWith	disabled	passive	api	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+BuiltWith API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+BuiltWith Historical Lookup	disabled	passive	api	domain,live_host	url,js_file	-	1-domain	False	False				
+BuiltWith Lookup	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+BuiltWith Trends	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+bulk_extractor	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+CachedPages	non_executable	passive	web	domain,live_host	url,js_file	-	1-domain	False	False				
+CachedView	non_executable	passive	web	domain,live_host	url,js_file	-	1-domain	False	False				
+CAIDA Tools	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+cariddi	skip_missing_binary	active	cli	url	url	-	4-url	False	True		text	cariddi -plain	
+cdncheck	non_executable	passive	cli	ip	tag	-	3-ip/cidr	False	False			cdncheck -i {infile} -resp	
+CellMapper	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+censys	RAN_produced	passive	python	domain	ip,service,subdomain	runs:8	1-domain	True	False				
+Censys API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+Censys ASM	non_executable	passive		domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Censys ASN Search	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Censys screenshots	disabled	passive	api	live_host,url	screenshot,tag,tech	-	4-url	False	False				
+cero	RAN_empty	active	cli	ip	subdomain	ran:0	3-ip/cidr	False	False			cero {value}	
+CertDB	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Certificate Transparency Search	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+certspotter	RAN_empty	passive	api	domain	subdomain	ran:0	1-domain	True	False	CERTSPOTTER_API_KEY	json	GET https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expan	
+chaos	RAN_empty	passive	api	domain	subdomain	ran:0	1-domain	False	False	CHAOS_API_KEY		GET https://dns.projectdiscovery.io/dns/{domain}/subdomains	
+Chaos Dataset	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+CIDR Report	non_executable	passive	web	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+CIRCL CVE Search	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+CIRCL Passive DNS	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Clearbit	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Clearbit API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+cloud_enum	skip_missing_binary	validation	cli	keyword	finding	-	other:['keyword']	False	False		text	cloud_enum -k {keyword} -t 20	
+CloudBrute	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+CloudFail	inventory_stub(no-binary)	passive	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+Cloudflare	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+cloudfox	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+cloudlist	inventory_stub(no-binary)	passive	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+cloudsplaining	inventory_stub(no-binary)	passive	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+CMSeeK	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+CMSmap	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+Common Crawl	disabled	passive	api	domain,live_host	url,repo,finding	-	1-domain	False	False				
+Creepy	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Criminal IP	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+criminalip	RAN_produced	passive	python	domain	ip,service	runs:8	1-domain	True	False	CRIMINALIP_API_KEY			
+CriminalIP API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+CriminalIP ASM	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+CriminalIP IP Search	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+crobat	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+CrossLinked	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+crt.sh	non_executable	passive	web	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+crtsh	RAN_produced	passive	python	domain	subdomain,cert	runs:8	1-domain	True	False				
+CTFR	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+CVE Details	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+Cyber Detective OSINT Tools Collection	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+Cymru Hash Registry	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Dark.fail	non_executable	passive	web	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+DarkSearch	disabled	passive	api	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+Darkweb Link Lists	non_executable	passive	web	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+Datasploit	inventory_stub(no-binary)	passive	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+Datasploit Framework	inventory_stub(no-binary)	passive	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+Deep Web Search Engines	non_executable	passive	web	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+DeepSearch	disabled	passive	api	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+DeHashed	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+detect-secrets	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+Digitorus CT Search	non_executable	passive	web	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+DNS History Lookup	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+dns_resolve	available_not_scheduled(chain-orphan)	active	python	subdomain,domain	ip	ip:4,runs:7,subdomain:4	1-domain	True	False				
+DNSDB	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+DNSDumpster	non_executable	passive		domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+dnsenum	skip_missing_binary	passive	cli	domain	subdomain	runs:7	1-domain	False	False		text	dnsenum --noreverse -o /dev/null {domain}	
+DNSGrep	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+DNSlytics	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+DNSRecon	inventory_stub(no-binary)	active	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+dnstwist	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+dnsvalidator	non_executable	passive	cli	none	resolver_list	-	bootstrap/none	False	False			dnsvalidator -tL https://public-dns.info/nameservers.txt -threads 100 -o {outfile}	
+dnsx	RAN_produced	passive	cli	subdomain	ip	ip:10,runs:8	2-subdomain	True	True		jsonl	dnsx -json -a -aaaa -cname -resp -silent	
+DocFetcher	non_executable	passive	gui	domain,url	document,email,finding,tag	-	1-domain	False	False				
+domain-analyzer	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+domain-profiler	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+domain-sleuth	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+dorks_hunter	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+DorkSearch	disabled	passive	api	domain,live_host	url,repo,finding	-	1-domain	False	False				
+Dradis	disabled	passive	api	domain	subdomain,url,finding	-	1-domain	False	False				
+droopescan	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+DumpsterDiver	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+EmailHippo	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Entrust CT Search	non_executable	passive	web	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+enumerator	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+EO Browser	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+Epieos	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+epss	available_not_scheduled(chain-orphan)	validation	api	cve	finding	-	7-validate	True	False		json	GET https://api.first.org/data/v1/epss?cve={cve}	
+Exalead	non_executable	passive	web	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Exif.tools	non_executable	passive	web	domain,url	document,email,finding,tag	-	1-domain	False	False				
+ExifTool	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+ExoneraTor	disabled	passive	api	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+EyeWitness	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+eyewitness-ng	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+Facebook CT Search	non_executable	passive	web	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Facebook Graph Search	non_executable	passive	web	username,org,handle	username,url,finding	-	0-org	False	False				
+FastPeopleSearch	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+favicon-shodan	skip_missing_key	passive	api	favicon	org	-	other:['favicon']	True	False	SHODAN_API_KEY	json	https://api.shodan.io/shodan/host/search?key={key}&query=http.favicon.hash:{value}	
+feroxbuster	skip_missing_binary	active	cli	url	url	-	4-url	False	False		jsonl	feroxbuster -u {url} -w {wordlist} --json --silent	
+ffuf	skip_missing_binary	active	cli	url	url	-	4-url	False	False		json	ffuf -u {url}/FUZZ -w {wordlist} -mc 200,204,301,302,307,401,403 -of json -o /dev/stdout -	
+fierce	skip_missing_binary	passive	cli	domain	subdomain	runs:8	1-domain	False	False		text	fierce --domain {domain}	
+findomain	RAN_empty	passive	cli	domain	subdomain	ran:0	1-domain	True	False		text	findomain -t {domain} -q	
+FingerprintJS	disabled	passive	api	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+FIRST EPSS	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+Flashpoint	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+FlightRadar24	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+FOCA	non_executable	passive	gui	domain,url	document,email,finding,tag	-	1-domain	False	False				
+FOFA	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+FOFA API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+FOFA Hunt	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+FOFA IP Search	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+FollowerWonk	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+foremost	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+FullContact	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+FullContact API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+fullhunt	RAN_produced	passive	python	domain	subdomain	runs:8	1-domain	True	False	FULLHUNT_API_KEY			
+gau	RAN_produced	passive	cli	domain	url	runs:8	1-domain	True	False			gau {domain} --threads 5 --providers wayback --timeout 45	
+gauplus	RAN_produced	passive	cli	domain	url	runs:8	1-domain	False	False		text	gauplus -t 5 {domain}	
+GCPBucketBrute	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+GeoSocial Footprint	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+GeoSpy	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+getJS	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+gf-debug_logic	skip_missing_binary	passive	cli	url	finding	runs:1	4-url	False	True		text	gf debug_logic	
+gf-idor	skip_missing_binary	passive	cli	url	finding	runs:1	4-url	False	True		text	gf idor	
+gf-interestingparams	skip_missing_binary	passive	cli	url	finding	runs:1	4-url	False	True		text	gf interestingparams	
+gf-lfi	skip_missing_binary	passive	cli	url	finding	runs:1	4-url	False	True		text	gf lfi	
+gf-rce	skip_missing_binary	passive	cli	url	finding	runs:1	4-url	False	True		text	gf rce	
+gf-redirect	skip_missing_binary	passive	cli	url	finding	runs:1	4-url	False	True		text	gf redirect	
+gf-sqli	skip_missing_binary	passive	cli	url	finding	runs:1	4-url	False	True		text	gf sqli	
+gf-ssrf	skip_missing_binary	passive	cli	url	finding	runs:1	4-url	False	True		text	gf ssrf	
+gf-ssti	skip_missing_binary	passive	cli	url	finding	runs:1	4-url	False	True		text	gf ssti	
+gf-xss	skip_missing_binary	passive	cli	url	finding	runs:1	4-url	False	True		text	gf xss	
+GHDB	non_executable	passive	web	domain,live_host	url,repo,finding	-	1-domain	False	False				
+ghunt	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+GHunt v2	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+git-secrets	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+GitAllSecrets	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+GitDorker	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+GitHarvester	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+GitHound	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+GitHub	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+GitHub Dorks	disabled	passive	api	domain,live_host	url,repo,finding	-	1-domain	False	False				
+github_org_repos	available_not_scheduled(chain-orphan)	passive	api	org	repo	-	0-org	False	False	GITHUB_TOKEN	json	GET https://api.github.com/orgs/{org}/repos?per_page=100&type=public	
+github_search-api_key	skip_missing_key	passive	api	org	repo	-	0-org	False	False	GITHUB_TOKEN	json	GET https://api.github.com/search/code?q=api_key+org:{org}	
+github_search-aws_access_key_id	skip_missing_key	passive	api	org	repo	-	0-org	False	False	GITHUB_TOKEN	json	GET https://api.github.com/search/code?q=aws_access_key_id+org:{org}	
+github_search-filename:.env	skip_missing_key	passive	api	org	repo	-	0-org	False	False	GITHUB_TOKEN	json	GET https://api.github.com/search/code?q=filename:.env+org:{org}	
+github_search-filename:.npmrc	skip_missing_key	passive	api	org	repo	-	0-org	False	False	GITHUB_TOKEN	json	GET https://api.github.com/search/code?q=filename:.npmrc+org:{org}	
+github_search-filename:id_rsa	skip_missing_key	passive	api	org	repo	-	0-org	False	False	GITHUB_TOKEN	json	GET https://api.github.com/search/code?q=filename:id_rsa+org:{org}	
+github_search-secret_key	skip_missing_key	passive	api	org	repo	-	0-org	False	False	GITHUB_TOKEN	json	GET https://api.github.com/search/code?q=secret_key+org:{org}	
+github_subdomains	RAN_produced	passive	cli	domain	subdomain	runs:8	1-domain	False	False	GITHUB_TOKEN	text	github-subdomains -d {domain} -t {key}	
+GitLab	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+gitleaks	skip_missing_binary	passive	python	repo	finding	-	6-repo	False	False				
+GitMiner	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+Gitrob	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+Gitxray	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+gobuster	skip_missing_binary	active	cli	domain	subdomain	runs:8	1-domain	False	False		text	gobuster dns --domain {domain} -w {dns_wordlist} -q -t 20 --no-color	
+Goofuzz	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+Google Cache	non_executable	passive	web	domain,live_host	url,js_file	-	1-domain	False	False				
+Google Dorks	non_executable	passive	web	domain,live_host	url,repo,finding	-	1-domain	False	False				
+Google Earth	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+Google Maps	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+Google Search	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+gospider	skip_missing_binary	active	cli	url	url	runs:1,url:19	4-url	False	False		text	gospider -s {url} -q -d 1 -t 5 -m 30	
+gowitness	skip_missing_binary	active	python	live_host	screenshot	runs:8	other:['live_host']	False	False				
+GPS Visualizer	non_executable	passive	web	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+graphw00f	skip_missing_binary	validation	cli	url	finding	-	4-url	False	False		text	graphw00f -d -f -t {url}	
+grayhatwarfare	skip_missing_key	passive	api	keyword	bucket	-	other:['keyword']	False	False	GRAYHATWARFARE_API_KEY		GET https://buckets.grayhatwarfare.com/api/v2/buckets?keywords={keyword}	
+grep.app	disabled	passive	api	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+greynoise	RAN_empty	passive	python	ip	tag	ran:0	3-ip/cidr	True	False				
+GreyNoise API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+GreyNoise IP Lookup	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+hachoir-metadata	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+hackertarget	RAN_produced	passive	python	domain	subdomain,ip	ip:39,runs:8,subdomain:39	1-domain	True	False				
+HackTricks Recon Lists	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+hakcheckurl	inventory_stub(no-binary)	active	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+hakrawler	skip_missing_binary	active	cli	url	url	runs:1,url:239793	4-url	False	True		text	hakrawler -subs	
+haktrails	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Have I Been Pwned	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+HaveIBeenPwned API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+Haystak	disabled	passive	api	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+Hibp API	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+hibp-exposure	skip_missing_key	passive	api	email	finding	-	other:['email']	True	False	HIBP_API_KEY	json	https://haveibeenpwned.com/api/v3/breachedaccount/{value}?truncateResponse=true	
+Hoaxy	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+Holehe	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+HostHunter	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+httping	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+httprint	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+httprobe	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+httpx	RAN_produced	active	cli	subdomain	live_host	ip:4,url:4,runs:8	2-subdomain	True	True		jsonl	httpx -json -sc -title -tech-detect -tls-grab -cdn -ip -cname -web-server -silent	
+httpx_probe	available_not_scheduled(chain-orphan)	active	python	subdomain,domain	live_host,service	runs:4,service:1,url:2,subdomain:1	1-domain	True	False				
+Hunter API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+Hunter Domain Search	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Hunter Howler	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+hunter-emails	RAN_empty	passive	api	domain	email	ran:0	1-domain	True	False	HUNTER_API_KEY	json	https://api.hunter.io/v2/domain-search?domain={domain}&api_key={key}	
+Hunter.io	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Hurricane Electric	non_executable	passive	web	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Hybrid Analysis	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+Ignorant	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Instagram Location Search	non_executable	passive	mobile	username,org,handle	username,url,finding	-	0-org	False	False				
+Instaloader	inventory_stub(no-binary)	passive	cli	username,org,handle	username,url,finding	-	0-org	False	False				
+Intel471	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+IntelX	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+IntelX API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+IntelX Tor Search	disabled	passive	api	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+interactsh	skip_missing_binary	validation	cli	none	finding	-	bootstrap/none	False	False			interactsh-client -json	
+internetdb	RAN_empty	passive	python	ip	service,finding,subdomain	ran:0	3-ip/cidr	True	False				
+Intezer	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+IOC Bucket	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+IOC Finder	inventory_stub(no-binary)	validation	cli	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+IOC Parser	inventory_stub(no-binary)	validation	cli	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+IP2Location	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+IP2Location API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+ipapi	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+IPFingerprints	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+IPGeolocation	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+ipinfo	skip_missing_key	passive	api	ip	asn	-	3-ip/cidr	False	False	IPINFO_TOKEN		GET https://ipinfo.io/{ip}?token={key}	
+IPinfo API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+IPQualityScore	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+IPVoid	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+IVRE	inventory_stub(no-binary)	active	cli	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Joe Sandbox	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+JoomScan	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+JPEGsnoop	non_executable	passive	gui	domain,url	document,email,finding,tag	-	1-domain	False	False				
+js-render	available_not_scheduled(chain-orphan)	passive	cli	live_host,url,subdomain	url,subdomain,finding	runs:6,subdomain:16,url:996	2-subdomain	True	False		jsonl	python3 -m recontool.tools.jsrender {value}	
+js_analyze	available_not_scheduled(chain-orphan)	passive	python	js_file	url,finding	runs:1	5-js	True	False				
+JSFinder	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+JSLeak	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+jsluice	skip_missing_binary	passive	cli	js_file	url	-	5-js	False	False			jsluice urls {js_file}	
+Kali Linux Information Gathering Tools	non_executable	active	cli	-	-	-	bootstrap/none	False	False				
+katana	skip_missing_binary	active	cli	live_host	url	runs:1,url:587	other:['live_host']	False	True		text	katana -jc -js-crawl -d 3 -ct 90 -silent	
+Katana Archive Mode	inventory_stub(no-binary)	active	cli	domain,live_host	url,js_file	-	1-domain	False	False				
+Katana screenshots	inventory_stub(no-binary)	active	cli	live_host,url	screenshot,tag,tech	-	4-url	False	False				
+Kismet Logs	inventory_stub(no-binary)	active	cli	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+kiterunner	skip_missing_binary	active	cli	url	url	-	4-url	False	True		jsonl	kr scan /dev/stdin -w {kite_wordlist} -o json --quiet	
+Knockpy	inventory_stub(no-binary)	active	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Kubernetes API Search	disabled	passive	api	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+Kubernetes Exposure Search	disabled	passive	api	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+LACNIC	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Lampyre	disabled	active	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+lazys3	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+LeakCheck	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+LeakCheck API	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+leakix	RAN_produced	passive	python	domain	service,finding,ip	runs:8	1-domain	True	False	LEAKIX_API_KEY			
+LeakIX Buckets	disabled	passive	api	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+LeakIX Exposure Search	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+LeakPeek	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+LinkedIn Recon	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+LinkedIn2Username	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+LinkedInt	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+linkfinder	skip_missing_binary	passive	cli	js_file	url	-	5-js	False	False		text	linkfinder -i {js_file} -o cli	
+Maigret	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+MailTester	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+MalShare	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+Maltego	disabled	active	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+MalwareBazaar	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+MalwareTrafficAnalysis	non_executable	validation	web	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+mapcidr	skip_missing_binary	passive	cli	cidr	ip	-	3-ip/cidr	False	True			mapcidr -silent	
+MarineTraffic	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+masscan	skip_missing_binary	active	cli	cidr	host_port	-	3-ip/cidr	False	False		text	masscan {cidr} -p{ports} --rate {rate}	
+massdns	RAN_produced	passive	cli	subdomain	ip	runs:8,ip:8	2-subdomain	False	True		text	massdns -r {resolvers} -t A -o S -w /dev/stdout /dev/stdin	
+mat2	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+MaxMind	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+MediaInfo	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+Memento Time Travel	disabled	passive	api	domain,live_host	url,js_file	-	1-domain	False	False				
+Mentionmapp	non_executable	passive	web	username,org,handle	username,url,finding	-	0-org	False	False				
+metabigor	skip_missing_binary	passive	cli	org	cidr	-	0-org	False	True		text	metabigor net --org	
+Metadata2Go	non_executable	passive	web	domain,url	document,email,finding,tag	-	1-domain	False	False				
+Metagoofil	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+MicroBurst	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+MISP	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+Mojeek	non_executable	passive	web	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+naabu	skip_missing_binary	active	python	ip,subdomain	service	runs:7,service:8	2-subdomain	True	False				
+Namecheckup	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Namechk	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Netcraft	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Netcraft Toolbar	non_executable	passive	browser	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+netlas	RAN_produced	passive	python	domain	subdomain	runs:8	1-domain	True	False	NETLAS_API_KEY			
+Netlas API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+Netlas ASN Search	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Netlas Explorer	non_executable	passive		domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Netlas Hosts	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+nikto	skip_missing_binary	validation	cli	url	finding	finding:18,runs:1	4-url	False	False		text	nikto -h {url} -nointeractive -maxtime 90s -ask no	
+nmap	skip_missing_binary	active	python	ip,subdomain	service	service:3,runs:8	2-subdomain	False	False				
+notify	non_executable	passive	cli	any	none	-	other:['any']	False	False			cat {infile} | notify -silent	
+nuclei	skip_missing_binary	validation	python	live_host,url	finding	-	4-url	True	False				
+nuclei templates	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+nvd	skip_missing_key	validation	api	cpe	finding	-	other:['cpe']	False	False	NVD_API_KEY		GET https://services.nvd.nist.gov/rest/json/cves/2.0?cpeName={cpe}	
+OCRmyPDF	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+oletools	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+OneForAll	inventory_stub(no-binary)	active	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+OnionLand	non_executable	passive	web	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+OnionLand Search	non_executable	passive	web	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+OnionScan	inventory_stub(no-binary)	active	cli	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+OnionSearch	inventory_stub(no-binary)	passive	cli	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+ONYPHE	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+OpenCellID	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+OpenCTI	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+OpenPhish	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+OpenStreetMap	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+OpenVAS Discovery	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+org_fingerprint	available_not_scheduled(chain-orphan)	active	python	subdomain,live_host,url	favicon,analytics_id,org	favicon:2,runs:4,analytics_id:2	2-subdomain	True	False				
+OSINT Framework	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+Osintgram	inventory_stub(no-binary)	passive	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+Osintracker	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Osmedeus	inventory_stub(no-binary)	active	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+OWASP Amass	inventory_stub(no-binary)	active	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+Packet Storm Search	non_executable	passive	web	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+pageres	inventory_stub(no-binary)	active	cli	live_host,url	screenshot,tag,tech	-	4-url	False	False				
+Pagodo	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+Pagodo Dorks	non_executable	passive	dataset	domain,live_host	url,repo,finding	-	1-domain	False	False				
+param_miner	available_not_scheduled(chain-orphan)	passive	python	url	url	runs:1	4-url	True	False				
+paramspider	RAN_produced	passive	cli	domain	url	runs:8	1-domain	False	False			paramspider -d {domain}	
+PassiveTotal	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+PayloadsAllTheThings Recon Section	non_executable	passive	web	-	-	-	bootstrap/none	False	False				
+PDF Stream Dumper	non_executable	passive	gui	domain,url	document,email,finding,tag	-	1-domain	False	False				
+pdfinfo	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+PeekYou	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+peepdf	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+PeeringDB	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Pentest-Tools Collections	non_executable	active	web	-	-	-	bootstrap/none	False	False				
+PhishTank	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+Phonebook.cz	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+PhotoME	non_executable	passive	gui	domain,url	document,email,finding,tag	-	1-domain	False	False				
+Photon	inventory_stub(no-binary)	active	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Pipl	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Playwright	disabled	active	api	live_host,url	screenshot,tag,tech	-	4-url	False	False				
+Profil3r	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Project Sonar	non_executable	passive	dataset	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+ProjectDiscovery stack	inventory_stub(no-binary)	active	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+prowler	inventory_stub(no-binary)	passive	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+PTRArchive	non_executable	passive	web	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Public Bucket Search	disabled	passive	api	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+PublicWWW	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+PublicWWW Historical Search	disabled	passive	api	domain,live_host	url,js_file	-	1-domain	False	False				
+PublicWWW Source Search	non_executable	passive	web	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Pulsedive	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Pulsedive API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+Pulsedive Threat Intelligence	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Puppeteer	disabled	active	api	live_host,url	screenshot,tag,tech	-	4-url	False	False				
+puredns	RAN_produced	passive	cli	subdomain	subdomain	runs:8	2-subdomain	False	True		text	puredns resolve /dev/stdin -r {resolvers} -q	
+Pushshift	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+pycrawl	available_not_scheduled(chain-orphan)	active	python	subdomain,domain,url	url,subdomain,finding,js_file	runs:3	1-domain	True	False				
+pydirb	available_not_scheduled(chain-orphan)	active	python	subdomain,domain	url	runs:6,url:12	1-domain	True	False				
+RADb	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Rapid7 Open Data	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+RapidDNS	non_executable	passive	web	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Recon Dark Web Search	disabled	passive	api	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+Recon-ng	inventory_stub(no-binary)	passive	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+ReconDog	inventory_stub(no-binary)	active	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+ReconFTW	inventory_stub(no-binary)	active	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Reconmap	disabled	active	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+reconspider	inventory_stub(no-binary)	active	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+Recorded Future	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+Red Teaming Toolkit Lists	non_executable	active	web	-	-	-	bootstrap/none	False	False				
+Reddit Search	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+RedditMetis	non_executable	passive	web	username,org,handle	username,url,finding	-	0-org	False	False				
+repo-analyzer	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+repo-security-scanner	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+Repo-supervisor	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+RepoHunt	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+RepoRadar	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+RepoSuperScanner	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+Retire.js	inventory_stub(no-binary)	passive	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+ReverseDNSLookup	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+ReverseIPLookup	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+ReverseMXLookup	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+ReverseNSLookup	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Riddler.io	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+RIPE Atlas	disabled	active	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+RIPE NCC	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+ripestat	available_not_scheduled(chain-orphan)	passive	api	asn	cidr	-	3-asn	True	False		json	GET https://stat.ripe.net/data/announced-prefixes/data.json?resource={asn}	
+ripgrep	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+RiskIQ Passive DNS	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+RiskIQ PassiveTotal	non_executable	passive		domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Robtex	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+RocketReach	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+RustScan	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+S3recon	inventory_stub(no-binary)	active	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+s3scanner	skip_missing_binary	validation	cli	bucket	finding	-	6-bucket	False	False		jsonl	s3scanner -bucket {bucket} -json	
+ScoutSuite	inventory_stub(no-binary)	passive	cli	org,domain,keyword	bucket,finding,ip	-	1-domain	False	False				
+ScreenshotOne	disabled	active	api	live_host,url	screenshot,tag,tech	-	4-url	False	False				
+Search Engine Map	non_executable	passive	web	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Searchcode	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+SearchDiggity	non_executable	passive	gui	domain,live_host	url,repo,finding	-	1-domain	False	False				
+Searx	non_executable	passive	self_hosted	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+secretfinder	skip_missing_binary	passive	cli	js_file	finding	-	5-js	False	False		text	secretfinder -i {js_file} -o cli	
+securitytrails	RAN_empty	passive	api	domain	subdomain	ran:0	1-domain	False	False	SECURITYTRAILS_API_KEY		GET https://api.securitytrails.com/v1/domain/{domain}/subdomains	
+SecurityTrails API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+SecurityTrails Historical DNS	disabled	passive	api	domain,live_host	url,js_file	-	1-domain	False	False				
+Semgrep	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+Semgrep Secrets	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+Sentinel Hub	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+Sherlock	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+shhgit	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+shodan	RAN_produced	passive	python	domain	ip,service,subdomain	runs:8	1-domain	True	False	SHODAN_API_KEY			
+Shodan API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+Shodan ASN Search	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Shodan screenshots	disabled	passive	api	live_host,url	screenshot,tag,tech	-	4-url	False	False				
+shuffledns	skip_missing_binary	passive	cli	domain	subdomain	subdomain:22,runs:8	1-domain	False	False		text	shuffledns -d {domain} -w {dns_wordlist} -r {resolvers} -silent -mode bruteforce	
+SimilarTech	disabled	passive	api	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+Sitedorks	non_executable	passive	web	domain,live_host	url,repo,finding	-	1-domain	False	False				
+Sn1per	inventory_stub(no-binary)	active	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+Snap Map	non_executable	passive	mobile	username,org,handle	username,url,finding	-	0-org	False	False				
+Snusbase	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+SOC Radar Search	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Social Analyzer	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Social Bearing	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+Social Blade	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+Social Links	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Social Searcher	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+Socid Extractor	inventory_stub(no-binary)	passive	cli	username,org,handle	username,url,finding	-	0-org	False	False				
+Sonar DNS	non_executable	passive	dataset	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Sonar FDNS	non_executable	passive	dataset	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Sonar OMNI	non_executable	passive	dataset	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Sonar RDNS	non_executable	passive	dataset	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Sourcegraph	disabled	passive	api	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+SpiderFoot	inventory_stub(no-binary)	active	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+SpiderSuite	disabled	passive	api	domain	subdomain,url,finding	-	1-domain	False	False				
+Spokeo	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+Spur	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Spur Context API	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Spyse	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+sslyze	skip_missing_binary	validation	python	subdomain	finding	runs:8	2-subdomain	False	False				
+strings	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+subdomaincenter	RAN_produced	passive	api	domain	subdomain	runs:8	1-domain	True	False		json	https://api.subdomain.center/?domain={domain}	
+subfinder	RAN_produced	passive	python	domain	subdomain	runs:8	1-domain	True	False				
+subjack	RAN_produced	validation	cli	subdomain	finding	runs:8	2-subdomain	False	True		text	subjack -w /dev/stdin -ssl	
+sublist3r	skip_missing_binary	passive	cli	domain	subdomain	subdomain:7,runs:8	1-domain	False	False		text	sublist3r -d {domain} -n	
+SubOver	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Subscraper	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Sudomy	inventory_stub(no-binary)	active	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Swisscows	non_executable	passive	web	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Team Cymru	disabled	passive	api	domain,ip,asn,org	asn,cidr,ip,org,domain	-	1-domain	False	False				
+Telegram OSINT	inventory_stub(no-binary)	passive	cli	username,org,handle	username,url,finding	-	0-org	False	False				
+Telepathy	inventory_stub(no-binary)	passive	cli	username,org,handle	username,url,finding	-	0-org	False	False				
+Telescan	inventory_stub(no-binary)	passive	cli	username,org,handle	username,url,finding	-	0-org	False	False				
+ThatsThem	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+theHarvester	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Thingful	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+ThreatBook	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+ThreatConnect	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+ThreatCrowd	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+ThreatFox	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+ThreatMiner	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+Tika	inventory_stub(no-binary)	passive	cli	domain,url	document,email,finding,tag	-	1-domain	False	False				
+TikTokScraper	inventory_stub(no-binary)	passive	cli	username,org,handle	username,url,finding	-	0-org	False	False				
+tko-subs	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+tlsx	skip_missing_binary	active	cli	subdomain	subdomain	subdomain:3,runs:8	2-subdomain	False	True		jsonl	tlsx -json -san -cn -silent	
+TorBot	inventory_stub(no-binary)	passive	cli	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+Torch	non_executable	passive	web	domain,org,keyword	onion,finding,url	-	1-domain	False	False				
+Torch Search	non_executable	passive	web	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+Toutatis	inventory_stub(no-binary)	passive	cli	username,org,handle	username,url,finding	-	0-org	False	False				
+Trivy	inventory_stub(no-binary)	passive	cli	org,domain,keyword	repo,endpoint,finding	-	1-domain	False	False				
+Trivy Secret Scanner	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+TruePeopleSearch	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+trufflehog	skip_missing_binary	passive	cli	repo	finding	-	6-repo	False	False			trufflehog filesystem {repo} --json	
+Trufflehog3	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+TruthNest	non_executable	passive	web	username,org,handle	username,url,finding	-	0-org	False	False				
+TweetDeck	non_executable	passive	web	username,org,handle	username,url,finding	-	0-org	False	False				
+Twint	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+UK Web Archive	non_executable	passive	web	domain,live_host	url,js_file	-	1-domain	False	False				
+uncover	RAN_produced	passive	python	domain	ip,service,subdomain	runs:8	1-domain	True	False				
+uncover-engine	inventory_stub(no-binary)	passive	cli	domain	subdomain,url,finding	-	1-domain	False	False				
+unfurl-domains	skip_missing_binary	passive	cli	url	subdomain	runs:1,subdomain:1	4-url	False	True		text	unfurl -u domains	
+unfurl-keys	skip_missing_binary	passive	cli	url	param	runs:1	4-url	False	True		text	unfurl -u keys	
+URLCrazy	inventory_stub(no-binary)	passive	cli	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+URLFinder	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+URLHaus	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+urlscan	RAN_produced	passive	python	domain	url,ip,subdomain	url:98,subdomain:98,runs:8,ip:98	1-domain	True	False				
+URLScan API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+URLScan History	disabled	passive	api	domain,live_host	url,js_file	-	1-domain	False	False				
+urlscan screenshots	disabled	passive	api	live_host,url	screenshot,tag,tech	-	4-url	False	False				
+URLScan Search	disabled	passive	api	domain,live_host	url,repo,finding	-	1-domain	False	False				
+urlscan.io	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+UserRecon	inventory_stub(no-binary)	passive	cli	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+UserSearch	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+VerifyEmailAddress	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+VesselFinder	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+ViewDNS	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+virustotal	RAN_empty	passive	api	domain	subdomain	ran:0	1-domain	False	False	VIRUSTOTAL_API_KEY		GET https://www.virustotal.com/api/v3/domains/{domain}/subdomains	
+VirusTotal API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+vulners	skip_missing_key	validation	api	cpe	finding	-	other:['cpe']	False	False	VULNERS_API_KEY		POST https://vulners.com/api/v3/search/lucene/	
+wafninja	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+wafw00f	skip_missing_binary	validation	cli	url	finding	runs:1	4-url	False	False		json	wafw00f {url} -o /dev/stdout -f json	
+Wappalyzer	disabled	passive	api	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+Wappalyzer API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+Wappalyzer Lookup	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+wayback	RAN_produced	passive	python	domain	url	runs:8	1-domain	True	False				
+Wayback Machine	disabled	passive	api	domain,live_host	url,js_file	-	1-domain	False	False				
+wayback_cdx	RAN_produced	passive	api	domain	url	runs:8	1-domain	True	False		text	GET http://web.archive.org/cdx/search/cdx?url=*.{domain}/*&fl=original&collapse=urlkey	
+waybackurls	RAN_produced	passive	cli	domain	url	runs:7	1-domain	False	False			waybackurls {domain}	
+waymore	RAN_produced	passive	cli	domain	url	runs:7	1-domain	False	False		text	waymore -i {domain} -mode U -oU /dev/stdout -p 4	
+Web Archive Search	disabled	passive	api	domain,live_host	url,repo,finding	-	1-domain	False	False				
+webanalyze	inventory_stub(no-binary)	passive	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+webscreenshot	inventory_stub(no-binary)	active	cli	live_host,url	screenshot,tag,tech	-	4-url	False	False				
+WebSniffer	non_executable	passive	web	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+WebTech	disabled	passive	api	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+WhatCMS	disabled	passive	api	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+WhatRuns	non_executable	passive	browser	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+WhatsApp Web Enumeration	non_executable	active	web	username,org,handle	username,url,finding	-	0-org	False	False				
+WhatsMyName	non_executable	passive	web	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+whatweb	skip_missing_binary	validation	python	live_host	finding	runs:8	other:['live_host']	False	False				
+Whitepages	disabled	passive	api	domain,email,username,org	email,username,finding	-	1-domain	False	False				
+WhoisXML API	disabled	passive	api	domain,subdomain	subdomain,ip,cert	-	1-domain	False	False				
+Wigle	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+WiGLE WiFi Search	disabled	passive	api	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+WitnessMe	inventory_stub(no-binary)	active	cli	live_host,url	screenshot,tag,tech	-	4-url	False	False				
+WPScan	inventory_stub(no-binary)	active	cli	live_host,url,subdomain	tech,service,tag,finding	-	2-subdomain	False	False				
+xnLinkFinder	inventory_stub(no-binary)	passive	cli	domain,live_host	url,repo,finding	-	1-domain	False	False				
+Yandex Search	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+YARAify	disabled	validation	api	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	1-domain	False	False				
+YouTube Data Viewer	non_executable	passive	web	username,org,handle	username,url,finding	-	0-org	False	False				
+YouTube Metadata	disabled	passive	api	username,org,handle	username,url,finding	-	0-org	False	False				
+Zoom Earth	non_executable	passive	web	org,bssid,coords,ip	finding,tag	-	3-ip/cidr	False	False				
+ZoomEye	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				
+ZoomEye API	disabled	passive	api	domain,ip,email,asn	service,subdomain,tag,finding	-	1-domain	False	False				
+ZoomEye Cyberspace Search	disabled	passive	api	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	1-domain	False	False				

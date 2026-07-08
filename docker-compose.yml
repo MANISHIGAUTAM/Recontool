@@ -14,14 +14,74 @@ services:
     build: .
     image: recontool:latest
     volumes:
+      # Live source (editable install) — code edits apply with NO rebuild.
+      # Remove this mount to run the image's baked-in code instead.
+      - ./recontool:/app/recontool
       - ./config:/app/config
       - ./output:/app/output
+      # artifacts on a host bind-mount are easy to inspect but the macOS
+      # VirtioFS fsync penalty drags high-volume scans. For max throughput
+      # swap to a named volume (fast; export with `docker cp` / the bundle):
+      #   - recon_artifacts:/app/artifacts
       - ./artifacts:/app/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      # Point at postgres if you bring it up (else SQLite is used).
-      # RECON_DB_URL: postgresql+psycopg://recon:recon@postgres:5432/recontool
+      # Postgres = parallel DB writes (no single-thread-SQLite bottleneck) -> the
+      # high-throughput path. `docker run` without compose still uses SQLite
+      # (this env only applies under compose). Override back to SQLite by
+      # unsetting RECON_DB_URL if you want the zero-dependency path here too.
+      RECON_DB_URL: postgresql+psycopg://recon:recon@postgres:5432/recontool
       RECON_REDIS_URL: ""
     profiles: ["app"]   # `docker compose --profile app run recontool ...`
+
+  # ── Horizontal worker fleet (the AWS-distribution unit) ──────────────────────
+  # The atomic-claim queue lets N identical containers drain ONE scan in parallel,
+  # each claiming work safely from the shared Postgres. This `worker` service IS
+  # the unit you replicate across AWS (Fargate/ECS tasks or EC2) — point every
+  # task at one RDS instance via RECON_DB_URL. Local usage:
+  #   1) seed a scan (writes the queue + its scan id):
+  #        docker compose --profile app run --rm recontool engine xyz.com --authorize-active
+  #   2) fan out N workers to drain it:
+  #        SCAN_ID=<id> docker compose --profile fleet up --scale worker=8 worker
+  worker:
+    build: .
+    image: recontool:latest
+    # SCAN_ID is required at RUNTIME (when you start this service), but must use a
+    # safe default here so it doesn't break `docker compose build`/other commands —
+    # Compose interpolates the whole file regardless of which service you target.
+    command: ["worker", "${SCAN_ID:-}", "--workers", "8"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      RECON_DB_URL: postgresql+psycopg://recon:recon@postgres:5432/recontool
+    volumes:
+      - ./config:/app/config
+      - ./artifacts:/app/artifacts
+    profiles: ["fleet"]
+
+  # ── Read API + live SSE + scan control (auth-gated) ──────────────────────────
+  # docker compose --profile api up api   (set RECON_API_TOKEN first)
+  api:
+    build: .
+    image: recontool:latest
+    command: ["serve", "--host", "0.0.0.0"]
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      RECON_DB_URL: postgresql+psycopg://recon:recon@postgres:5432/recontool
+      # Empty default keeps `docker compose` parsing; the server default-denies
+      # (503 on data routes) until you set RECON_API_TOKEN.
+      RECON_API_TOKEN: "${RECON_API_TOKEN:-}"
+      RECON_API_HOST: 0.0.0.0
+    volumes:
+      - ./artifacts:/app/artifacts
+    profiles: ["api"]
 
   postgres:
     image: postgres:16-alpine
@@ -33,8 +93,14 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U recon"]
+      # Explicitly target the recontool DB. Without -d, pg_isready connects to a
+      # database named after the user ("recon"), which spams the server log with
+      # 'FATAL: database "recon" does not exist' on every interval until that DB
+      # exists. init-db.sh creates "recon" too, but -d makes the check robust
+      # even on a pre-existing volume where init scripts no longer run.
+      test: ["CMD-SHELL", "pg_isready -U recon -d recontool"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -47,3 +113,4 @@ services:
 
 volumes:
   pgdata:
+  recon_artifacts:   # optional fast artifact store (see recontool service)

@@ -14,6 +14,7 @@ and OPSEC controls actually enforceable.
 from __future__ import annotations
 
 import asyncio
+import logging
 import random
 from dataclasses import dataclass
 from typing import Any
@@ -23,6 +24,8 @@ import httpx
 from recontool.config import RateProfile, settings
 from recontool.net.proxy_pool import ProxyPool
 from recontool.net.rate_limiter import RateLimiter
+
+logger = logging.getLogger("recontool.net.http")
 
 _USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
@@ -67,6 +70,11 @@ class HttpClient:
     async def get(self, url: str, *, bucket: str = "_global", **kw) -> Response:
         return await self.request("GET", url, bucket=bucket, **kw)
 
+    async def post(self, url: str, *, bucket: str = "_global", **kw) -> Response:
+        # `json=`/`data=` are forwarded through request() to httpx (form vs JSON
+        # body). Used by GenericApiAdapter for POST-body APIs (abuse.ch, …).
+        return await self.request("POST", url, bucket=bucket, **kw)
+
     async def request(
         self,
         method: str,
@@ -102,6 +110,8 @@ class HttpClient:
                         f"retryable status {resp.status_code}", request=resp.request, response=resp
                     )
                 self.proxies.report(proxy, ok=True)
+                logger.debug("%s %s -> %s (egress=%s, bucket=%s)",
+                             method, url, resp.status_code, self.last_egress, bucket)
                 return _wrap(resp)
             except Exception as exc:  # noqa: BLE001 — retry on any transport/HTTP error
                 last_exc = exc

@@ -33,7 +33,7 @@ def canonical_value(asset_type: str, value: str) -> str:
     if asset_type == "asn":
         n = v.upper().replace("AS", "").strip()
         return f"AS{n}"
-    if asset_type == "url":
+    if asset_type in ("url", "live_host"):
         return _canonical_url(v)
     if asset_type == "email":
         return v.lower()

@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Event-driven orchestrator with dependency tracking, parallel execution, concurrency controls, incremental scan state, and installation/dependency detection. This is the core scheduling engine that replaces the linear phase-based pipeline with an event-driven approach while preserving the existing pipeline as a compatibility layer.",
+  "status": "completed",
+  "steps": [
+    "Create recontool/engine/scheduler.py - The job scheduler that consumes events and controls execution. Key class: EventDrivenScheduler with methods: submit_scan(scan_id, seed, config), on_entity_discovered(event), on_tool_completed(event), on_tool_failed(event), select_eligible_tools(available_keys), schedule_tool(tool_name, inputs), check_convergence(). Uses the EventBus to subscribe to EntityDiscovered events and trigger downstream tool scheduling. Implements the loop: discover entities -> create pending keys -> resolve pending keys -> schedule tools -> repeat until convergence or depth limit.",
+    "Create recontool/engine/executor.py - Parallel execution engine with concurrency controls. Key class: ParallelExecutor with: per_tool_concurrency (dict[str,int]), per_host_concurrency (dict[str,int]), global_semaphore (asyncio.Semaphore), rate_limiter integration, job_queue (asyncio.Queue). Methods: execute_batch(jobs), execute_one(job), get_concurrency_slot(job), release_slot(job). Implements: per-tool limit, per-asset limit, per-host limit, global limit, backoff/rate-limit, job chunking. Policy: parallelize discovery fan-out, do not parallelize tools sharing mutable output.",
+    "Create recontool/engine/dependency.py - Installation and dependency detection. Key class: DependencyChecker with methods: check_tool_ready(tool_spec) -> ReadinessResult, check_binary_available(name) -> bool, check_version_compatible(binary, required_version) -> bool, check_env_vars(required_vars) -> list[str], check_file_permissions(paths) -> list[str], check_api_key_available(key_env) -> bool. ReadinessResult dataclass: ready (bool), blocked_reason (str|None), missing_deps (list[str]).",
+    "Create recontool/engine/fingerprint.py - Input/output fingerprinting for incremental scans. Key functions: fingerprint_inputs(tool_name, inputs) -> str, fingerprint_output(tool_name, output) -> str, fingerprint_config(tool_spec) -> str, has_changed(old_fp, new_fp) -> bool. Used to determine whether a tool needs to re-run: new data, deps changed, tool version changed, config changed, or stale threshold exceeded.",
+    "Create recontool/engine/incremental.py - Incremental scan logic. Key class: IncrementalEngine with methods: should_rerun(tool_name, scan_id, current_inputs) -> bool, record_run(tool_run), get_last_run(tool_name, scan_id) -> ToolRun|None, get_stale_tools(scan_id, max_age_seconds) -> list[str]. Tracks: first_seen, last_seen, last_scanned, scan_fingerprint, tool_version, input_fingerprint, output_fingerprint. Rules: rerun if new data, deps changed, version changed, config changed, stale threshold exceeded. Support delta-only reprocessing.",
+    "Create recontool/engine/orchestrator.py - The main EventDrivenOrchestrator class that ties everything together. Wraps: EventBus, ToolRegistry, PendingKeyStore, DependencyChecker, ParallelExecutor, IncrementalEngine, FrontierManager (existing). Public API: run_scan(seed, config) -> ScanResult. Integrates with existing Normalizer for DB writes. Emits all lifecycle events. Supports resume from checkpoint (uses existing Checkpoint class from frontier.py). Provides a compatibility bridge so existing ReconPipeline can delegate to the new orchestrator.",
+    "Create recontool/engine/output.py - Output normalization helpers. Key class: OutputNormalizer with methods: normalize_tool_output(tool_name, stdout, stderr, exit_code, files, artifacts) -> NormalizedOutput. NormalizedOutput dataclass: stdout, stderr, exit_code, raw_files, parsed_json, generated_artifacts, discovered_entities (list[Event]), confidence_score, evidence_links, metadata, warnings, partial_failures. Maps tool output -> Event objects compatible with existing normalize/engine.py.",
+    "Add unit tests in tests/atomic/test_engine_core.py covering: EventBus dispatch, ToolRegistry loading, PendingKeyStore CRUD, DependencyChecker logic, fingerprint generation, IncrementalEngine decisions, scheduler eligibility logic, executor concurrency bounds."
+  ],
+  "acceptance_criteria": [
+    "EventDrivenScheduler correctly identifies eligible tools based on available pending keys",
+    "ParallelExecutor respects per-tool, per-host, and global concurrency limits",
+    "DependencyChecker correctly identifies missing binaries, env vars, and API keys",
+    "IncrementalEngine correctly determines when tools need to re-run",
+    "OutputNormalizer produces Event objects compatible with existing Normalizer",
+    "The orchestrator emits lifecycle events (ScanRequested through ScanCompleted)",
+    "Existing tests continue to pass (no regressions)",
+    "New unit tests in test_engine_core.py pass"
+  ],
+  "verification": [
+    "pytest -q (all tests pass including new test_engine_core.py)",
+    "python -c 'from recontool.engine.orchestrator import EventDrivenOrchestrator; print(\"OK\")'",
+    "ruff check recontool/engine/"
+  ],
+  "blocked_reason": null,
+  "findings": "All 143 tests pass (81 existing + 62 new in test_engine_core.py). Ruff checks pass on all engine modules. EventDrivenOrchestrator import verified. The orchestrator is fully additive - existing ReconPipeline tests still pass. Pre-existing lint issues in adapters/active.py, inventory/, and test_circuit/test_frontier.py were not modified."
+}

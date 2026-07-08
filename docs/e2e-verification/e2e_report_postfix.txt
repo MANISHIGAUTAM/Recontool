@@ -1,0 +1,132 @@
+====================================================================================================
+RECONTOOL E2E VERIFICATION  —  scan 34e4b064a32f406c
+generated: 2026-06-14T21:53:54.803027+00:00
+seed: groww.in (domain)  status: done  active: True
+====================================================================================================
+
+WORK ITEMS: {'completed': 3039}   (non-terminal pending/running: 0)
+ASSETS: 143 ({'analytics_id': 2, 'favicon': 3, 'ip': 53, 'subdomain': 73, 'url': 12})   ENDPOINTS: 238192   FINDINGS: 18
+RECURSION: max_depth=1  depth_dist={0: 160, 1: 2879}  new_keys_enqueued=2879
+
+----------------------------------------------------------------------------------------------------
+PER-TOOL LAYER TABLE
+  status: PROD=produced data · EMPTY=ran, 0 entities · SKIP=skipped(reason) · FAIL=error · -=not scheduled
+  layers: L2raw  L3typed(lines)  L4ai  L5db(assets/findings)  L6dedup(workitems/distinct)
+----------------------------------------------------------------------------------------------------
+TOOL                   KIND STATUS     PROD  L2raw  L3typed                L4ai L5db        L6dedup
+----------------------------------------------------------------------------------------------------
+Arjun                  rec  EMPTY         0      1  -                        -  0a/0f      58/58
+Binwalk                rec  EMPTY         0      2  -                        -  0a/0f      58/58
+DNSRecon               rec  EMPTY         0     57  -                        -  0a/0f      58/58
+ExifTool               rec  EMPTY         0      2  -                        -  0a/0f      58/58
+Trufflehog3            rec  EMPTY         0      1  -                        -  0a/0f      58/58
+alienvault_otx         rec  EMPTY         0      0  -                        -  0a/0f      58/58
+amass                  rec  EMPTY         0      1  -                        -  0a/0f      58/58
+anubis-jldc            rec  EMPTY         0      0  -                        -  0a/0f      58/58
+asnmap                 rec  EMPTY         0      1  -                        -  0a/0f      58/58
+assetfinder            rec  PROD          5      1  subdomain:5              Y  5a/0f      58/58
+cariddi                rec  EMPTY         0      0  -                        -  0a/0f      1/1
+censys                 rec  SKIP          0      0  -                        -  0a/0f      58/58
+criminalip             rec  SKIP          0      0  -                        -  0a/0f      58/58
+crtsh                  rec  EMPTY         0      0  -                        -  0a/0f      58/58
+dns_resolve            rec  PROD         79      0  ip:26,subdomain:26       Y  18a/0f     58/58
+dnsenum                rec  EMPTY         0      0  -                        -  0a/0f      58/58
+dnsx                   rec  PROD        130     57  ip:130                   Y  50a/0f     58/58
+ffuf                   rec  EMPTY         0      0  -                        -  0a/0f      1/1
+fierce                 rec  EMPTY         0      0  -                        -  0a/0f      58/58
+fullhunt               rec  SKIP          0      0  -                        -  0a/0f      58/58
+gau                    rec  EMPTY         0      1  -                        -  0a/0f      58/58
+gauplus                rec  EMPTY         0      1  -                        -  0a/0f      58/58
+gf-debug_logic         rec  EMPTY         0      1  -                        -  0a/0f      1/1
+gf-idor                rec  EMPTY         0      1  -                        -  0a/0f      1/1
+gf-interestingparams   rec  EMPTY         0      1  -                        -  0a/0f      1/1
+gf-lfi                 rec  EMPTY         0      1  -                        -  0a/0f      1/1
+gf-rce                 rec  EMPTY         0      1  -                        -  0a/0f      1/1
+gf-redirect            rec  EMPTY         0      1  -                        -  0a/0f      1/1
+gf-sqli                rec  EMPTY         0      1  -                        -  0a/0f      1/1
+gf-ssrf                rec  EMPTY         0      1  -                        -  0a/0f      1/1
+gf-ssti                rec  EMPTY         0      1  -                        -  0a/0f      1/1
+gf-xss                 rec  EMPTY         0      1  -                        -  0a/0f      1/1
+github_subdomains      rec  SKIP          0      0  -                        -  0a/0f      58/58
+gobuster               rec  EMPTY         0      1  -                        -  0a/0f      58/58
+gospider               rec  PROD         19      1  url:19                   Y  1a/0f      1/1
+gowitness              rec  EMPTY         0      0  -                        -  0a/0f      58/58
+hackertarget           rec  PROD        117      1  ip:39,subdomain:39       Y  61a/0f     58/58
+hakrawler              rec  PROD     240978      1  url:240978               Y  9a/0f      1/1
+httpx                  rec  PROD         97     57  ip:63,url:34             Y  56a/0f     58/58
+httpx_probe            rec  PROD         48      0  service:12,subdomain:1   Y  24a/0f     58/58
+js-render              rec  PROD        516     56  subdomain:13,url:503     Y  12a/0f     58/58
+js_analyze             rec  PROD       2009      0  finding:10,url:1999      Y  16a/0f     1/1
+katana                 rec  PROD          1      1  url:1                    Y  1a/0f      1/1
+leakix                 rec  SKIP          0      0  -                        -  0a/0f      58/58
+massdns                rec  PROD         66     57  ip:66                    Y  25a/0f     58/58
+naabu                  rec  PROD         44      0  service:44               Y  15a/0f     58/58
+netlas                 rec  SKIP          0      0  -                        -  0a/0f      58/58
+nikto                  VAL  EMPTY         0     12  -                        -  0a/0f      12/12
+nmap                   rec  PROD         21      0  service:21               Y  6a/0f      58/58
+nuclei                 VAL  EMPTY         0      0  -                        -  0a/0f      12/12
+org_fingerprint        rec  PROD         18      0  analytics_id:4,favicon   Y  5a/0f      58/58
+param_miner            rec  EMPTY         0      0  -                        -  0a/0f      1/1
+paramspider            rec  EMPTY         0      1  -                        -  0a/0f      58/58
+puredns                rec  EMPTY         0     57  -                        -  0a/0f      58/58
+pycrawl                rec  PROD     145183      0  finding:63,subdomain:3   Y  23a/0f     58/58
+pydirb                 rec  PROD         72      0  url:72                   Y  8a/0f      58/58
+shodan                 rec  SKIP          0      0  -                        -  0a/0f      58/58
+shuffledns             rec  PROD         22      1  subdomain:22             Y  22a/0f     58/58
+sslyze                 VAL  EMPTY         0      0  -                        -  0a/0f      28/28
+strings                rec  EMPTY         0      2  -                        -  0a/0f      58/58
+subdomaincenter        rec  EMPTY         0      0  -                        -  0a/0f      58/58
+subfinder              rec  EMPTY         0      1  -                        -  0a/0f      58/58
+subjack                VAL  EMPTY         0     16  -                        -  0a/0f      28/28
+sublist3r              rec  EMPTY         0      1  -                        -  0a/0f      58/58
+tlsx                   rec  PROD         84     57  subdomain:84             Y  13a/0f     58/58
+uncover                rec  EMPTY         0      1  -                        -  0a/0f      58/58
+unfurl-domains         rec  PROD          1      1  subdomain:1              Y  1a/0f      1/1
+unfurl-keys            rec  EMPTY         0      1  -                        -  0a/0f      1/1
+urlscan                rec  PROD        392      1  ip:98,subdomain:98,url   Y  11a/0f     58/58
+wafw00f                VAL  EMPTY         0     12  -                        -  0a/0f      12/12
+wayback                rec  PROD       3000      1  url:3000                 Y  2a/0f      58/58
+wayback_cdx            rec  PROD     227012      1  url:227012               Y  39a/0f     58/58
+waybackurls            rec  EMPTY         0      1  -                        -  0a/0f      58/58
+waymore                rec  EMPTY         0      0  -                        -  0a/0f      58/58
+whatweb                VAL  PROD         14      0  finding:14               Y  0a/14f     28/28
+
+----------------------------------------------------------------------------------------------------
+SKIP REASONS (why a scheduled tool did not run — from log)
+----------------------------------------------------------------------------------------------------
+  censys                 -> unavailable (prerequisite missing
+  criminalip             -> unavailable (prerequisite missing
+  fullhunt               -> unavailable (prerequisite missing
+  github_subdomains      -> missing API key: GITHUB_TOKEN
+  leakix                 -> unavailable (prerequisite missing
+  netlas                 -> unavailable (prerequisite missing
+  shodan                 -> unavailable (prerequisite missing
+
+----------------------------------------------------------------------------------------------------
+AI KEY-EXTRACTION + DB-DEDUP VERIFICATION
+----------------------------------------------------------------------------------------------------
+  assets total=143  distinct dedupe_key=143  DUPLICATE (scan,dedupe_key) rows = 0  ->  PASS (no dup assets)
+  multi-source assets (re-discovery strengthened confidence, NOT duplicated): 84
+  tools whose output the AI layer classified: 24
+
+----------------------------------------------------------------------------------------------------
+RECURSION LOOP VERIFICATION
+----------------------------------------------------------------------------------------------------
+  recursion reached depth 1 (>0): PASS
+  new keys enqueued during loop: 2879 (PASS)
+  all work items terminal (0 pending/running): PASS
+  (key,tool) never enqueued twice [workitems==distinct dedupe_key]: PASS
+
+====================================================================================================
+FINAL VERDICT
+====================================================================================================
+  tools: 24 produced · 44 ran-empty · 7 skipped(reason) · 0 failed
+  completion: 3039 completed, 0 failed, 0 non-terminal
+  [PASS] no duplicate assets
+  [PASS] recursion looped
+  [PASS] queue fully drained
+  [PASS] no double-run jobs
+  [PASS] no tool crashed
+
+  OVERALL: PASS ✅
+====================================================================================================

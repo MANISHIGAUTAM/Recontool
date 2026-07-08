@@ -1,0 +1,40 @@
+# Batch-12 F6 — subdomain-source CLI family (opt-in; all default_on:false).
+#
+# Every invocation is VERIFIED from the tool's official README (cited inline), not guessed
+# from memory. Output is the universal subdomain-enumerator shape: one host per line (text),
+# scope-filtered — non-host lines (ASCII banners) are dropped by the emit gate (_valid_emit
+# + scope_filter), so no junk enters the graph. Binary names from the repo tool docs; the
+# Docker invocation-probe confirms the exact entrypoint per pinned version.
+tools:
+  # https://github.com/UnaPibaGeek/ctfr — `ctfr -d <domain>` → CT-log subdomains to stdout.
+  - name: ctfr
+    phase: p2_expansion
+    category: 2
+    integration: cli
+    is_active: false
+    default_on: false
+    consumes: [domain]
+    produces: [subdomain]
+    binary: ctfr
+    invocation: "ctfr -d {domain}"
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  # https://github.com/cgboal/sonarsearch — `crobat -s <domain> -u` → Rapid7 Sonar subdomains
+  # (-u dedupes). (crobat also has -r for reverse IP->host; that lives in horizontal-expansion.)
+  - name: crobat
+    phase: p2_expansion
+    category: 2
+    integration: cli
+    is_active: false
+    default_on: false
+    consumes: [domain]
+    produces: [subdomain]
+    binary: crobat
+    invocation: "crobat -s {domain} -u"
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}

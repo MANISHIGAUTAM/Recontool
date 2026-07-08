@@ -36,6 +36,12 @@ class ArtifactStore:
         p.parent.mkdir(parents=True, exist_ok=True)
         return p
 
+    def abspath(self, rel: str) -> str:
+        """Absolute filesystem path for a relative artifact key (from save_*),
+        so a downstream tool (jsluice/linkfinder) can open the harvested file
+        regardless of cwd."""
+        return str((settings.artifact_dir / rel).resolve())
+
     def save_raw(self, tool: str, data: Any) -> str:
         """Persist raw tool output as JSON; return the relative key."""
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
@@ -61,4 +67,27 @@ class ArtifactStore:
     def save_text(self, tool: str, name: str, text: str) -> str:
         p = self._path(tool, name)
         p.write_text(text)
+        return str(p.relative_to(settings.artifact_dir))
+
+    def append_jsonl(self, name: str, records: list[dict]) -> str:
+        """Append dict records to out/<name>.jsonl — append-only, so a later
+        primary key never overwrites an earlier one. Used for the per-tool,
+        per-primary-key execution ledger (out/<tool>.runs.jsonl), which records
+        EVERY run — including runs that found nothing — so every tool leaves a
+        per-key footprint in the archive even when it produces no entities."""
+        p = self._path("out", f"{name}.jsonl")
+        with open(p, "a") as fh:
+            for r in records:
+                fh.write(json.dumps(r, default=str) + "\n")
+        return str(p.relative_to(settings.artifact_dir))
+
+    def save_typed(self, tool: str, entity_type: str, values: list[str]) -> str:
+        """Append discovered entities to a typed, append-only output file:
+        out/<tool>.<entity_type>.jsonl — one JSON object per line. This is the
+        per-tool, per-output-type record (a multi-mode tool gets one file per
+        type, e.g. ffuf.subdomain.jsonl and ffuf.url.jsonl)."""
+        p = self._path("out", f"{tool}.{entity_type}.jsonl")
+        with open(p, "a") as fh:
+            for v in values:
+                fh.write(json.dumps({"value": v, "type": entity_type, "tool": tool}) + "\n")
         return str(p.relative_to(settings.artifact_dir))

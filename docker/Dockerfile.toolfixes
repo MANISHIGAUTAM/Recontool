@@ -1,0 +1,17 @@
+FROM recontool:latest
+# Put pipx-installed tools (sslyze/wafw00f/waymore/arjun/paramspider/trufflehog3 —
+# already in the base image) on PATH so they stop skipping as "missing binary".
+ENV PATH="/root/.local/bin:${PATH}"
+ENV GOBIN=/usr/local/bin GOTOOLCHAIN=auto
+# go-install the binaries whose installs failed / weren't attempted (arm64-safe).
+RUN go install github.com/zricethezav/gitleaks/v8@latest || true
+RUN go install github.com/owasp-amass/amass/v4/cmd/amass@latest || \
+    go install github.com/owasp-amass/amass/v4/...@master || true
+RUN go install github.com/assetnote/kiterunner/cmd/kr@latest || true
+# pip tools not in the base
+RUN pipx install theHarvester 2>/dev/null || pip3 install --break-system-packages theHarvester 2>/dev/null || true
+RUN pipx install graphw00f 2>/dev/null || true
+# kiterunner data dep (small routes set) — to /opt (not masked by the ./config mount)
+RUN mkdir -p /opt/kite && \
+    (curl -fsSL https://github.com/assetnote/wordlists/releases/download/data/routes-small.kite -o /opt/kite/routes-small.kite || true)
+RUN echo "overlay built $(date)"

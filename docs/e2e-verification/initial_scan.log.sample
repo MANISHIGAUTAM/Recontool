@@ -1,0 +1,82 @@
+### INITIAL scan 5587af8ae5224bec (--tools all --validate --max-depth 1) — first 40 + last 40 lines
+ Container recontool-postgres-1 Running 
+ Container recontool-postgres-1 Waiting 
+ Container recontool-postgres-1 Healthy 
+ Container recontool-recontool-run-de961c032c65 Creating 
+ Container recontool-recontool-run-de961c032c65 Created 
+╭─────────────────────────────────── engine ───────────────────────────────────╮
+│ Recontool engine  seed=groww.in  type=domain  profile=normal  tools=all      │
+│ workers=64  depth≤1                                                          │
+│ active=yes  AI=heuristic  noise=on                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+[18:46:35] INFO     ⊘ 173 tools pruned at routing (no binary/key) — not         
+                    enqueued: ASM tools, ASNLookup, AWSBucketDump, AltDNS,      
+                    Aquatone, Arachni, AttackSurfaceMapper, AzureHound, BBOT,   
+                    Bitbucket, Blackbird, BlindElephant …                       
+[18:46:36] INFO     ▶ start  gobuster  ← domain=groww.in                        
+           INFO     ▶ start  assetfinder  ← domain=groww.in                     
+           INFO     ▶ start  sublist3r  ← domain=groww.in                       
+           INFO     ▶ start  fierce  ← domain=groww.in                          
+           INFO     ▶ start  dnsenum  ← domain=groww.in                         
+           INFO     ▶ start  shuffledns  ← domain=groww.in                      
+           INFO     ▶ start  gauplus  ← domain=groww.in                         
+           INFO     ▶ start  uncover  ← domain=groww.in                         
+           INFO     ▶ start  shodan  ← domain=groww.in                          
+           INFO     ▶ start  censys  ← domain=groww.in                          
+           INFO     ▶ start  netlas  ← domain=groww.in                          
+           INFO     ▶ start  leakix  ← domain=groww.in                          
+           INFO     ▶ start  fullhunt  ← domain=groww.in                        
+           INFO     ▶ start  urlscan  ← domain=groww.in                         
+           INFO     ▶ start  criminalip  ← domain=groww.in                      
+           INFO     ▶ start  subfinder  ← domain=groww.in                       
+           INFO     ⊘ skip   netlas  (unavailable (prerequisite missing))       
+                    [domain]                                                    
+           INFO     ⊘ skip   shodan  (unavailable (prerequisite missing))       
+                    [domain]                                                    
+           INFO     ▶ start  crtsh  ← domain=groww.in                           
+           INFO     ▶ start  hackertarget  ← domain=groww.in                    
+           INFO     ▶ start  alienvault_otx  ← domain=groww.in                  
+           INFO     ⊘ skip   censys  (unavailable (prerequisite missing))       
+                    [domain]                                                    
+           INFO     ✓ done   gobuster  0 entities  261ms  [domain]              
+...[trimmed]...
+│ info     │ tech         │ Tech stack on   │ api.groww.in   │ whatweb         │
+│          │              │ api.groww.in:   │                │                 │
+│          │              │ Cookies,        │                │                 │
+│          │              │ Country,        │                │                 │
+│          │              │ HTTPServer,     │                │                 │
+│          │              │ HttpOnly, IP,   │                │                 │
+│          │              │ UncommonHeaders │                │                 │
+│          │              │ , Via-Proxy     │                │                 │
+└──────────┴──────────────┴─────────────────┴────────────────┴─────────────────┘
+╭────────────────────────────── AI scan summary ───────────────────────────────╮
+│ # Scan summary — groww.in (domain, active)                                   │
+│                                                                              │
+│ **Attack surface:** 178 assets (70 subdomain, 60 ip, 32 url, 8 analytics_id, │
+│ 7 favicon, 1 cidr); 84 confirmed live, 82 services. Recursion reached depth  │
+│ 1.                                                                           │
+│                                                                              │
+│ **Findings:** 50 (16 high, 34 info).                                         │
+│                                                                              │
+│ **Notable findings:**                                                        │
+│ - `high` Possible generic_api_key in crawled JS (assets-netstorage.groww.in) │
+│ - `high` Possible generic_api_key in crawled JS (assets-netstorage.groww.in) │
+│ - `high` Possible generic_api_key in crawled JS (digest.groww.in)            │
+│ - `high` Possible generic_api_key in crawled JS (assets-netstorage.groww.in) │
+│ - `high` Possible generic_api_key in crawled JS (credit.groww.in)            │
+│ - `high` Possible generic_api_key in crawled JS (credit.groww.in)            │
+│ - `high` Possible generic_api_key in crawled JS (w.groww.in)                 │
+│ - `high` Possible generic_api_key in crawled JS (w.groww.in)                 │
+│                                                                              │
+│ **Tool execution:**                                                          │
+│ - 25 tools produced data: pycrawl (454867), hakrawler (240892), waybackurls  │
+│ (227012), js_analyze (8801), js-render (3143), dns_resolve (406), urlscan    │
+│ (392), pydirb (235)                                                          │
+│ - 50 ran but found nothing                                                   │
+│ - 0 failed                                                                   │
+│ - work items: 3067 completed                                                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+Scan id: 5587af8ae5224bec (artifacts in /app/artifacts/5587af8ae5224bec)
+Final bundle: /app/artifacts/5587af8ae5224bec/scan_bundle.json
+RC=

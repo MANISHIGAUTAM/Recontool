@@ -87,7 +87,8 @@ def test_dead_letter_add_and_replay():
     dl.add({"tool": "github", "target": "y"}, reason="secondary_rate_limit", attempts=5)
     assert len(dl) == 2
     snap = dl.snapshot()
-    dl2 = DeadLetter(); dl2.restore(snap)
+    dl2 = DeadLetter()
+    dl2.restore(snap)
     jobs = dl2.replay()
     assert len(jobs) == 2 and len(dl2) == 0     # replay drains
     assert {j["tool"] for j in jobs} == {"censys", "github"}
@@ -104,7 +105,8 @@ def test_checkpoint_atomic_save_load(tmp_path):
     loaded = cp.load()
     assert loaded["scan_id"] == "s1"
     assert loaded["completed_stages"] == ["p1_seed"]
-    fm2 = FrontierManager(); fm2.restore(loaded["frontier"])
+    fm2 = FrontierManager()
+    fm2.restore(loaded["frontier"])
     assert fm2.seen_count() == 3
     cp.clear()
     assert not cp.exists()

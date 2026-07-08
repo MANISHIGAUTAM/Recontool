@@ -1,0 +1,79 @@
+# url-discovery-cli — declarative CLI contracts for the URL/endpoint discovery family.
+#
+# Each tool shells out via GenericCliAdapter (recontool/adapters/generic.py):
+#   subprocess_exec(*invocation.split(), stdout=PIPE)  -> no stdin is piped.
+# So every tool MUST accept its target as a positional/flag argument (NOT stdin-only),
+# and emit ONE plain URL per line on stdout (no ANSI / table / JSON-by-default / file-only).
+#
+# Discovered URLs are emitted as `endpoint` events (Event.endpoint). URL scope is
+# enforced downstream by Scope.contains("url", value) at normalize/engine.py — matching
+# the already-wired gau/gauplus/waybackurls/katana entries.
+#
+# ALREADY WIRED elsewhere (NOT duplicated here): gau, katana, gauplus
+# (config/tools_generic.yaml:191 + tools.yaml:156), waybackurls
+# (config/tools_generic.yaml:206 + tools.yaml:742). This family adds only the
+# net-new urlfinder + galer.
+#
+# Grounding: every entry cites its OFFICIAL README (invocation/flags) AND the tool's
+# SOURCE (exact stdout shape). default_on: false on every entry (opt-in). integration: cli.
+tools:
+  # ── urlfinder — passive URL discovery from curated sources (projectdiscovery)─
+  # README:  https://raw.githubusercontent.com/projectdiscovery/urlfinder/main/README.md
+  #          `urlfinder -d tesla.com -silent`; -d takes the domain (single or list),
+  #          -silent => "only URLs in output" — one per line as plain text. -j/-jsonl opt-in.
+  # SOURCE:  pkg/source/result.go => Result.Value (string) holds the discovered URL;
+  #          internal/runner/outputter.go writes Result.Value + "\n" in plain mode (no ANSI).
+  #          https://raw.githubusercontent.com/projectdiscovery/urlfinder/main/pkg/source/result.go
+  #          https://raw.githubusercontent.com/projectdiscovery/urlfinder/main/internal/runner/outputter.go
+  # Strictly passive (Wayback/archive sources, no active scan) => is_active: false.
+  - name: urlfinder
+    phase: p3_enrichment
+    category: 4
+    integration: cli
+    default_on: false
+    is_active: false
+    consumes: [domain]
+    produces: [url]
+    binary: urlfinder
+    invocation: "urlfinder -d {domain} -silent"
+    max_inputs: 20
+    parse:
+      format: text
+      emit:
+        - {entity: endpoint, url: "{_value}", scope_filter: url}
+
+  # ── galer — active headless (CDP) crawler, URLs from HTML attrs + JS (dwisiswant0)
+  # README:  https://raw.githubusercontent.com/dwisiswant0/galer/master/README.md
+  #          `galer -u "http://domain.tld"`; -u = target URL (or file), -d depth, -c concurrency.
+  #          Output: plain URLs, one per line by default.
+  # SOURCE:  https://raw.githubusercontent.com/dwisiswant0/galer/master/internal/runner/runner.go
+  #          fmt.Fprintf(writer, "%s\n", u) where writer defaults to os.Stdout => one plain
+  #          URL per line, no ANSI color.
+  # Actively drives a headless Chrome against the live target => is_active: true. consumes url.
+  - name: galer
+    phase: p5_deep
+    category: 22
+    integration: cli
+    default_on: false
+    is_active: true
+    consumes: [url]
+    produces: [url]
+    binary: galer
+    invocation: "galer -u {value}"
+    max_inputs: 50
+    parse:
+      format: text
+      emit:
+        - {entity: endpoint, url: "{_value}", scope_filter: url}
+
+# ── DEFERRED (not wired) ──────────────────────────────────────────────────────
+# defer: hakrawler (hakluke/hakrawler) — input is stdin-ONLY (bufio.NewScanner(os.Stdin),
+#   no positional URL arg). GenericCliAdapter never pipes to subprocess stdin, so a
+#   contract would receive no target. Stdout shape is clean; the input plumbing is
+#   incompatible until the adapter supports stdin.
+#   https://raw.githubusercontent.com/hakluke/hakrawler/master/hakrawler.go
+#
+# defer: paramspider (devanshbatham/ParamSpider) — FILE-only output by default
+#   (results/{domain}.txt); stdout printing is gated behind -s/--stream. The generic
+#   adapter captures stdout only, so without -s nothing is parsed.
+#   https://raw.githubusercontent.com/devanshbatham/ParamSpider/master/paramspider/main.py

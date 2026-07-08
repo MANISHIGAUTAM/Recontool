@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "AI decisioning integration, structured logging/observability, and adapter contract demonstration. This adds the AI decision interface, structured logging with correlation IDs, metrics collection, and demonstrates the full adapter contract by refactoring one existing adapter as a reference implementation.",
+  "status": "completed",
+  "steps": [
+    "Create recontool/engine/ai_decision.py - AI decisioning layer. Key class: AIDecisionService with methods: classify_results(normalized_output) -> DecisionResult, should_persist(entity) -> bool, is_noise(entity) -> bool, should_trigger_downstream(entity) -> bool, are_pending_keys_fulfilled(keys) -> list[str], should_rescan(tool_name, context) -> bool, needs_manual_review(entity) -> bool. DecisionResult dataclass: persist (list[Event]), discard (list[Event]), trigger_downstream (list[str]), rescan_tools (list[str]), manual_review (list[Event]), reasoning (str). Interface is mockable and testable - default implementation uses heuristics (no AI call), with optional AI-augmented path via existing Supervisor pattern.",
+    "Create recontool/engine/logging.py - Structured logging and observability. Key class: EngineLogger with methods: log_tool_start(tool_run_id, scan_id, tool_name, inputs), log_tool_complete(tool_run_id, results), log_tool_fail(tool_run_id, error), log_entity_discovered(scan_id, entity), log_pending_key_change(scan_id, key, action), log_concurrency_decision(tool_name, decision, reason), log_ai_decision(scan_id, summary). Uses Python structlog-compatible format (dict-based structured logs). Adds correlation_id to all log entries. Captures: scan_id, tool_run_id, asset_id, parent_entity_id, command, input_fingerprint, output_fingerprint, duration, exit_code, artifact_paths, entity_count, pending_key_changes, retry_count, failure_reason, dependency_miss, concurrency_decision, ai_decision_summary.",
+    "Create recontool/engine/metrics.py - Metrics collection. Key class: MetricsCollector with counters/gauges: tool_runs_total (by tool, status), tool_duration_seconds (histogram by tool), entities_discovered_total (by type), pending_keys_created_total, pending_keys_resolved_total, scan_depth_current, duplicate_suppression_total, queue_depth_current, retry_total (by tool), blocked_tools_current. Methods: record_tool_run(tool, status, duration), record_entity(type), record_pending_key(action), snapshot() -> dict. In-memory implementation (no external deps) with JSON export capability.",
+    "Refactor recontool/adapters/passive.py (the crtsh adapter specifically) to demonstrate the full adapter contract - implement install_check, prepare, validate_inputs, build_command, parse_stdout, emit_normalized_events, map_outputs_to_entities, resolve_pending_keys, can_run_in_parallel, dependencies, timeout_seconds, retry_policy. Keep the existing run() method working as-is so existing pipeline is not broken. The new methods serve as documentation/reference for future adapter implementations.",
+    "Add unit tests in tests/atomic/test_ai_decision.py: test heuristic classification, test noise filtering, test downstream trigger logic, test mockability of AI interface.",
+    "Add unit tests in tests/atomic/test_logging_metrics.py: test structured log output format, test correlation ID propagation, test metrics counters increment correctly, test metrics snapshot."
+  ],
+  "acceptance_criteria": [
+    "AIDecisionService correctly classifies entities using heuristic defaults",
+    "AIDecisionService interface is fully mockable for testing",
+    "EngineLogger produces structured log entries with all required fields",
+    "MetricsCollector correctly tracks all specified counters",
+    "The crtsh adapter demonstrates all contract methods without breaking existing run()",
+    "All new and existing tests pass",
+    "ruff check passes on all new code"
+  ],
+  "verification": [
+    "pytest -q (all tests pass)",
+    "ruff check recontool/engine/ recontool/adapters/",
+    "python -c 'from recontool.engine.ai_decision import AIDecisionService; print(\"OK\")'",
+    "python -c 'from recontool.engine.metrics import MetricsCollector; m=MetricsCollector(); print(m.snapshot())'"
+  ],
+  "blocked_reason": null,
+  "findings": "All 202 tests pass (81 original + 62 FEAT-002 + 59 FEAT-003). ruff check passes on all new code. The crtsh adapter now demonstrates the full contract while keeping run() unchanged. The unused import of 'typing.Any' was needed in passive.py for the new contract methods."
+}

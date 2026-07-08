@@ -43,6 +43,23 @@ meta:
     onion:      "onion:{addr}"
     wordlist:   "wl:{name}:{sha256}"
     regex_pack: "rx:{name}:{sha256}"
+    # ── completed vocabulary: types the category contracts already use but were
+    #    missing a canonical dedupe form (so routing/lint can treat them as first-class).
+    org:          "org:{lower_name}"
+    host_port:    "hostport:{host}:{port}"
+    keyword:      "kw:{lower}"
+    cpe:          "cpe:{cpe23}"
+    cve:          "cve:{id}"
+    hash:         "hash:{algo}:{value}"
+    coords:       "coords:{lat},{lon}"
+    bssid:        "bssid:{mac}"
+    handle:       "handle:{platform}:{name}"
+    analytics_id: "analytics:{id}"
+    # ── Batch-12 foundation: new first-class types for the elite-methodology flows.
+    dns_record:   "dns:{host}:{rtype}:{value}"   # MX/TXT/NS/CAA/SPF/DMARC (CNAME stays an edge)
+    vhost:        "vhost:{ip}:{host}"            # virtual host on a shared IP
+    credential:   "cred:{kind}:{sha256}"         # a VERIFIED-live secret (vs raw `secret`)
+    vulnerability: "vuln:{asset}:{id}"           # CONFIRMED (exploitation layer) vs detected `finding`
   retry_profiles:
     api_standard: {max_attempts: 3, backoff: exp_jitter,      retry_on: [429, 500, 502, 503, 504, timeout]}
     api_strict:   {max_attempts: 5, backoff: exp_jitter_long, retry_on: [403_secondary, 429, 5xx, timeout]}
@@ -172,14 +189,18 @@ categories:
      operator_notes: "grayhatwarfare passive; cloud_enum/s3scanner active vs cloud provider endpoints (not target app). No credentialed audit unless authorized."}
 
   - {id: 11, name: "Metadata & Document Recon", stage: enrich, active: false, priority: 36,
-     purpose: "Harvest public documents and extract metadata (users, paths, software).",
-     input_types: [domain, url], output_types: [document, email, finding, tag],
-     dedupe: [document, email], chain_to: [7, 20],
-     tool_families: [metagoofil, exiftool, tika, oletools, pdfinfo, strings],
+     purpose: "Extract metadata (users, paths, software, GPS) from harvested document/file artifacts.",
+     input_types: [document], output_types: [email, finding, tag],
+     dedupe: [email, finding], chain_to: [7, 20],
+     tool_families: [exiftool, tika, oletools, pdfinfo, strings, binwalk, foremost],
      recursion_triggers: [new_username_from_meta, new_internal_path], retry: api_standard, quota: free_polite,
      failure_modes: [download_fail, parse_error, empty],
-     storage: {entities: "document+intel(user/path/software)", raw: "documents/<sha256>"},
-     operator_notes: "Harvested paths seed content discovery (cat 20); usernames pivot to cat 7."}
+     storage: {entities: "intel(user/path/software)", raw: "documents/<sha256>"},
+     operator_notes: "ARTIFACT-GATED: these file analyzers consume a `document` artifact, NOT a
+       domain/url, so they fire ONLY on real downloaded files, never on every host (fixes the
+       'binwalk-everywhere' overscanning). A document PRODUCER (metagoofil domain->document harvest,
+       or a fetch-by-extension step like the exiftool hand-adapter) must run first; until one emits
+       `document` this category is correctly dormant. Harvested paths seed cat 20; usernames pivot to cat 7."}
 
   - {id: 12, name: "Malware / IOC / Threat Intel", stage: enrich, active: false, priority: 38,
      purpose: "Enrich IPs/domains/services with IOC/threat intel and map CVEs (correlation, no exploit).",

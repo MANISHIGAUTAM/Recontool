@@ -53,6 +53,10 @@ def load_builtin() -> None:
     from recontool.adapters import crawler   # noqa: F401  (pure-python web crawler)
     from recontool.adapters import content_discovery  # noqa: F401  (dir brute-force)
     from recontool.adapters import params    # noqa: F401  (param/form extraction)
+    from recontool.adapters import org_forest  # noqa: F401  (org-forest fingerprints)
+    from recontool.adapters import screenshot  # noqa: F401  (aquatone/eyewitness screenshots)
+    from recontool.adapters import file_metadata  # noqa: F401  (exiftool doc/image metadata)
+    from recontool.adapters import dns_permute  # noqa: F401  (dnsgen permute + resolve-gate)
     from recontool.adapters.autoload import register_generic
 
     register_generic()

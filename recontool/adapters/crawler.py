@@ -82,7 +82,7 @@ class PyCrawler(Adapter):
     category = "CAT-22"
     is_active = True
     consumes = ("subdomain", "domain", "url")
-    produces = ("url", "subdomain", "finding")
+    produces = ("url", "subdomain", "finding", "js_file")
 
     def available(self, ctx: AdapterContext) -> bool:
         return True  # pure python - always available
@@ -137,6 +137,11 @@ class PyCrawler(Adapter):
             fname = urlsplit(url).path.rsplit("/", 1)[-1] or "index.js"
             ref = ctx.artifacts.save_js(host, fname, resp.content)
             events.append(Event.endpoint(self.name, url, source="pycrawl", js_artifact=ref))
+            # Emit the harvested JS as a recursable js_file asset (absolute path)
+            # so the external JS analysers (jsluice/linkfinder/secretfinder, which
+            # consume js_file) actually run on it — inline _mine_js only covers our
+            # own regexes; without this, harvested JS was never fed to those tools.
+            events.append(Event.asset(self.name, "js_file", ctx.artifacts.abspath(ref)))
             events.extend(self._mine_js(host, resp.text, ref, seed_dom=seed_dom))
 
         while frontier and len(visited) < budget:

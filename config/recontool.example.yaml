@@ -24,11 +24,24 @@ general:
   redis_url: ""
 
 network:
-  # IP ROTATION: list proxy URLs to rotate egress and dodge rate-limit bans.
+  # EGRESS: optional proxy URL(s). Intended use is a SINGLE declared/known egress
+  # (e.g. a corporate egress IP you allow-list with the target), NOT a rotating
+  # pool to evade rate limits or bot detection — the platform is authorized-only.
   #   http://user:pass@host:port   |   socks5://host:port
   proxies: []
-  # round_robin | random | sticky
+  # round_robin | random | sticky  (only meaningful if you list >1 egress)
   proxy_strategy: round_robin
+
+  # PER-PROVIDER QPS (compliance, not evasion): cap requests/second per source so
+  # many workers sharing one key stay UNDER each provider's published limit.
+  # Keys are provider buckets; these override the built-in conservative defaults.
+  rate_limits:
+    hackertarget: 0.2     # free API allows only a few requests/min
+    crtsh: 1.0
+    otx: 2.0
+    wayback: 1.0
+    # shodan: 1.0
+    # censys: 1.0
 
 ai:
   # Leave base_url/api_key empty to use zero-token heuristic decisions.
@@ -38,6 +51,14 @@ ai:
   model_light: gpt-4o-mini   # cheap/fast: triage, planning, classification
   model_heavy: gpt-4o        # deep reasoning: final report only
   max_calls: 40              # hard per-scan budget (0 = unlimited)
+
+# ── API / UI server (recontool serve: read API + SSE + scan control) ─────────
+api:
+  # Bearer token REQUIRED to expose any data/control route (default-deny -> 503).
+  # Generate one with:  openssl rand -hex 16    (or set RECON_API_TOKEN in env)
+  token: ""
+  host: 127.0.0.1            # bind localhost; expose only behind a TLS proxy
+  port: 8088
 
 # ── API keys for recon providers (all optional) ──────────────────────────────
 # Category numbers refer to docs/pipeline/03-category-pipelines.md
@@ -73,15 +94,21 @@ api_keys:
   # Cat 10 — Cloud
   grayhatwarfare: ""
 
+  # Cat 3 — Org-forest pivots (sibling-site discovery via shared fingerprints)
+  publicwww: ""        # analytics-id / source-code search -> sibling sites
+  # (favicon-hash pivot reuses the `shodan` key above)
+
   # Cat 7 — Identity (PII — legally gated; enable deliberately)
   hunter: ""
   hibp: ""
   dehashed_user: ""
   dehashed_key: ""
+  breachdirectory: ""   # RapidAPI key; breachdirectory adapter emits REDACTED findings
 
-  # Cat 12 — Vuln intel
+  # Cat 12 — Vuln intel / IOC reputation
   nvd: ""
   vulners: ""
+  abuseipdb: ""         # IP abuse/reputation score (abuseipdb adapter)
 
 # ── Per-category toggles ──────────────────────────────────────────────────────
 # Enable/disable whole categories. Active categories also require --authorize-active.

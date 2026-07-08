@@ -69,7 +69,7 @@ class Scope:
 
     def contains(self, asset_type: str, value: str) -> bool:
         """Is this asset in scope? Deny always wins."""
-        if asset_type in ("domain", "subdomain", "url"):
+        if asset_type in ("domain", "subdomain", "url", "live_host"):
             host = _host_of(value)
             return self._domain_allowed(host)
         if asset_type == "ip":

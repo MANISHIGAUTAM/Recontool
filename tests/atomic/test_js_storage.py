@@ -38,11 +38,12 @@ def test_js_saved_to_local_storage_and_analyzed(tmp_path, monkeypatch):
     assert "AKIAIOSFODNN7EXAMPLE" in saved.read_text()
     assert ref.startswith(f"{scan_id}/js/")  # correct layout
 
-    # 2. js_analyze reads it back from local storage and extracts intel
+    # 2. js_analyze reads the harvested js_file back (M5: keyed on the js_file asset
+    #    pycrawl emits — an absolute path — not a blind scan of the whole js dir).
     ctx = AdapterContext(
         scan_id=scan_id, scope=Scope.from_seed("example.com", "domain"),
         profile=PROFILES["normal"], http=None, artifacts=store,
-        inputs={}, api_keys={},
+        inputs={"js_file": [str(saved)]}, api_keys={},
     )
     events = asyncio.run(JsAnalyze().run(ctx))
 

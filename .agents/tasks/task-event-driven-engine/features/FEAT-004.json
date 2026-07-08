@@ -1,0 +1,35 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Integration tests, E2E test with realistic scan flow, test fixtures, and comprehensive documentation for the event-driven engine architecture.",
+  "status": "completed",
+  "steps": [
+    "Create tests/integration/__init__.py and tests/integration/test_orchestrator_flow.py - Integration tests covering: adapter with mocked execution producing events, orchestrator with in-memory SQLite DB processing a full discovery->enrichment flow, event flow from EntityDiscovered to PendingKeyCreated to PendingKeyResolved to downstream ToolSelected, parallel scheduling logic (verify concurrency limits respected), retry and timeout handling (mock a failing tool, verify retry with backoff).",
+    "Create tests/integration/test_pending_keys.py - Integration tests for pending key lifecycle: create pending key when tool discovers new subdomain, resolve pending key when live_host confirmed, trigger downstream tool (e.g. nuclei) only when live_host key resolved, prevent duplicate tool runs via fingerprint check, verify blocked tools remain blocked when dependencies missing.",
+    "Create tests/e2e/__init__.py and tests/e2e/test_full_scan.py - E2E test that runs a realistic scan flow: seed domain -> passive discovery (mocked crtsh returning subdomains) -> entities persisted in DB -> pending keys created for live_host -> DNS resolve (mocked) confirms some hosts live -> pending keys resolved -> downstream tools triggered -> verify final DB state has correct assets, no duplicates, correct confidence scores, audit trail present. Uses respx to mock HTTP calls and a temporary SQLite DB.",
+    "Create tests/fixtures/ directory with sample data files: tests/fixtures/crtsh_response.json (sample CT log response), tests/fixtures/subfinder_stdout.txt (sample CLI output), tests/fixtures/nuclei_jsonl.txt (sample JSONL findings), tests/fixtures/httpx_probe.json (sample probe results), tests/fixtures/malformed_output.txt (garbage/partial), tests/fixtures/empty_response.json. These serve as regression fixtures for parser testing.",
+    "Create docs/engine/ directory with architecture documentation: docs/engine/00-architecture-overview.md (high-level diagram of event-driven engine, components, data flow), docs/engine/01-event-flow.md (all events, when they fire, who handles them), docs/engine/02-tool-registry.md (schema reference, how to add tools), docs/engine/03-adapter-contract.md (all methods, when to implement each, reference implementation), docs/engine/04-pending-keys.md (lifecycle, rules, examples), docs/engine/05-parallel-execution.md (concurrency model, safety rules, configuration), docs/engine/06-incremental-scans.md (fingerprinting, staleness, delta reprocessing), docs/engine/07-ai-decisioning.md (interface, heuristics, mocking), docs/engine/08-observability.md (logging format, metrics, correlation IDs), docs/engine/09-adding-new-adapter.md (step-by-step guide with examples), docs/engine/10-troubleshooting.md (common issues, debugging, FAQ).",
+    "Update the main README.md to add a section about the event-driven engine architecture, linking to docs/engine/ and explaining the relationship to the existing phased pipeline."
+  ],
+  "acceptance_criteria": [
+    "Integration tests verify event flow from discovery through persistence",
+    "Integration tests verify pending key creation and resolution",
+    "Integration tests verify parallel scheduling respects concurrency limits",
+    "E2E test runs a complete scan flow and verifies DB state",
+    "E2E test confirms no duplicate entities are created",
+    "E2E test confirms blocked tools remain blocked",
+    "Test fixtures exist for all major output formats",
+    "Documentation covers all 10 specified topics",
+    "README updated with engine architecture section",
+    "All tests pass: pytest -q"
+  ],
+  "verification": [
+    "pytest tests/integration/ -q",
+    "pytest tests/e2e/ -q",
+    "pytest -q (full suite, no regressions)",
+    "ls docs/engine/ (verify all 11 files exist)",
+    "ruff check recontool/ tests/"
+  ],
+  "blocked_reason": null,
+  "findings": "All 222 tests pass (20 new tests added). Ruff clean on new files. Pre-existing lint issues in recontool/adapters/active.py, inventory/, and tests/atomic/ are unchanged."
+}

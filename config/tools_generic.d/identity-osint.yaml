@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# identity-osint — email/username identity-OSINT CLI family (Cat 7 / Cat 8).
+#
+# OVERLAY family. Every entry is default_on:false (stays off; opt-in only) and
+# is_active:false (queries THIRD-PARTY platforms, not the in-scope target).
+#
+# Every invocation + stdout shape below is VERIFIED from the tool's official
+# README AND its actual print()/console source (cited inline) — never guessed.
+# The generic parser strips each line, applies `line_regex` named groups, and
+# the emit gate (_valid_emit/_scope_ok) drops anything that doesn't match. Tools
+# whose stdout is ANSI/Rich-colored, table-shaped, file-only, or auth-gated are
+# DEFERRED below with `# defer:` rather than wired to an unparseable contract.
+# ─────────────────────────────────────────────────────────────────────────────
+tools:
+
+  # holehe — email -> which sites that email is registered on.
+  # README:  https://github.com/megadose/holehe  (`holehe test@gmail.com`)
+  # SOURCE:  https://raw.githubusercontent.com/megadose/holehe/master/holehe/core.py
+  #   The per-site print loop emits, for an EXISTING account:
+  #       print(print_color("[+] " + results["domain"] + toprint, "green", args))
+  #   and "[-]"/"[x]"/"[!]" for not-found / rate-limited / error. `--no-color`
+  #   (argparse: --no-color -> args.nocolor; print_color returns plain text) makes
+  #   every line literal ASCII, e.g.  `[+] twitter.com`  — so the regex below
+  #   captures ONLY the registered-site lines and ignores the rest + summary line.
+  # consume: email (narrowest) · produce: finding (kind=account).
+  - name: holehe
+    phase: p3_enrichment
+    category: 7
+    integration: cli
+    is_active: false
+    default_on: false
+    consumes: [email]
+    produces: [finding]
+    binary: holehe
+    invocation: "holehe {value} --no-color"
+    parse:
+      format: text
+      line_regex: '^\[\+\]\s+(?P<site>[^\s/]+)'
+      emit:
+        - {entity: finding, kind: account, title: "{site}", severity: info,
+           detector: holehe, asset_value: "{site}"}
+
+  # ── DEFERRED (grounded decision, not omission) ──────────────────────────────
+  #
+  # blackbird — username hunt across sites.
+  #   README:  https://github.com/p1ngul1n0/blackbird  (`python blackbird.py -u <user>`)
+  #   SOURCE:  https://raw.githubusercontent.com/p1ngul1n0/blackbird/main/src/modules/core/username.py
+  #     A found account is printed via Rich:
+  #       config.console.print(rf"  ✔️  \[[cyan1]{site['name']}[/cyan1]] [bright_white]{response['url']}[/bright_white]")
+  #     i.e. emoji + Rich/ANSI markup. argparse (blackbird.py) exposes no --no-color
+  #     / --plain flag and does not honor NO_COLOR; --json writes a FILE, not stdout.
+  # defer: ANSI/Rich-colored stdout, no plain-text mode — unparseable line shape.
+  #
+  # crosslinked — company/org -> employee usernames from LinkedIn.
+  #   README:  https://github.com/m8sec/CrossLinked  (`crosslinked -f '{f}{last}' company`)
+  #   SOURCE:  https://raw.githubusercontent.com/m8sec/CrossLinked/master/crosslinked/search.py
+  #            https://raw.githubusercontent.com/m8sec/CrossLinked/master/crosslinked/logger.py
+  #     Formatted names are written ONLY to names.txt / names.csv. The sole stdout
+  #     is a per-result counter line  `Log.info("{:<3} {} ({})")`  (count/url/http),
+  #     not the usernames, and every Log.* line carries embedded ANSI color codes.
+  # defer: usernames go to files, not stdout; stdout is counts + ANSI-colored.
+  #
+  # ghunt — Google account intel by email.
+  #   README:  https://github.com/mxrch/GHunt  (`ghunt email <email>`)
+  #     Requires `ghunt login` + authenticated cookies (GHunt Companion extension)
+  #     before any module runs.
+  # defer: needs auth cookies/login — not invocable in an unauthenticated pipeline.

@@ -30,6 +30,141 @@ meta:
 # CATEGORY 1 — Internet-Wide Search Engines & Asset Discovery   [PASSIVE]
 # ===========================================================================
 tools:
+  nikto:
+    category: 11
+    phase: p6_vuln
+    type: active
+    integration: cli
+    binary: nikto
+    invocation: "nikto -h {url} -nointeractive -maxtime 90s -ask no"
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
+    output: finding
+    output_format: text
+    parse: {format: text, line_regex: '^\+ (?P<msg>.+)$', emit: [{entity: finding, title: "nikto: {msg}", kind: web_exposure, severity: info, asset_value: "{msg}"}]}
+    default_on: false
+  gobuster:
+    category: 2
+    phase: p4_verify
+    type: active
+    integration: cli
+    binary: gobuster
+    invocation: "gobuster dns --domain {domain} -w {dns_wordlist} -q -t 20 --no-color"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, line_regex: 'Found:\s*(?P<_value>[a-z0-9][a-z0-9_.-]*\.[a-z]{2,})', emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
+  # ── batch-wired CLI tools (installed via install_tools.sh) ──────────────────
+  assetfinder:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: cli
+    binary: assetfinder
+    invocation: "assetfinder --subs-only {domain}"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
+  sublist3r:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: cli
+    binary: sublist3r
+    invocation: "sublist3r -d {domain} -n"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
+  fierce:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: cli
+    binary: fierce
+    invocation: "fierce --domain {domain}"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, line_regex: '(?P<_value>[a-z0-9][a-z0-9_.-]*\.[a-z]{2,})', emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
+  dnsenum:
+    category: 2
+    phase: p2_expansion
+    type: passive
+    integration: cli
+    binary: dnsenum
+    invocation: "dnsenum --noreverse -o /dev/null {domain}"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, line_regex: '(?P<_value>[a-z0-9][a-z0-9_.-]*\.[a-z]{2,})', emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
+  shuffledns:
+    category: 2
+    phase: p4_verify
+    type: passive
+    integration: cli
+    binary: shuffledns
+    invocation: "shuffledns -d {domain} -w {dns_wordlist} -r {resolvers} -silent -mode bruteforce"
+    input: domain
+    output: subdomain
+    output_format: text
+    parse: {format: text, emit: [{entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}]}
+    default_on: false
+  hakrawler:
+    category: 22
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: hakrawler
+    invocation: "hakrawler -subs"
+    stdin: true
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
+    output: url
+    output_format: text
+    parse: {format: text, line_regex: '^(?P<_value>https?://\S+)', emit: [{entity: endpoint, url: "{_value}"}]}
+    default_on: false
+  gospider:
+    category: 22
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: gospider
+    invocation: "gospider -s {url} -q -d 1 -t 5 -m 30"
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
+    output: url
+    output_format: text
+    parse: {format: text, line_regex: '(?P<_value>https?://\S+)', emit: [{entity: endpoint, url: "{_value}"}]}
+    default_on: false
+  cariddi:
+    category: 22
+    phase: p5_deep
+    type: active
+    integration: cli
+    binary: cariddi
+    invocation: "cariddi -plain"
+    stdin: true
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
+    output: url
+    output_format: text
+    parse: {format: text, line_regex: '^(?P<_value>https?://\S+)', emit: [{entity: endpoint, url: "{_value}"}]}
+    default_on: false
+  gauplus:
+    category: 4
+    phase: p3_enrichment
+    type: passive
+    integration: cli
+    binary: gauplus
+    invocation: "gauplus -t 5 {domain}"
+    input: domain
+    output: url
+    output_format: text
+    parse: {format: text, line_regex: '^(?P<_value>https?://\S+)', emit: [{entity: endpoint, url: "{_value}"}]}
+    default_on: false
 
   uncover:
     category: 1
@@ -213,6 +348,10 @@ tools:
     input: domain
     output: subdomain
     output_format: json
+    parse:
+      format: json
+      emit:
+        - {entity: asset, value_each: dns_names, type: subdomain, scope_filter: subdomain}
     requires_key: CERTSPOTTER_API_KEY
     default_on: true
     chains_to: [2]
@@ -292,10 +431,17 @@ tools:
     integration: cli
     binary: github-subdomains
     install: {method: go, ref: "github.com/gwen001/github-subdomains@latest"}
-    invocation: "github-subdomains -d {domain} -t {key} -o {outfile}"
+    # {key} now resolves to the GITHUB_TOKEN (_aux_tokens); the CLI adapter's
+    # available() skips this tool cleanly when the token is absent. -o dropped:
+    # github-subdomains prints discovered subdomains to stdout.
+    invocation: "github-subdomains -d {domain} -t {key}"
     input: domain
     output: subdomain
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
     requires_key: GITHUB_TOKEN
     default_on: false
     chains_to: [2, 9]
@@ -307,10 +453,17 @@ tools:
     integration: cli
     binary: amass
     install: {method: go, ref: "github.com/owasp-amass/amass/v4/...@master"}
-    invocation: "amass enum -passive -d {domain} -json {outfile}"
+    # -json {outfile} rendered to "" -> amass wrote JSON to a file named "" and
+    # the adapter (which parses stdout) saw nothing. Drop it: amass prints the
+    # discovered FQDNs to stdout as plain text, one per line. {domain} fills fine.
+    invocation: "amass enum -passive -d {domain}"
     input: domain
     output: subdomain
-    output_format: jsonl
+    output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
     requires_key: false
     default_on: false
     chains_to: [2, 3]
@@ -330,19 +483,35 @@ tools:
     requires_key: false
     default_on: false
     chains_to: [2]
+    # DEFERRED (recursion amplification): alterx emits permutation CANDIDATES, not
+    # confirmed hosts. Emitting them as `subdomain` assets would re-feed the full
+    # ~30-tool subdomain chain on thousands of non-existent hosts. Correct fix is a
+    # new `subdomain_candidate` output type that ONLY feeds resolvers (puredns/dnsx)
+    # for verification before promotion. Marked non_executable until that exists.
+    non_executable: true
+    non_executable_reason: "permutation candidates need a subdomain_candidate type -> resolver gate (else recursion amplifies); see review doc"
     notes: "Modern permutation engine; output MUST go through puredns/dnsx."
 
   dnsx:
     category: 2
     phase: p4_verify
-    type: active
+    type: passive
     integration: cli
     binary: dnsx
     install: {method: go, ref: "github.com/projectdiscovery/dnsx/cmd/dnsx@latest"}
-    invocation: "dnsx -l {infile} -json -a -aaaa -cname -resp"
+    # No -l/{infile}: GenericCliAdapter only substitutes {value}/{domain}/{ip}/{host},
+    # so {infile} rendered to "" and -l consumed -json as a bogus filename, giving
+    # 0 results every run. dnsx reads hosts from stdin when -l is omitted.
+    invocation: "dnsx -json -a -aaaa -cname -resp -silent"
+    stdin: true
     input: subdomain
     output: ip
     output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - {entity: asset, value_each: a, type: ip, scope_filter: ip}
+        - {entity: asset, value_each: aaaa, type: ip, scope_filter: ip}
     requires_key: false
     default_on: true
     chains_to: [21, 24]
@@ -351,14 +520,22 @@ tools:
   puredns:
     category: 2
     phase: p4_verify
-    type: active
+    type: passive
     integration: cli
     binary: puredns
     install: {method: go, ref: "github.com/d3mondev/puredns/v2@latest"}
-    invocation: "puredns resolve {infile} -r {resolvers} --write {outfile}"
+    # {resolvers} now resolves to config/resolvers.txt (_aux_tokens); reads the
+    # candidate list from /dev/stdin (one piped per item) and prints resolved,
+    # wildcard-filtered names to stdout (--write dropped). -q = results only.
+    invocation: "puredns resolve /dev/stdin -r {resolvers} -q"
+    stdin: true
     input: subdomain
     output: subdomain     # resolving + wildcard-filtered
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
     requires_key: false
     default_on: false
     chains_to: [4, 5]
@@ -367,14 +544,22 @@ tools:
   massdns:
     category: 2
     phase: p4_verify
-    type: active
+    type: passive
     integration: cli
     binary: massdns
     install: {method: git, ref: "https://github.com/blechschmidt/massdns"}
-    invocation: "massdns -r {resolvers} -t A -o S -w {outfile} {infile}"
+    # {resolvers} resolves now; read names from /dev/stdin, write -o S (simple:
+    # "name. A 1.2.3.4") to /dev/stdout. line_regex pulls the resolved A record.
+    invocation: "massdns -r {resolvers} -t A -o S -w /dev/stdout /dev/stdin"
+    stdin: true
     input: subdomain
     output: ip
     output_format: text
+    parse:
+      format: text
+      line_regex: '^\S+\s+A\s+(?P<_value>\d+\.\d+\.\d+\.\d+)'
+      emit:
+        - {entity: asset, value: "{_value}", type: ip, scope_filter: ip}
     requires_key: false
     default_on: false
     notes: "Internet-scale resolver; used under puredns/shuffledns."
@@ -382,7 +567,7 @@ tools:
   dnsvalidator:
     category: 2
     phase: p4_verify
-    type: active
+    type: passive
     integration: cli
     binary: dnsvalidator
     install: {method: pip, ref: "dnsvalidator"}
@@ -392,6 +577,11 @@ tools:
     output_format: text
     requires_key: false
     default_on: false
+    # Resource GENERATOR, not a scan tool: builds config/resolvers.txt for
+    # puredns/massdns (input:none, output:resolver_list -- not an entity type).
+    # Already invoked by docker/install_tools.sh:install_resources at build time.
+    non_executable: true
+    non_executable_reason: "resource generator (builds resolvers.txt at install), not a scan-time entity producer"
     notes: "Produces clean resolver list for puredns/massdns (reduces false positives)."
 
   tlsx:
@@ -401,10 +591,20 @@ tools:
     integration: cli
     binary: tlsx
     install: {method: go, ref: "github.com/projectdiscovery/tlsx/cmd/tlsx@latest"}
-    invocation: "tlsx -l {infile} -json -san -cn -so"
-    input: host_port
+    # -l {infile} rendered to "" -> 0 results. tlsx reads host[:port] from stdin;
+    # connects :443 by default, so it runs on plain `subdomain` keys (was
+    # host_port, which NOTHING produces -> tlsx was also unreachable). -json -san
+    # -cn emits the cert's SANs + CN, which become NEW in-scope subdomains.
+    invocation: "tlsx -json -san -cn -silent"
+    stdin: true
+    input: subdomain
     output: subdomain    # SANs/CN from live certs
     output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - {entity: asset, value_each: subject_an, type: subdomain, scope_filter: subdomain}
+        - {entity: asset, value: "{subject_cn}", type: subdomain, scope_filter: subdomain}
     requires_key: false
     default_on: false
     chains_to: [2, 24]
@@ -452,6 +652,14 @@ tools:
     input: asn
     output: cidr
     output_format: json
+    parse:
+      format: json
+      list_path: data.prefixes
+      emit:
+        # AS13335-style ASN lookups return a CDN's ENTIRE global prefix list
+        # (thousands of blocks) -- cidr_size drops supernets/IPv6 ranges too
+        # big to be a dedicated allocation; see generic.py:_scope_ok.
+        - {entity: asset, value: "{prefix}", type: cidr, scope_filter: cidr_size}
     requires_key: false
     default_on: true
 
@@ -475,10 +683,19 @@ tools:
     integration: cli
     binary: metabigor
     install: {method: go, ref: "github.com/j3ssie/metabigor@latest"}
-    invocation: "echo {org} | metabigor net --org -o {outfile}"
+    # The `echo {org} | ...` shell pipe never worked: the adapter uses
+    # subprocess_exec (no shell), so the pipe + {outfile} were never honored.
+    # metabigor reads the org from stdin natively and prints CIDRs to stdout.
+    # cidr_size guards against an over-broad shared-ASN result (see ripestat).
+    invocation: "metabigor net --org"
+    stdin: true
     input: org
     output: cidr
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: asset, value: "{_value}", type: cidr, scope_filter: cidr_size}
     requires_key: false
     default_on: false
     notes: "ASN/IP/org discovery with NO API key. Great free pivot."
@@ -490,7 +707,11 @@ tools:
     integration: cli
     binary: mapcidr
     install: {method: go, ref: "github.com/projectdiscovery/mapcidr/cmd/mapcidr@latest"}
-    invocation: "mapcidr -cidr {cidr} -o {outfile}"
+    # -cidr {cidr}/-o {outfile} both rendered to "" (unsupported template
+    # tokens) -> 0 results. mapcidr reads the CIDR from stdin and writes
+    # one IP per line to stdout when -o is omitted.
+    invocation: "mapcidr -silent"
+    stdin: true
     input: cidr
     output: ip
     output_format: text
@@ -509,14 +730,14 @@ tools:
     integration: cli
     binary: gau
     install: {method: go, ref: "github.com/lc/gau/v2/cmd/gau@latest"}
-    invocation: "gau {domain} --threads 5 --json"
+    invocation: "gau {domain} --threads 5 --providers wayback --timeout 45"
     input: domain
     output: url
-    output_format: jsonl
+    output_format: text
     requires_key: false
     default_on: true
     chains_to: [22, 25]
-    notes: "Aggregates wayback+commoncrawl+otx+urlscan in one call."
+    notes: "Wayback URL miner. Reduced to the wayback provider only (otx/urlscan are flaky and already covered by the dedicated alienvault_otx + urlscan adapters) and --timeout 45 so the large wayback response can download (--timeout 15 + 3 providers returned 0 on groww.in while waybackurls got 227k). Redundant with waybackurls; both run."
 
   waybackurls:
     category: 4
@@ -531,35 +752,64 @@ tools:
     output_format: text
     requires_key: false
     default_on: false
-    notes: "Subset of gau (wayback only)."
+    notes: "Reliable Wayback source — streams (227k urls on groww.in where gau returned 0). Emits endpoints (terminal), not recursable url assets."
 
+  # gf is really N tools, one per pattern (the ~/.gf/*.json DB). `variants`
+  # expands it into gf-ssrf, gf-xss, ... (engine/registry.py:_expand_variants),
+  # each reading the URL corpus from stdin and emitting a vuln-CANDIDATE finding
+  # for matching URLs (the detector = tool name carries which pattern matched).
   gf:
     category: 4
     phase: p5_deep
     type: passive
     integration: cli
     binary: gf
-    install: {method: go, ref: "github.com/tomnomnom/gf@latest"}
-    invocation: "cat {infile} | gf {pattern}"
+    invocation: "gf {pattern}"
+    stdin: true
     input: url
-    output: url
+    output: finding
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: finding, title: "URL matches gf pattern: {_value}", kind: vuln_candidate, severity: info, asset_value: "{_value}"}
+    variants:
+      field: pattern
+      items: [ssrf, xss, sqli, ssti, lfi, rce, redirect, idor, interestingparams, debug_logic]
     requires_key: false
     default_on: false
     chains_to: [25]
     notes: "Pattern-match URLs (ssrf/xss/redirect/idor) to triage attack surface."
 
+  # unfurl extracts URL components; each mode produces a DIFFERENT entity type,
+  # so the variants carry per-mode output + parse. -u = unique. domains can
+  # surface NEW in-scope subdomains from the URL corpus; keys yields param names.
   unfurl:
     category: 4
     phase: p5_deep
     type: passive
     integration: cli
     binary: unfurl
-    install: {method: go, ref: "github.com/tomnomnom/unfurl@latest"}
-    invocation: "cat {infile} | unfurl {mode}"
+    invocation: "unfurl -u {mode}"
+    stdin: true
     input: url
-    output: url
+    output: subdomain        # primary mode; each variant overrides per-mode
     output_format: text
+    variants:
+      field: mode
+      items:
+        - value: domains
+          output: subdomain
+          parse:
+            format: text
+            emit:
+              - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+        - value: keys
+          output: param
+          parse:
+            format: text
+            emit:
+              - {entity: asset, value: "{_value}", type: param}
     requires_key: false
     default_on: false
 
@@ -589,14 +839,34 @@ tools:
     integration: cli
     binary: httpx
     install: {method: go, ref: "github.com/projectdiscovery/httpx/cmd/httpx@latest"}
-    invocation: "httpx -l {infile} -json -sc -title -tech-detect -tls-grab -cdn -ip -cname -hash sha256 -web-server"
+    # -l {infile} rendered to "" (unsupported token) -> httpx got no targets and
+    # produced 0. httpx reads hosts from stdin when -l is omitted; -json writes
+    # JSONL to stdout (which the adapter captures). One host piped per work item.
+    invocation: "httpx -json -sc -title -tech-detect -tls-grab -cdn -ip -cname -web-server -favicon -silent"
+    stdin: true
     input: subdomain
-    output: url
+    output: live_host    # M3: confirmed-live host gates the active/deep layer
     output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - {entity: endpoint, url: "{url}"}
+        # Recursable live_host ASSET for each httpx-confirmed LIVE host (M3 gate).
+        # httpx only emits JSON for hosts that responded, so every {url} here is
+        # live — this is the RELIABLE, COMPLETE live-host set that gates the
+        # active/deep layer (nuclei, whatweb, gowitness, katana all consume
+        # live_host). httpx runs via the generic CLI path, so this emit — not the
+        # httpx_probe adapter — is the real runtime producer of live_host. Bounded
+        # to live roots (not the wayback firehose) and deduped, so no explosion.
+        - {entity: asset, value: "{url}", type: live_host}
+        - {entity: asset, value_each: a, type: ip, scope_filter: ip}
+        # F3: httpx -favicon emits the mmh3 favicon hash -> `favicon` asset, unlocking the
+        # opt-in favicon pivot (favfreak / fav-up / favicon-shodan: hash -> more hosts).
+        - {entity: asset, value: "{favicon}", type: favicon}
     requires_key: false
     default_on: true
     chains_to: [13, 20, 22, 27]
-    notes: "The active hub. Sets is_live, tech[], cdn/waf tags, TLS, content hash."
+    notes: "The active hub. Sets is_live, tech[], cdn/waf tags, TLS, content hash. Emits live url assets -> feeds nuclei/url tools."
 
   whatweb:
     category: 5
@@ -606,7 +876,7 @@ tools:
     binary: whatweb
     install: {method: apt, ref: "whatweb"}
     invocation: "whatweb --log-json={outfile} {url}"
-    input: url
+    input: live_host    # M3: fingerprint only httpx-validated hosts
     output: tech
     output_format: json
     requires_key: false
@@ -619,10 +889,21 @@ tools:
     integration: cli
     binary: wafw00f
     install: {method: pip, ref: "wafw00f"}
-    invocation: "wafw00f {url} -o {outfile} -f json"
-    input: url
-    output: tag
+    # -o /dev/stdout -f json writes the JSON report ([{url,detected,firewall}])
+    # to stdout; wafw00f's progress goes to stderr (DEVNULL'd by the adapter).
+    invocation: "wafw00f {url} -o /dev/stdout -f json"
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
+    output: finding
     output_format: json
+    parse:
+      format: json
+      emit:
+        - entity: finding
+          when: {detected: "True"}
+          title: "WAF detected ({firewall}) on {url}"
+          kind: waf
+          severity: info
+          asset_value: "{url}"
     requires_key: false
     default_on: false
     notes: "Detect WAF -> informs rate strategy."
@@ -630,7 +911,7 @@ tools:
   cdncheck:
     category: 5
     phase: p4_verify
-    type: active
+    type: passive
     integration: cli
     binary: cdncheck
     install: {method: go, ref: "github.com/projectdiscovery/cdncheck/cmd/cdncheck@latest"}
@@ -640,6 +921,13 @@ tools:
     output_format: text
     requires_key: false
     default_on: false
+    # cdncheck's job is to TAG CDN IPs so the engine skips port-scanning CDN edge
+    # ranges -- that's a noise-filter concern (engine/noise.py), not an entity the
+    # graph recurses on (output:tag is not a canonical type). Wiring it as a
+    # finding-producer would emit one low-value finding per CDN IP (pure noise).
+    # Marked non_executable until integrated into the noise filter directly.
+    non_executable: true
+    non_executable_reason: "CDN tagging feeds the noise filter (engine/noise.py), not the entity graph"
     notes: "Flag CDN hosts so we don't port-scan CDN edge ranges."
 
   # ===========================================================================
@@ -653,10 +941,17 @@ tools:
     integration: cli
     binary: waymore
     install: {method: pip, ref: "waymore"}
-    invocation: "waymore -i {domain} -mode U -oU {outfile}"
+    # -oU /dev/stdout streams the URLs; line_regex keeps only URL lines (waymore's
+    # progress/banner also reaches stdout). Broader source set than gau/wayback.
+    invocation: "waymore -i {domain} -mode U -oU /dev/stdout -p 4"
     input: domain
     output: url
     output_format: text
+    parse:
+      format: text
+      line_regex: '^(?P<_value>https?://\S+)$'
+      emit:
+        - {entity: endpoint, url: "{_value}"}
     requires_key: false
     default_on: false
     chains_to: [22, 25]
@@ -667,10 +962,23 @@ tools:
     phase: p3_enrichment
     type: passive
     integration: api
-    invocation: "GET http://web.archive.org/cdx/search/cdx?url=*.{domain}/*&output=json&fl=original&collapse=urlkey"
+    # output=json wraps every row (incl. a ["original"] header) in its own
+    # array, which the JSON parser can't cleanly map to a single url field.
+    # Drop output=json: the CDX API then returns one plain URL per line.
+    invocation: "GET http://web.archive.org/cdx/search/cdx?url=*.{domain}/*&fl=original&collapse=urlkey"
     input: domain
     output: url
-    output_format: json
+    output_format: text
+    parse:
+      format: text
+      emit:
+        # ENDPOINT (terminal), not a recursable url ASSET. wayback returns the
+        # target's FULL historical URL set (100k+); emitting those as recursable
+        # url assets made each re-trigger the whole tool chain — 175k urls ×
+        # ~69 tools ≈ 12M work items (recursion explosion). As endpoints they're
+        # fully stored/deduped but don't recurse; only httpx_probe's confirmed
+        # LIVE roots recurse (bounded). Matches gau/waybackurls/hakrawler/gospider.
+        - {entity: endpoint, url: "{_value}"}
     requires_key: false
     default_on: true
     chains_to: [22]
@@ -709,18 +1017,56 @@ tools:
     requires_key: false
     default_on: false
 
+  # github code-search is one tool per dork: `variants` expands it into
+  # github_search-api_key, github_search-filename:.env, ... each searching the
+  # org's code for a secret pattern and emitting the matching file's repo (which
+  # gitleaks/trufflehog then deep-scan). Code search REQUIRES auth -> no
+  # key_optional, so available() skips it without a GITHUB_TOKEN.
   github_search:
     category: 9
     phase: p3_enrichment
     type: passive
     integration: api
     invocation: "GET https://api.github.com/search/code?q={dork}+org:{org}"
+    headers:
+      Authorization: "Bearer {key}"
     input: org
     output: repo
     output_format: json
+    parse:
+      format: json
+      list_path: items
+      emit:
+        - {entity: asset, value: "{repository.html_url}", type: repo}
+    variants:
+      field: dork
+      items: [api_key, secret_key, aws_access_key_id, "filename:.env", "filename:.npmrc", "filename:id_rsa"]
     requires_key: GITHUB_TOKEN
     default_on: false
     notes: "30 req/min code search + strict secondary limits -> queue + token rotation."
+
+  # Producer for the `repo` entity type: lists an org's public repos so gitleaks/
+  # trufflehog have something to scan. key_optional -> works keyless (60 req/hr)
+  # and uses the token (Authorization header) when present.
+  github_org_repos:
+    category: 9
+    phase: p2_expansion
+    type: passive
+    integration: api
+    invocation: "GET https://api.github.com/orgs/{org}/repos?per_page=100&type=public"
+    headers:
+      Authorization: "Bearer {key}"
+    input: org
+    output: repo
+    output_format: json
+    parse:
+      format: json
+      emit:
+        - {entity: asset, value: "{clone_url}", type: repo}
+    requires_key: GITHUB_TOKEN
+    key_optional: true
+    default_on: false
+    notes: "List a GitHub org's public repos -> repo assets for secret scanners."
 
   # ===========================================================================
   # CATEGORY 10 — Cloud & Storage Recon   [PASSIVE -> ACTIVE]
@@ -745,10 +1091,18 @@ tools:
     integration: cli
     binary: cloud_enum
     install: {method: git, ref: "https://github.com/initstring/cloud_enum"}
-    invocation: "cloud_enum -k {keyword} -l {outfile}"
+    # -l {outfile} is just a logfile; cloud_enum prints hits to stdout as
+    # "[+] OPEN ... BUCKET: https://...". line_regex lifts the URL of each
+    # publicly-readable bucket into an exposed-storage finding.
+    invocation: "cloud_enum -k {keyword} -t 20"
     input: keyword
-    output: bucket
+    output: finding
     output_format: text
+    parse:
+      format: text
+      line_regex: 'OPEN.*?:\s*(?P<_value>https?://\S+)'
+      emit:
+        - {entity: finding, title: "Public cloud bucket: {_value}", kind: exposed_bucket, severity: medium, asset_value: "{_value}"}
     requires_key: false
     default_on: false
 
@@ -759,10 +1113,21 @@ tools:
     integration: cli
     binary: s3scanner
     install: {method: go, ref: "github.com/sa7mon/s3scanner@latest"}
-    invocation: "s3scanner -bucket-file {infile} -json"
+    # -bucket-file {infile} -> ""; use single-bucket mode on the consumed value.
+    # -json emits one JSONL object per bucket; flag the ones that exist/are open.
+    invocation: "s3scanner -bucket {bucket} -json"
     input: bucket
     output: finding
     output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - entity: finding
+          when: {exists: "3"}        # s3scanner: 3 = exists
+          title: "Open/again-readable S3 bucket: {bucket}"
+          kind: exposed_bucket
+          severity: medium
+          asset_value: "{bucket}"
     requires_key: false
     default_on: false
 
@@ -792,6 +1157,15 @@ tools:
     input: cve
     output: finding
     output_format: json
+    parse:
+      format: json
+      list_path: data
+      emit:
+        - entity: finding
+          title: "EPSS {cve}: score {epss} (percentile {percentile})"
+          kind: epss_score
+          severity: info
+          cve_id: "{cve}"
     requires_key: false
     default_on: true
     notes: "Exploit probability -> drives priority_rank."
@@ -820,7 +1194,7 @@ tools:
     binary: gowitness
     install: {method: go, ref: "github.com/sensepost/gowitness@latest"}
     invocation: "gowitness scan file -f {infile} --write-db --screenshot-path {outdir}"
-    input: url
+    input: live_host    # M3: screenshot only httpx-validated hosts
     output: screenshot
     output_format: screenshot
     requires_key: false
@@ -838,10 +1212,17 @@ tools:
     integration: cli
     binary: ffuf
     install: {method: go, ref: "github.com/ffuf/ffuf/v2@latest"}
-    invocation: "ffuf -u {url}/FUZZ -w {wordlist} -of json -o {outfile} -mc 200,204,301,302,307,401,403"
-    input: url
+    # {wordlist} resolves to a SecLists path now; -s silences progress so -o
+    # /dev/stdout carries ONLY the result JSON ({"results":[{url,status},...]}).
+    invocation: "ffuf -u {url}/FUZZ -w {wordlist} -mc 200,204,301,302,307,401,403 -of json -o /dev/stdout -s"
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
     output: url
     output_format: json
+    parse:
+      format: json
+      list_path: results
+      emit:
+        - {entity: endpoint, url: "{url}"}
     requires_key: false
     default_on: false
     chains_to: [25, 27]
@@ -854,10 +1235,16 @@ tools:
     integration: cli
     binary: feroxbuster
     install: {method: binary, ref: "https://github.com/epi052/feroxbuster"}
-    invocation: "feroxbuster -u {url} -w {wordlist} --json -o {outfile}"
-    input: url
+    # {wordlist} resolves now; --json writes JSONL events to stdout when -o is
+    # omitted. Each line has a "type"; only type=response rows are real hits.
+    invocation: "feroxbuster -u {url} -w {wordlist} --json --silent"
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
     output: url
     output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - {entity: endpoint, url: "{url}", when: {type: response}}
     requires_key: false
     default_on: false
 
@@ -904,10 +1291,18 @@ tools:
     integration: cli
     binary: masscan
     install: {method: apt, ref: "masscan"}
-    invocation: "masscan {cidr} -p{ports} --rate {rate} -oJ {outfile}"
+    # {ports}/{rate} resolve from the active profile now; drop -oJ {outfile} and
+    # parse masscan's default stdout ("Discovered open port 443/tcp on 1.2.3.4").
+    # Oversized CIDRs are already dropped upstream by _expandable_cidr.
+    invocation: "masscan {cidr} -p{ports} --rate {rate}"
     input: cidr
     output: host_port
-    output_format: json
+    output_format: text
+    parse:
+      format: text
+      line_regex: 'Discovered open port (?P<port>\d+)/\w+ on (?P<host>\d+\.\d+\.\d+\.\d+)'
+      emit:
+        - {entity: service, host: "{host}", port: "{port}"}
     requires_key: false
     default_on: false
     notes: "For huge ranges. Respect rate profile (very noisy)."
@@ -923,25 +1318,48 @@ tools:
     integration: cli
     binary: katana
     install: {method: go, ref: "github.com/projectdiscovery/katana/cmd/katana@latest"}
-    invocation: "katana -list {infile} -jc -js-crawl -json -d 3"
-    input: url
+    # -list {infile} rendered to "" -> katana crawled nothing. katana reads URLs
+    # from stdin when -list is omitted; -silent prints one discovered URL per line
+    # (more robust to parse than its nested -json shape). One URL piped per item.
+    # -ct bounds the crawl so katana TERMINATES and flushes results within the
+    # adapter timeout — without it a deep (-d 3) JS crawl on a big site runs past
+    # the 150s kill and the adapter (which reads stdout only after exit) gets 0.
+    invocation: "katana -jc -js-crawl -d 3 -ct 90 -silent"
+    stdin: true
+    timeout: 150
+    input: live_host    # M3: crawl only httpx-validated hosts; emits discovered URLs
     output: url
-    output_format: jsonl
+    output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: endpoint, url: "{_value}"}
     requires_key: false
     default_on: false
     chains_to: [22, 25]
     notes: "JS-aware crawler; discovers js_file + endpoints. New hosts loop to httpx."
 
+  # NOTE linkfinder/secretfinder were integration:python with `python script.py`
+  # and no handwritten adapter -> no executor (invalid contract). Reclassified to
+  # cli with the pip console-script name; they SKIP cleanly if the binary is
+  # absent. Both are superseded by jsluice (below) + the handwritten pycrawl/
+  # jsanalyze (which already pull JS endpoints + secrets) -- kept as available
+  # alternatives, not default_on.
   linkfinder:
     category: 22
     phase: p5_deep
     type: passive
-    integration: python
-    install: {method: git, ref: "https://github.com/GerbenJavado/LinkFinder"}
-    invocation: "python linkfinder.py -i {js_file} -o cli"
+    integration: cli
+    binary: linkfinder
+    install: {method: pip, ref: "linkfinder"}
+    invocation: "linkfinder -i {js_file} -o cli"
     input: js_file
     output: url
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: endpoint, url: "{_value}"}
     requires_key: false
     default_on: false
 
@@ -949,15 +1367,20 @@ tools:
     category: 22
     phase: p5_deep
     type: passive
-    integration: python
-    install: {method: git, ref: "https://github.com/m4ll0k/SecretFinder"}
-    invocation: "python SecretFinder.py -i {js_file} -o cli"
+    integration: cli
+    binary: secretfinder
+    install: {method: pip, ref: "secretfinder"}
+    invocation: "secretfinder -i {js_file} -o cli"
     input: js_file
     output: finding
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: finding, title: "Possible secret in JS: {_value}", kind: secret, severity: medium}
     requires_key: false
     default_on: false
-    notes: "API keys in JS. Store redacted only."
+    notes: "API keys in JS. Store redacted only. Superseded by jsluice/pycrawl."
 
   jsluice:
     category: 22
@@ -978,16 +1401,24 @@ tools:
   # CATEGORY 23 — API & GraphQL Recon   [ACTIVE]   (NEW)
   # ===========================================================================
 
+  # Was integration:python with `python main.py` (no executor). Reclassified to
+  # cli with the console-script name; skips cleanly if absent. GraphQL engine
+  # fingerprinting is unique (not covered elsewhere), so kept as an alternative.
   graphw00f:
     category: 23
     phase: p5_deep
     type: active
-    integration: python
-    install: {method: git, ref: "https://github.com/dolevf/graphw00f"}
-    invocation: "python main.py -d -f -t {url}"
+    integration: cli
+    binary: graphw00f
+    install: {method: pip, ref: "graphw00f"}
+    invocation: "graphw00f -d -f -t {url}"
     input: url
     output: finding
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: finding, title: "GraphQL fingerprint: {_value}", kind: graphql, severity: info}
     requires_key: false
     default_on: false
 
@@ -998,10 +1429,18 @@ tools:
     integration: cli
     binary: kr
     install: {method: binary, ref: "https://github.com/assetnote/kiterunner"}
-    invocation: "kr scan {infile} -w routes-large.kite -o json -O {outfile}"
-    input: url
+    # Reads targets from /dev/stdin; {kite_wordlist} resolves to the installed
+    # routes .kite (config `resources.kite_wordlist`, default /opt/kite/...).
+    # -o json streams matched routes to stdout (one JSON object per line).
+    invocation: "kr scan /dev/stdin -w {kite_wordlist} -o json --quiet"
+    stdin: true
+    input: [live_host, url]    # reachable on httpx-validated hosts (was url-only)
     output: url
-    output_format: json
+    output_format: jsonl
+    parse:
+      format: jsonl
+      emit:
+        - {entity: endpoint, url: "{url}"}
     requires_key: false
     default_on: false
 
@@ -1032,7 +1471,11 @@ tools:
     integration: cli
     binary: cero
     install: {method: go, ref: "github.com/glebarez/cero@latest"}
-    invocation: "cero {infile}"
+    # No {infile}: GenericCliAdapter only substitutes {value}/{domain}/{ip}/{host},
+    # so {infile} rendered to "" and cero ran with no target + no stdin, exiting
+    # near-instantly with 0 results every run. cero accepts the target IP as a
+    # positional argument directly.
+    invocation: "cero {value}"
     input: ip
     output: subdomain
     output_format: text
@@ -1052,7 +1495,7 @@ tools:
     binary: nuclei
     install: {method: go, ref: "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"}
     invocation: "nuclei -l {infile} -jsonl -silent -severity {severities} -rl {rate}"
-    input: url
+    input: [live_host, url]    # M3: validated hosts + crawled URLs (never raw subdomains)
     output: finding
     output_format: jsonl
     requires_key: false
@@ -1067,10 +1510,18 @@ tools:
     integration: cli
     binary: subjack
     install: {method: go, ref: "github.com/haccer/subjack@latest"}
-    invocation: "subjack -w {infile} -ssl -o {outfile} -ssl"
+    # -w reads the candidate list from /dev/stdin (one piped per item); -c points
+    # at the now-installed fingerprints DB ({fingerprints}); -o dropped so results
+    # go to stdout. subjack prints only takeover-able hosts, each becomes a finding.
+    invocation: "subjack -w /dev/stdin -ssl"
+    stdin: true
     input: subdomain
     output: finding
     output_format: text
+    parse:
+      format: text
+      emit:
+        - {entity: finding, title: "Possible subdomain takeover: {_value}", kind: takeover, severity: high, asset_value: "{_value}"}
     requires_key: false
     default_on: false
     notes: "Subdomain takeover detection (dangling CNAME)."
@@ -1092,6 +1543,11 @@ tools:
     output_format: text
     requires_key: false
     default_on: false
+    # anew is a dedupe PIPE UTILITY (stdin -> new lines), not a recon source: it
+    # discovers nothing and emits no entity type. The engine dedupes on enqueue
+    # already, so it has no role in the entity graph -> not scan-routable.
+    non_executable: true
+    non_executable_reason: "pipe utility (dedupe), emits no entities; engine dedupes on enqueue"
     notes: "Append-only dedupe; glue for incremental/streaming pipelines."
 
   interactsh:
@@ -1122,4 +1578,9 @@ tools:
     output_format: text
     requires_key: false
     default_on: false
+    # notify is an OUTPUT SINK (pushes to slack/discord/telegram); output:none ->
+    # it produces no recon entities. Belongs in a post-scan alert hook, not the
+    # scan tool-routing graph.
+    non_executable: true
+    non_executable_reason: "output sink (alerting), produces no entities; use as a post-scan hook"
     notes: "Alerting sink (slack/discord/telegram) for new assets/findings."

@@ -1,0 +1,130 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Recontool — "intel-api" tool family (threat-intel / IP-reputation lookups).
+#
+# Declarative GenericApiAdapter specs (recontool/adapters/generic.py). These are
+# PASSIVE lookups: is_active: false, default_on: false. Every tool requires an API
+# key (requires_key) and is OFF by default — the operator opts in per scan.
+#
+# consumes = the narrowest canonical input type; produces = EXISTING canonical
+# types only (ip, domain, subdomain, ioc, finding, tag). Mapping to cat-12
+# (Malware / IOC / Threat Intel): ip/domain -> ioc/finding/tag.
+#
+# GROUNDING: each tool's endpoint + response shape is confirmed against the
+# OFFICIAL API docs AND a real parser/source file (cited inline as a comment).
+# The generic adapter now supports GET and POST (JSON or form body); tools whose
+# real API still cannot be expressed by it (e.g. per-item CSV-string parsing) are
+# OMITTED with `# defer: <reason>` rather than guessed.
+# ─────────────────────────────────────────────────────────────────────────────
+tools:
+
+  # ── AbuseIPDB — IP reputation / abuse scoring ──────────────────────────────
+  # Docs:   https://docs.abuseipdb.com/  (CHECK endpoint: GET /api/v2/check,
+  #         header "Key", query param "ipAddress")
+  # Shape:  response is {"data": {ipAddress, abuseConfidenceScore, countryCode,
+  #         usageType, isp, domain, totalReports, isTor, ...}} — a single object.
+  #         Verified verbatim example response in the official docs (CHECK).
+  # GET + "Key" header fits the generic adapter exactly (no POST/body needed).
+  - name: abuseipdb
+    phase: p3_enrichment
+    category: 12
+    integration: api
+    is_active: false
+    default_on: false
+    consumes: [ip]
+    produces: [tag, finding]
+    requires_key: ABUSEIPDB_API_KEY
+    endpoint: "https://api.abuseipdb.com/api/v2/check?ipAddress={ip}&maxAgeInDays=90"
+    headers: {Key: "{key}", Accept: "application/json"}
+    bucket: abuseipdb
+    max_inputs: 100
+    parse:
+      format: json
+      list_path: data            # data is a single object -> 1 record
+      emit:
+        # reputation verdict as a tag on the IP (cat-12 storage: tag(malicious))
+        - {entity: asset, value: "abuseipdb:score={abuseConfidenceScore}", type: tag}
+        # threat-intel finding correlating the abuse score back to the IP
+        - {entity: finding, kind: reputation,
+           title: "AbuseIPDB confidence {abuseConfidenceScore} ({usageType}, {isp}, {countryCode})",
+           severity: info, detector: abuseipdb, asset_value: "{ipAddress}"}
+
+  # ── ThreatFox (abuse.ch) — IOC lookup by IP/domain ─────────────────────────
+  # Docs:  https://threatfox.abuse.ch/api/  (Search IOCs)
+  # Shape: POST https://threatfox-api.abuse.ch/api/v1/  with header "Auth-Key"
+  #        + JSON body {"query":"search_ioc","search_term":"<value>","exact_match":true}.
+  #        Response {"query_status":"ok","data":[{ioc, threat_type, ioc_type,
+  #        malware_printable, confidence_level, first_seen, ...}]}  (verified
+  #        verbatim request+response in the official docs). No matches ->
+  #        query_status:"no_result" with no data[] -> emits nothing (safe).
+  # Now expressible: method: POST + JSON body via the generic adapter (2026-07).
+  - name: threatfox
+    phase: p3_enrichment
+    category: 12
+    integration: api
+    is_active: false           # passive — queries abuse.ch, never the target
+    default_on: false
+    consumes: [ip, domain]
+    produces: [tag, finding]
+    requires_key: ABUSECH_AUTH_KEY
+    method: POST
+    endpoint: "https://threatfox-api.abuse.ch/api/v1/"
+    headers: {Auth-Key: "{key}", Accept: "application/json"}
+    body: {query: "search_ioc", search_term: "{value}", exact_match: true}
+    bucket: threatfox
+    max_inputs: 100
+    parse:
+      format: json
+      list_path: data          # array of matched IOCs (absent when no_result)
+      emit:
+        # malware/botnet-C2 association as a tag on the searched asset
+        - {entity: asset, value: "threatfox:{malware_printable} ({threat_type})", type: tag}
+        # threat-intel finding tying the IOC verdict back to the asset
+        - {entity: finding, kind: reputation,
+           title: "ThreatFox: {ioc} = {malware_printable} {threat_type} (confidence {confidence_level})",
+           severity: medium, detector: threatfox, asset_value: "{ioc}"}
+
+  # ── URLhaus (abuse.ch) — malware URLs hosted on a host ─────────────────────
+  # Docs:  https://urlhaus-api.abuse.ch/  (Host information)
+  # Shape: POST https://urlhaus-api.abuse.ch/v1/host/  header "Auth-Key" + form
+  #        body "host=<value>" (application/x-www-form-urlencoded). Response
+  #        {"query_status":"ok","urls":[{url, url_status, threat, tags,
+  #        date_added, ...}], "url_count", "blacklists"}  (verified verbatim in
+  #        the official docs). query_status "no_results"/"invalid_host" -> no
+  #        urls[] -> emits nothing (safe).
+  - name: urlhaus
+    phase: p3_enrichment
+    category: 12
+    integration: api
+    is_active: false           # passive — queries abuse.ch, never the target
+    default_on: false
+    consumes: [domain, subdomain, ip]
+    produces: [tag, finding]
+    requires_key: ABUSECH_AUTH_KEY
+    method: POST
+    body_format: form          # urlhaus expects post-data host=<value>, not JSON
+    endpoint: "https://urlhaus-api.abuse.ch/v1/host/"
+    headers: {Auth-Key: "{key}", Accept: "application/json"}
+    body: {host: "{value}"}
+    bucket: urlhaus
+    max_inputs: 100
+    parse:
+      format: json
+      list_path: urls          # array of malware URLs seen on this host
+      emit:
+        # malware-hosting verdict as a tag on the host (kept as tag, not a new
+        # url entity, to avoid re-crawling flagged malware URLs = over-trigger)
+        - {entity: asset, value: "urlhaus:{threat} ({url_status})", type: tag}
+        - {entity: finding, kind: reputation,
+           title: "URLhaus: malware URL {url} ({threat}, {url_status})",
+           severity: high, detector: urlhaus, asset_value: "{url}"}
+
+  # ── DEFERRED tools (real API cannot be expressed by the generic adapter) ────
+  #
+  # bufferover (tls.bufferover.run) — defer: response shape unsupported.
+  #   Confirmed (m8sec/subscraper, m4ll0k/BBTz bufferover.py): GET
+  #   https://tls.bufferover.run/dns?q=.{domain} with header "x-api-key", response
+  #   {"Results": ["<ip>,<sha256>,<org>,<hostname>", ...]} — each entry is a CSV
+  #   STRING whose hostname is one comma-field. The generic value_each emits the
+  #   whole CSV string as the value, which scope_filter:subdomain (is_subdomain_of)
+  #   then rejects; there is no per-item comma extraction, so no subdomain would be
+  #   produced. (Service also now key-gated and intermittently offline.)

@@ -1,0 +1,588 @@
+# TOOL_CATALOG_FULL — 586 entries; runtime scans ['1e453aa1778b44c9', 'abae971f853e4a18', '856f38a78a5e471a', 'b57cbcaee2754818']
+tool	status	kind	rclass	stage14	consumes	declared_out	observed_out	artifact	recommendation	default_on	key	upstream_n	downstream_n	downstream	invocation	confidence	err
+Abuse.ch	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+AbuseIPDB	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+ADSBExchange	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+AFRINIC	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,ANY.RUN,APNIC,ARIN,ASM tools,ASNLookup		declared	
+Ahmia	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+AlienVault OTX API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+AlienVault OTX Pulse Archive	disabled	passive	Expander	Domain	domain,live_host	url,js_file	-	—+js	KEEP_OPTIONAL	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+AlienVault OTX Search	disabled	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	KEEP_OPTIONAL	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+alienvault_otx	RAN_produced	passive	Generator	Domain	domain	subdomain,ip	runs:8	jsonl	KEEP_CORE	True		33	249	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		high(ran+data)	
+AltDNS	inventory_stub(no-binary)	active	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+alterx	non_executable	passive	Reference	Never Run	subdomain	subdomain	-	text	REFERENCE_ONLY	False		169	98	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	alterx -l {infile} -o {outfile}	declared	
+amass	RAN_produced	passive	Generator	Domain	domain	subdomain	runs:8	text	KEEP_OPTIONAL	False		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	amass enum -passive -d {domain}	high(ran+data)	
+Amass Passive Mode	non_executable	passive	Reference	Never Run	domain	subdomain,live_host,finding	-	—	REFERENCE_ONLY	False		33	152	ASNLookup,AlienVault OTX Pulse Archive,AlienVault OTX Search,AltDNS,Appalyzer,Aquatone		declared	
+analytics-publicwww	skip_missing_key	passive	Enrichment	Seed	analytics_id	org	-	text	ENRICHMENT_ONLY	True	PUBLICWWW_API_KEY	1	242	ADSBExchange,AFRINIC,APNIC,ARIN,AWSBucketDump,AbuseIPDB	https://publicwww.com/websites/%22{value}%22/?export=urls&key={key}	med(installable)	
+anew	non_executable	passive	Reference	Never Run	any	any	-	text	REFERENCE_ONLY	False		0	1	notify	cat {infile} | anew {outfile}	declared	
+Anomali	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+anubis-jldc	RAN_produced	passive	Generator	Domain	domain	subdomain	runs:8	json	KEEP_CORE	True		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	https://jldc.me/anubis/subdomains/{domain}	high(ran+data)	
+ANY.RUN	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+APNIC	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,ARIN,ASM tools,ASNLookup		declared	
+Apollo.io	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,BeenVerified,BinaryEdge API,Blackbird,Botometer,BreachDirectory		declared	
+Appalyzer	disabled	passive	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+Aquatone	inventory_stub(no-binary)	active	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Arachni	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+Archive.today	non_executable	passive	Reference	Never Run	domain,live_host	url,js_file	-	—+js	REFERENCE_ONLY	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+ARIN	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ASM tools,ASNLookup		declared	
+Arjun	inventory_stub(no-binary)	active	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Arquivo.pt	disabled	passive	Expander	Domain	domain,live_host	url,js_file	-	—+js	KEEP_OPTIONAL	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+ASM tools	inventory_stub(no-binary)	active	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+ASNLookup	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+asnmap	RAN_produced	passive	Enrichment	Domain	domain	cidr	runs:8	jsonl	ENRICHMENT_ONLY	True		33	2	mapcidr,masscan	asnmap -d {domain} -json	high(ran+data)	
+assetfinder	RAN_produced	passive	Generator	Domain	domain	subdomain	runs:8,subdomain:41	text	KEEP_OPTIONAL	False		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	assetfinder --subs-only {domain}	high(ran+data)	
+AttackSurfaceMapper	inventory_stub(no-binary)	active	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Awesome Bug Bounty	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Awesome DFIR	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Awesome Honeypots	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Awesome Incident Response	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Awesome Malware Analysis	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Awesome OSINT For Everything	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Awesome Pentest	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Awesome Search Engines	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Awesome Threat Intelligence	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+awesome-osint	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+AWSBucketDump	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+AzureHound	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+Baidu Search	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+BBOT	inventory_stub(no-binary)	active	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+BeenVerified	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BinaryEdge API,Blackbird,Botometer,BreachDirectory		declared	
+bgp.he.net	non_executable	passive	Reference	Never Run	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	REFERENCE_ONLY	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+bgpview	available_not_scheduled(chain-orphan)	passive	Enrichment	Seed	asn	cidr	-	json	ENRICHMENT_ONLY	True		34	2	mapcidr,masscan	GET https://api.bgpview.io/asn/{asn}/prefixes	declared	
+BinaryEdge	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+BinaryEdge API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+BinaryEdge Hunt	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Bing Dorks	non_executable	passive	Reference	Never Run	domain,live_host	url,repo,finding	-	—	REFERENCE_ONLY	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Bing Search	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Binwalk	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+Bitbucket	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+BlackArch Recon Category	non_executable	active	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Blackbird	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Botometer,BreachDirectory		declared	
+BlindElephant	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+BlobHunter	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+Botometer	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+BreachDirectory	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+BSSID Search	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+bucket-stream	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+bucket_finder	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+BucketLoot	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+BuckHacker	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+BufferOver	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Bug Bounty Recon Collection	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+BuiltWith	disabled	passive	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+BuiltWith API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+BuiltWith Historical Lookup	disabled	passive	Expander	Domain	domain,live_host	url,js_file	-	—+js	KEEP_OPTIONAL	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+BuiltWith Lookup	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+BuiltWith Trends	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+bulk_extractor	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+CachedPages	non_executable	passive	Reference	Never Run	domain,live_host	url,js_file	-	—+js	REFERENCE_ONLY	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+CachedView	non_executable	passive	Reference	Never Run	domain,live_host	url,js_file	-	—+js	REFERENCE_ONLY	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+CAIDA Tools	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+cariddi	skip_missing_binary	active	Expander	URL	url	url	-	text	KEEP_OPTIONAL	False		161	113	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	cariddi -plain	med(installable)	
+cdncheck	non_executable	passive	Reference	Never Run	ip	tag	-	text	REFERENCE_ONLY	False		168	0		cdncheck -i {infile} -resp	declared	
+CellMapper	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+censys	RAN_produced	passive	Generator	Domain	domain	ip,service,subdomain	runs:8	jsonl	KEEP_CORE	True		33	249	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		high(ran+data)	
+Censys API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Censys ASM	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Censys ASN Search	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Censys screenshots	disabled	passive	Terminal	Live Host	live_host,url	screenshot,tag,tech	-	image+sqlite	KEEP_OPTIONAL	False		165	0			declared	
+cero	RAN_empty	active	Generator	Validation	ip	subdomain	ran:0	text	KEEP_OPTIONAL	False		168	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	cero {value}	med(ran+empty)	
+CertDB	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Certificate Transparency Search	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+certspotter	RAN_empty	passive	Generator	Domain	domain	subdomain	ran:0	json	KEEP_CORE	True	CERTSPOTTER_API_KEY	33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	GET https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expan	med(ran+empty)	
+chaos	RAN_empty	passive	Generator	Domain	domain	subdomain	ran:0	json	KEEP_OPTIONAL	False	CHAOS_API_KEY	33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	GET https://dns.projectdiscovery.io/dns/{domain}/subdomains	med(ran+empty)	
+Chaos Dataset	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+CIDR Report	non_executable	passive	Reference	Never Run	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	REFERENCE_ONLY	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+CIRCL CVE Search	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+CIRCL Passive DNS	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Clearbit	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Clearbit API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+cloud_enum	skip_missing_binary	validation	Terminal	Findings	keyword	finding	-	text	KEEP_OPTIONAL	False		0	0		cloud_enum -k {keyword} -t 20	med(installable)	
+CloudBrute	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+CloudFail	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+Cloudflare	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+cloudfox	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+cloudlist	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+cloudsplaining	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+CMSeeK	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+CMSmap	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+Common Crawl	disabled	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	KEEP_OPTIONAL	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Creepy	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Criminal IP	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+criminalip	RAN_produced	passive	Generator	Domain	domain	ip,service	runs:8	jsonl	KEEP_CORE	True	CRIMINALIP_API_KEY	33	152	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		high(ran+data)	
+CriminalIP API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+CriminalIP ASM	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+CriminalIP IP Search	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+crobat	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+CrossLinked	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+crt.sh	non_executable	passive	Reference	Never Run	domain,subdomain	subdomain,ip,cert	-	—	REFERENCE_ONLY	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+crtsh	RAN_produced	passive	Generator	Domain	domain	subdomain,cert	runs:8	jsonl	KEEP_CORE	True		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT		high(ran+data)	
+CTFR	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+CVE Details	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+Cyber Detective OSINT Tools Collection	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Cymru Hash Registry	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Dark.fail	non_executable	passive	Reference	Never Run	domain,org,keyword	onion,finding,url	-	—	REFERENCE_ONLY	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+DarkSearch	disabled	passive	Expander	Seed	domain,org,keyword	onion,finding,url	-	—	KEEP_OPTIONAL	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Darkweb Link Lists	non_executable	passive	Reference	Never Run	domain,org,keyword	onion,finding,url	-	—	REFERENCE_ONLY	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Datasploit	inventory_stub(no-binary)	passive	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Datasploit Framework	inventory_stub(no-binary)	passive	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Deep Web Search Engines	non_executable	passive	Reference	Never Run	domain,org,keyword	onion,finding,url	-	—	REFERENCE_ONLY	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+DeepSearch	disabled	passive	Expander	Seed	domain,org,keyword	onion,finding,url	-	—	KEEP_OPTIONAL	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+DeHashed	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+detect-secrets	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+Digitorus CT Search	non_executable	passive	Reference	Never Run	domain,subdomain	subdomain,ip,cert	-	—	REFERENCE_ONLY	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+DNS History Lookup	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+dns_resolve	available_not_scheduled(chain-orphan)	active	Generator	Domain	subdomain,domain	ip	ip:4,runs:7,subdomain:4	jsonl	DEFER	True		203	152	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+DNSDB	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+DNSDumpster	non_executable	passive	Reference	Never Run	domain,subdomain	subdomain,ip,cert	-	—	REFERENCE_ONLY	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+dnsenum	skip_missing_binary	passive	Generator	Domain	domain	subdomain	runs:7	text	KEEP_OPTIONAL	False		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	dnsenum --noreverse -o /dev/null {domain}	med(installable)	
+DNSGrep	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+DNSlytics	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+DNSRecon	inventory_stub(no-binary)	active	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+dnstwist	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+dnsvalidator	non_executable	passive	Reference	Never Run	none	resolver_list	-	text	REFERENCE_ONLY	False		1	0		dnsvalidator -tL https://public-dns.info/nameservers.txt -threads 100 -o {outfile}	declared	
+dnsx	RAN_produced	passive	Generator	Subdomain	subdomain	ip	ip:10,runs:8	jsonl	KEEP_CORE	True		170	152	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch	dnsx -json -a -aaaa -cname -resp -silent	high(ran+data)	
+DocFetcher	non_executable	passive	Reference	Never Run	domain,url	document,email,finding,tag	-	—	REFERENCE_ONLY	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+domain-analyzer	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+domain-profiler	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+domain-sleuth	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+dorks_hunter	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+DorkSearch	disabled	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	KEEP_OPTIONAL	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Dradis	disabled	passive	Generator	Domain	domain	subdomain,url,finding	-	—	KEEP_OPTIONAL	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+droopescan	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+DumpsterDiver	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+EmailHippo	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Entrust CT Search	non_executable	passive	Reference	Never Run	domain,subdomain	subdomain,ip,cert	-	—	REFERENCE_ONLY	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+enumerator	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+EO Browser	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+Epieos	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+epss	available_not_scheduled(chain-orphan)	validation	Terminal	Findings	cve	finding	-	json	DEFER	True		0	0		GET https://api.first.org/data/v1/epss?cve={cve}	declared	
+Exalead	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Exif.tools	non_executable	passive	Reference	Never Run	domain,url	document,email,finding,tag	-	—	REFERENCE_ONLY	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+ExifTool	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+ExoneraTor	disabled	passive	Expander	Seed	domain,org,keyword	onion,finding,url	-	—	KEEP_OPTIONAL	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+EyeWitness	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+eyewitness-ng	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+Facebook CT Search	non_executable	passive	Reference	Never Run	domain,subdomain	subdomain,ip,cert	-	—	REFERENCE_ONLY	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Facebook Graph Search	non_executable	passive	Reference	Never Run	username,org,handle	username,url,finding	-	—	REFERENCE_ONLY	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+FastPeopleSearch	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+favicon-shodan	skip_missing_key	passive	Enrichment	Seed	favicon	org	-	json	ENRICHMENT_ONLY	True	SHODAN_API_KEY	1	242	ADSBExchange,AFRINIC,APNIC,ARIN,AWSBucketDump,AbuseIPDB	https://api.shodan.io/shodan/host/search?key={key}&query=http.favicon.hash:{value}	med(installable)	
+feroxbuster	skip_missing_binary	active	Expander	URL	url	url	-	jsonl	KEEP_OPTIONAL	False		161	113	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	feroxbuster -u {url} -w {wordlist} --json --silent	med(installable)	
+ffuf	skip_missing_binary	active	Expander	URL	url	url	-	json	KEEP_OPTIONAL	False		161	113	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	ffuf -u {url}/FUZZ -w {wordlist} -mc 200,204,301,302,307,401,403 -of json -o /dev/stdout -	med(installable)	
+fierce	skip_missing_binary	passive	Generator	Domain	domain	subdomain	runs:8	text	KEEP_OPTIONAL	False		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	fierce --domain {domain}	med(installable)	
+findomain	RAN_empty	passive	Generator	Domain	domain	subdomain	ran:0	text	KEEP_CORE	True		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	findomain -t {domain} -q	med(ran+empty)	
+FingerprintJS	disabled	passive	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+FIRST EPSS	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+Flashpoint	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+FlightRadar24	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+FOCA	non_executable	passive	Reference	Never Run	domain,url	document,email,finding,tag	-	—	REFERENCE_ONLY	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+FOFA	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+FOFA API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+FOFA Hunt	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+FOFA IP Search	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+FollowerWonk	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+foremost	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+FullContact	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+FullContact API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+fullhunt	RAN_produced	passive	Generator	Domain	domain	subdomain	runs:8	jsonl	KEEP_CORE	True	FULLHUNT_API_KEY	33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT		high(ran+data)	
+gau	RAN_produced	passive	Expander	Domain	domain	url	runs:8	text	KEEP_CORE	True		33	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	gau {domain} --threads 5 --providers wayback --timeout 45	high(ran+data)	
+gauplus	RAN_produced	passive	Expander	Domain	domain	url	runs:8	text	DEFER	False		33	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	gauplus -t 5 {domain}	high(ran+data)	
+GCPBucketBrute	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+GeoSocial Footprint	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+GeoSpy	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+getJS	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+gf-debug_logic	skip_missing_binary	passive	Terminal	URL	url	finding	runs:1	text	KEEP_OPTIONAL	False		162	0		gf debug_logic	med(installable)	
+gf-idor	skip_missing_binary	passive	Terminal	URL	url	finding	runs:1	text	KEEP_OPTIONAL	False		162	0		gf idor	med(installable)	
+gf-interestingparams	skip_missing_binary	passive	Terminal	URL	url	finding	runs:1	text	KEEP_OPTIONAL	False		162	0		gf interestingparams	med(installable)	
+gf-lfi	skip_missing_binary	passive	Terminal	URL	url	finding	runs:1	text	KEEP_OPTIONAL	False		162	0		gf lfi	med(installable)	
+gf-rce	skip_missing_binary	passive	Terminal	URL	url	finding	runs:1	text	KEEP_OPTIONAL	False		162	0		gf rce	med(installable)	
+gf-redirect	skip_missing_binary	passive	Terminal	URL	url	finding	runs:1	text	KEEP_OPTIONAL	False		162	0		gf redirect	med(installable)	
+gf-sqli	skip_missing_binary	passive	Terminal	URL	url	finding	runs:1	text	KEEP_OPTIONAL	False		162	0		gf sqli	med(installable)	
+gf-ssrf	skip_missing_binary	passive	Terminal	URL	url	finding	runs:1	text	KEEP_OPTIONAL	False		162	0		gf ssrf	med(installable)	
+gf-ssti	skip_missing_binary	passive	Terminal	URL	url	finding	runs:1	text	KEEP_OPTIONAL	False		162	0		gf ssti	med(installable)	
+gf-xss	skip_missing_binary	passive	Terminal	URL	url	finding	runs:1	text	KEEP_OPTIONAL	False		162	0		gf xss	med(installable)	
+GHDB	non_executable	passive	Reference	Never Run	domain,live_host	url,repo,finding	-	—	REFERENCE_ONLY	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+ghunt	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+GHunt v2	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+git-secrets	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+GitAllSecrets	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+GitDorker	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+GitHarvester	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+GitHound	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+GitHub	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+GitHub Dorks	disabled	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	KEEP_OPTIONAL	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+github_org_repos	available_not_scheduled(chain-orphan)	passive	Generator	Seed	org	repo	-	json	DEFER	False	GITHUB_TOKEN	36	2	gitleaks,trufflehog	GET https://api.github.com/orgs/{org}/repos?per_page=100&type=public	declared	
+github_search-api_key	skip_missing_key	passive	Generator	Seed	org	repo	-	json	KEEP_OPTIONAL	False	GITHUB_TOKEN	36	2	gitleaks,trufflehog	GET https://api.github.com/search/code?q=api_key+org:{org}	med(installable)	
+github_search-aws_access_key_id	skip_missing_key	passive	Generator	Seed	org	repo	-	json	KEEP_OPTIONAL	False	GITHUB_TOKEN	36	2	gitleaks,trufflehog	GET https://api.github.com/search/code?q=aws_access_key_id+org:{org}	med(installable)	
+github_search-filename:.env	skip_missing_key	passive	Generator	Seed	org	repo	-	json	KEEP_OPTIONAL	False	GITHUB_TOKEN	36	2	gitleaks,trufflehog	GET https://api.github.com/search/code?q=filename:.env+org:{org}	med(installable)	
+github_search-filename:.npmrc	skip_missing_key	passive	Generator	Seed	org	repo	-	json	KEEP_OPTIONAL	False	GITHUB_TOKEN	36	2	gitleaks,trufflehog	GET https://api.github.com/search/code?q=filename:.npmrc+org:{org}	med(installable)	
+github_search-filename:id_rsa	skip_missing_key	passive	Generator	Seed	org	repo	-	json	KEEP_OPTIONAL	False	GITHUB_TOKEN	36	2	gitleaks,trufflehog	GET https://api.github.com/search/code?q=filename:id_rsa+org:{org}	med(installable)	
+github_search-secret_key	skip_missing_key	passive	Generator	Seed	org	repo	-	json	KEEP_OPTIONAL	False	GITHUB_TOKEN	36	2	gitleaks,trufflehog	GET https://api.github.com/search/code?q=secret_key+org:{org}	med(installable)	
+github_subdomains	RAN_produced	passive	Generator	Domain	domain	subdomain	runs:8	text	KEEP_OPTIONAL	False	GITHUB_TOKEN	33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	github-subdomains -d {domain} -t {key}	high(ran+data)	
+GitLab	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+gitleaks	skip_missing_binary	passive	Artifact-Analyzer	Repository	repo	finding	-	—	ARTIFACT_ONLY	False		56	0			med(installable)	
+GitMiner	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+Gitrob	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Gitxray	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+gobuster	skip_missing_binary	active	Generator	Domain	domain	subdomain	runs:8	text	KEEP_OPTIONAL	False		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	gobuster dns --domain {domain} -w {dns_wordlist} -q -t 20 --no-color	med(installable)	
+Goofuzz	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Google Cache	non_executable	passive	Reference	Never Run	domain,live_host	url,js_file	-	—+js	REFERENCE_ONLY	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Google Dorks	non_executable	passive	Reference	Never Run	domain,live_host	url,repo,finding	-	—	REFERENCE_ONLY	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Google Earth	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+Google Maps	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+Google Search	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+gospider	skip_missing_binary	active	Expander	URL	url	url	runs:1,url:19	text	KEEP_OPTIONAL	False		161	113	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	gospider -s {url} -q -d 1 -t 5 -m 30	med(installable)	
+gowitness	skip_missing_binary	active	Terminal	Live Host	live_host	screenshot	runs:8	jsonl+image	KEEP_OPTIONAL	False		3	0			med(installable)	
+GPS Visualizer	non_executable	passive	Reference	Never Run	org,bssid,coords,ip	finding,tag	-	—	REFERENCE_ONLY	False		171	0			declared	
+graphw00f	skip_missing_binary	validation	Terminal	URL	url	finding	-	text	KEEP_OPTIONAL	False		162	0		graphw00f -d -f -t {url}	med(installable)	
+grayhatwarfare	skip_missing_key	passive	Generator	Seed	keyword	bucket	-	json	KEEP_OPTIONAL	False	GRAYHATWARFARE_API_KEY	0	1	s3scanner	GET https://buckets.grayhatwarfare.com/api/v2/buckets?keywords={keyword}	med(installable)	
+grep.app	disabled	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	KEEP_OPTIONAL	False		36	2	gitleaks,trufflehog		declared	
+greynoise	RAN_empty	passive	Terminal	Validation	ip	tag	ran:0	—	KEEP_CORE	True		168	0			med(ran+empty)	
+GreyNoise API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+GreyNoise IP Lookup	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+hachoir-metadata	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+hackertarget	RAN_produced	passive	Generator	Domain	domain	subdomain,ip	ip:39,runs:8,subdomain:39	jsonl	KEEP_CORE	True		33	249	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		high(ran+data)	
+HackTricks Recon Lists	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+hakcheckurl	inventory_stub(no-binary)	active	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+hakrawler	skip_missing_binary	active	Expander	URL	url	url	runs:1,url:239793	text	KEEP_OPTIONAL	False		161	113	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	hakrawler -subs	med(installable)	
+haktrails	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Have I Been Pwned	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+HaveIBeenPwned API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Haystak	disabled	passive	Expander	Seed	domain,org,keyword	onion,finding,url	-	—	KEEP_OPTIONAL	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Hibp API	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+hibp-exposure	skip_missing_key	passive	Terminal	Findings	email	finding	-	json	KEEP_CORE	True	HIBP_API_KEY	73	0		https://haveibeenpwned.com/api/v3/breachedaccount/{value}?truncateResponse=true	med(installable)	
+Hoaxy	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Holehe	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+HostHunter	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+httping	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+httprint	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+httprobe	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+httpx	RAN_produced	active	Expander	Subdomain	subdomain	live_host	ip:4,url:4,runs:8	jsonl	KEEP_CORE	True		170	83	AlienVault OTX Pulse Archive,AlienVault OTX Search,Appalyzer,Arachni,Archive.today,Arjun	httpx -json -sc -title -tech-detect -tls-grab -cdn -ip -cname -web-server -silent	high(ran+data)	
+httpx_probe	available_not_scheduled(chain-orphan)	active	Expander	Domain	subdomain,domain	live_host,service	runs:4,service:1,url:2,subdomain:1	jsonl	DEFER	True		203	112	ANY.RUN,Abuse.ch,AlienVault OTX Pulse Archive,AlienVault OTX Search,Anomali,Appalyzer		declared	
+Hunter API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Hunter Domain Search	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Hunter Howler	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+hunter-emails	RAN_empty	passive	Generator	Domain	domain	email	ran:0	json	KEEP_CORE	True	HUNTER_API_KEY	33	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory	https://api.hunter.io/v2/domain-search?domain={domain}&api_key={key}	med(ran+empty)	
+Hunter.io	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Hurricane Electric	non_executable	passive	Reference	Never Run	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	REFERENCE_ONLY	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Hybrid Analysis	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+Ignorant	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Instagram Location Search	non_executable	passive	Reference	Never Run	username,org,handle	username,url,finding	-	—	REFERENCE_ONLY	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Instaloader	inventory_stub(no-binary)	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	DEFER	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Intel471	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+IntelX	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+IntelX API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+IntelX Tor Search	disabled	passive	Expander	Seed	domain,org,keyword	onion,finding,url	-	—	KEEP_OPTIONAL	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+interactsh	skip_missing_binary	validation	Terminal	Seed	none	finding	-	jsonl	KEEP_OPTIONAL	False		1	0		interactsh-client -json	med(installable)	
+internetdb	RAN_empty	passive	Generator	Validation	ip	service,finding,subdomain	ran:0	—	KEEP_CORE	True		168	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		med(ran+empty)	
+Intezer	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+IOC Bucket	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+IOC Finder	inventory_stub(no-binary)	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	DEFER	False		338	0			declared	
+IOC Parser	inventory_stub(no-binary)	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	DEFER	False		338	0			declared	
+IP2Location	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+IP2Location API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+ipapi	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+IPFingerprints	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+IPGeolocation	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+ipinfo	skip_missing_key	passive	Enrichment	Validation	ip	asn	-	json	ENRICHMENT_ONLY	False	IPINFO_TOKEN	168	102	AFRINIC,APNIC,ARIN,AbuseIPDB,Ahmia,AlienVault OTX API	GET https://ipinfo.io/{ip}?token={key}	med(installable)	
+IPinfo API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+IPQualityScore	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+IPVoid	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+IVRE	inventory_stub(no-binary)	active	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	DEFER	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Joe Sandbox	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+JoomScan	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+JPEGsnoop	non_executable	passive	Reference	Never Run	domain,url	document,email,finding,tag	-	—	REFERENCE_ONLY	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+js-render	available_not_scheduled(chain-orphan)	passive	Generator	Subdomain	live_host,url,subdomain	url,subdomain,finding	runs:6,subdomain:16,url:996	jsonl	DEFER	True		271	181	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer	python3 -m recontool.tools.jsrender {value}	declared	
+js_analyze	available_not_scheduled(chain-orphan)	passive	Artifact-Analyzer	JS	js_file	url,finding	runs:1	jsonl	ARTIFACT_ONLY	True		15	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+JSFinder	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+JSLeak	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+jsluice	skip_missing_binary	passive	Artifact-Analyzer	JS	js_file	url	-	jsonl	ARTIFACT_ONLY	False		15	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	jsluice urls {js_file}	med(installable)	
+Kali Linux Information Gathering Tools	non_executable	active	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+katana	skip_missing_binary	active	Expander	Live Host	live_host	url	runs:1,url:587	text	KEEP_OPTIONAL	False		3	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	katana -jc -js-crawl -d 3 -ct 90 -silent	med(installable)	
+Katana Archive Mode	inventory_stub(no-binary)	active	Expander	Domain	domain,live_host	url,js_file	-	—+js	DEFER	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Katana screenshots	inventory_stub(no-binary)	active	Terminal	Live Host	live_host,url	screenshot,tag,tech	-	image+sqlite	DEFER	False		165	0			declared	
+Kismet Logs	inventory_stub(no-binary)	active	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	DEFER	False		171	0			declared	
+kiterunner	skip_missing_binary	active	Expander	URL	url	url	-	jsonl	KEEP_OPTIONAL	False		161	113	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	kr scan /dev/stdin -w {kite_wordlist} -o json --quiet	med(installable)	
+Knockpy	inventory_stub(no-binary)	active	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Kubernetes API Search	disabled	passive	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	KEEP_OPTIONAL	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+Kubernetes Exposure Search	disabled	passive	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	KEEP_OPTIONAL	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+LACNIC	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Lampyre	disabled	active	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+lazys3	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+LeakCheck	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+LeakCheck API	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+leakix	RAN_produced	passive	Generator	Domain	domain	service,finding,ip	runs:8	jsonl	KEEP_CORE	True	LEAKIX_API_KEY	33	152	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		high(ran+data)	
+LeakIX Buckets	disabled	passive	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	KEEP_OPTIONAL	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+LeakIX Exposure Search	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+LeakPeek	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+LinkedIn Recon	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+LinkedIn2Username	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+LinkedInt	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+linkfinder	skip_missing_binary	passive	Artifact-Analyzer	JS	js_file	url	-	text	ARTIFACT_ONLY	False		15	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	linkfinder -i {js_file} -o cli	med(installable)	
+Maigret	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+MailTester	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+MalShare	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+Maltego	disabled	active	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+MalwareBazaar	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+MalwareTrafficAnalysis	non_executable	validation	Reference	Never Run	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	REFERENCE_ONLY	False		338	0			declared	
+mapcidr	skip_missing_binary	passive	Generator	Validation	cidr	ip	-	text	KEEP_OPTIONAL	False		37	152	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch	mapcidr -silent	med(installable)	
+MarineTraffic	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+masscan	skip_missing_binary	active	Validator	Validation	cidr	host_port	-	text	VALIDATION_ONLY	False		37	0		masscan {cidr} -p{ports} --rate {rate}	med(installable)	
+massdns	RAN_produced	passive	Generator	Subdomain	subdomain	ip	runs:8,ip:8	text	KEEP_OPTIONAL	False		170	152	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch	massdns -r {resolvers} -t A -o S -w /dev/stdout /dev/stdin	high(ran+data)	
+mat2	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+MaxMind	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+MediaInfo	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+Memento Time Travel	disabled	passive	Expander	Domain	domain,live_host	url,js_file	-	—+js	KEEP_OPTIONAL	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Mentionmapp	non_executable	passive	Reference	Never Run	username,org,handle	username,url,finding	-	—	REFERENCE_ONLY	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+metabigor	skip_missing_binary	passive	Enrichment	Seed	org	cidr	-	text	ENRICHMENT_ONLY	False		36	2	mapcidr,masscan	metabigor net --org	med(installable)	
+Metadata2Go	non_executable	passive	Reference	Never Run	domain,url	document,email,finding,tag	-	—	REFERENCE_ONLY	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+Metagoofil	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+MicroBurst	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+MISP	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+Mojeek	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+naabu	skip_missing_binary	active	Validator	Subdomain	ip,subdomain	service	runs:7,service:8	jsonl	VALIDATION_ONLY	True		232	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		med(installable)	
+Namecheckup	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Namechk	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Netcraft	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Netcraft Toolbar	non_executable	passive	Reference	Never Run	live_host,url,subdomain	tech,service,tag,finding	-	—	REFERENCE_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+netlas	RAN_produced	passive	Generator	Domain	domain	subdomain	runs:8	jsonl	KEEP_CORE	True	NETLAS_API_KEY	33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT		high(ran+data)	
+Netlas API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Netlas ASN Search	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Netlas Explorer	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Netlas Hosts	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+nikto	skip_missing_binary	validation	Terminal	URL	url	finding	finding:18,runs:1	text	KEEP_OPTIONAL	False		162	0		nikto -h {url} -nointeractive -maxtime 90s -ask no	med(installable)	
+nmap	skip_missing_binary	active	Validator	Subdomain	ip,subdomain	service	service:3,runs:8	jsonl	VALIDATION_ONLY	False		232	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		med(installable)	
+notify	non_executable	passive	Reference	Never Run	any	none	-	text	REFERENCE_ONLY	False		1	2	dnsvalidator,interactsh	cat {infile} | notify -silent	declared	
+nuclei	skip_missing_binary	validation	Terminal	Live Host	live_host,url	finding	-	—	KEEP_CORE	True		165	0			med(installable)	
+nuclei templates	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+nvd	skip_missing_key	validation	Terminal	Findings	cpe	finding	-	json	KEEP_OPTIONAL	False	NVD_API_KEY	0	0		GET https://services.nvd.nist.gov/rest/json/cves/2.0?cpeName={cpe}	med(installable)	
+OCRmyPDF	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+oletools	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+OneForAll	inventory_stub(no-binary)	active	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+OnionLand	non_executable	passive	Reference	Never Run	domain,org,keyword	onion,finding,url	-	—	REFERENCE_ONLY	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+OnionLand Search	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+OnionScan	inventory_stub(no-binary)	active	Expander	Seed	domain,org,keyword	onion,finding,url	-	—	DEFER	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+OnionSearch	inventory_stub(no-binary)	passive	Expander	Seed	domain,org,keyword	onion,finding,url	-	—	DEFER	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+ONYPHE	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+OpenCellID	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+OpenCTI	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+OpenPhish	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+OpenStreetMap	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+OpenVAS Discovery	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+org_fingerprint	available_not_scheduled(chain-orphan)	active	Enrichment	Subdomain	subdomain,live_host,url	favicon,analytics_id,org	favicon:2,runs:4,analytics_id:2	jsonl	ENRICHMENT_ONLY	True		272	244	ADSBExchange,AFRINIC,APNIC,ARIN,AWSBucketDump,AbuseIPDB		declared	
+OSINT Framework	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Osintgram	inventory_stub(no-binary)	passive	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Osintracker	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Osmedeus	inventory_stub(no-binary)	active	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+OWASP Amass	inventory_stub(no-binary)	active	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Packet Storm Search	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+pageres	inventory_stub(no-binary)	active	Terminal	Live Host	live_host,url	screenshot,tag,tech	-	image+sqlite	DEFER	False		165	0			declared	
+Pagodo	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Pagodo Dorks	non_executable	passive	Reference	Never Run	domain,live_host	url,repo,finding	-	—	REFERENCE_ONLY	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+param_miner	available_not_scheduled(chain-orphan)	passive	Expander	URL	url	url	runs:1	jsonl	DEFER	True		161	113	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+paramspider	RAN_produced	passive	Expander	Domain	domain	url	runs:8	text	KEEP_OPTIONAL	False		33	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	paramspider -d {domain}	high(ran+data)	
+PassiveTotal	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+PayloadsAllTheThings Recon Section	non_executable	passive	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+PDF Stream Dumper	non_executable	passive	Reference	Never Run	domain,url	document,email,finding,tag	-	—	REFERENCE_ONLY	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+pdfinfo	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+PeekYou	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+peepdf	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+PeeringDB	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Pentest-Tools Collections	non_executable	active	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+PhishTank	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+Phonebook.cz	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+PhotoME	non_executable	passive	Reference	Never Run	domain,url	document,email,finding,tag	-	—	REFERENCE_ONLY	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+Photon	inventory_stub(no-binary)	active	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Pipl	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Playwright	disabled	active	Terminal	Live Host	live_host,url	screenshot,tag,tech	-	image+sqlite	KEEP_OPTIONAL	False		165	0			declared	
+Profil3r	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Project Sonar	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+ProjectDiscovery stack	inventory_stub(no-binary)	active	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+prowler	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+PTRArchive	non_executable	passive	Reference	Never Run	domain,subdomain	subdomain,ip,cert	-	—	REFERENCE_ONLY	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Public Bucket Search	disabled	passive	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	KEEP_OPTIONAL	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+PublicWWW	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+PublicWWW Historical Search	disabled	passive	Expander	Domain	domain,live_host	url,js_file	-	—+js	KEEP_OPTIONAL	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+PublicWWW Source Search	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Pulsedive	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Pulsedive API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Pulsedive Threat Intelligence	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Puppeteer	disabled	active	Terminal	Live Host	live_host,url	screenshot,tag,tech	-	image+sqlite	KEEP_OPTIONAL	False		165	0			declared	
+puredns	RAN_produced	passive	Generator	Subdomain	subdomain	subdomain	runs:8	text	KEEP_OPTIONAL	False		169	98	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	puredns resolve /dev/stdin -r {resolvers} -q	high(ran+data)	
+Pushshift	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+pycrawl	available_not_scheduled(chain-orphan)	active	Generator	Domain	subdomain,domain,url	url,subdomain,finding,js_file	runs:3	jsonl+js	DEFER	True		302	185	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+pydirb	available_not_scheduled(chain-orphan)	active	Expander	Domain	subdomain,domain	url	runs:6,url:12	jsonl	DEFER	True		203	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+RADb	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Rapid7 Open Data	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+RapidDNS	non_executable	passive	Reference	Never Run	domain,subdomain	subdomain,ip,cert	-	—	REFERENCE_ONLY	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Recon Dark Web Search	disabled	passive	Expander	Seed	domain,org,keyword	onion,finding,url	-	—	KEEP_OPTIONAL	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Recon-ng	inventory_stub(no-binary)	passive	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+ReconDog	inventory_stub(no-binary)	active	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+ReconFTW	inventory_stub(no-binary)	active	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Reconmap	disabled	active	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+reconspider	inventory_stub(no-binary)	active	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Recorded Future	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+Red Teaming Toolkit Lists	non_executable	active	Reference	Never Run	-	-	-	—	REFERENCE_ONLY	False		0	0			declared	
+Reddit Search	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+RedditMetis	non_executable	passive	Reference	Never Run	username,org,handle	username,url,finding	-	—	REFERENCE_ONLY	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+repo-analyzer	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+repo-security-scanner	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+Repo-supervisor	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+RepoHunt	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+RepoRadar	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+RepoSuperScanner	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+Retire.js	inventory_stub(no-binary)	passive	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+ReverseDNSLookup	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+ReverseIPLookup	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+ReverseMXLookup	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+ReverseNSLookup	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Riddler.io	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+RIPE Atlas	disabled	active	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+RIPE NCC	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+ripestat	available_not_scheduled(chain-orphan)	passive	Enrichment	Seed	asn	cidr	-	json	ENRICHMENT_ONLY	True		34	2	mapcidr,masscan	GET https://stat.ripe.net/data/announced-prefixes/data.json?resource={asn}	declared	
+ripgrep	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+RiskIQ Passive DNS	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+RiskIQ PassiveTotal	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Robtex	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+RocketReach	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+RustScan	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+S3recon	inventory_stub(no-binary)	active	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+s3scanner	skip_missing_binary	validation	Terminal	Findings	bucket	finding	-	jsonl	KEEP_OPTIONAL	False		24	0		s3scanner -bucket {bucket} -json	med(installable)	
+ScoutSuite	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	bucket,finding,ip	-	—	DEFER	False		36	153	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,Abuse.ch		declared	
+ScreenshotOne	disabled	active	Terminal	Live Host	live_host,url	screenshot,tag,tech	-	image+sqlite	KEEP_OPTIONAL	False		165	0			declared	
+Search Engine Map	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Searchcode	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+SearchDiggity	non_executable	passive	Reference	Never Run	domain,live_host	url,repo,finding	-	—	REFERENCE_ONLY	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Searx	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+secretfinder	skip_missing_binary	passive	Artifact-Analyzer	JS	js_file	finding	-	text	ARTIFACT_ONLY	False		15	0		secretfinder -i {js_file} -o cli	med(installable)	
+securitytrails	RAN_empty	passive	Generator	Domain	domain	subdomain	ran:0	json	KEEP_OPTIONAL	False	SECURITYTRAILS_API_KEY	33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	GET https://api.securitytrails.com/v1/domain/{domain}/subdomains	med(ran+empty)	
+SecurityTrails API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+SecurityTrails Historical DNS	disabled	passive	Expander	Domain	domain,live_host	url,js_file	-	—+js	KEEP_OPTIONAL	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Semgrep	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+Semgrep Secrets	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+Sentinel Hub	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+Sherlock	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+shhgit	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+shodan	RAN_produced	passive	Generator	Domain	domain	ip,service,subdomain	runs:8	jsonl	KEEP_CORE	True	SHODAN_API_KEY	33	249	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		high(ran+data)	
+Shodan API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Shodan ASN Search	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Shodan screenshots	disabled	passive	Terminal	Live Host	live_host,url	screenshot,tag,tech	-	image+sqlite	KEEP_OPTIONAL	False		165	0			declared	
+shuffledns	skip_missing_binary	passive	Generator	Domain	domain	subdomain	subdomain:22,runs:8	text	KEEP_OPTIONAL	False		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	shuffledns -d {domain} -w {dns_wordlist} -r {resolvers} -silent -mode bruteforce	med(installable)	
+SimilarTech	disabled	passive	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+Sitedorks	non_executable	passive	Reference	Never Run	domain,live_host	url,repo,finding	-	—	REFERENCE_ONLY	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Sn1per	inventory_stub(no-binary)	active	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Snap Map	non_executable	passive	Reference	Never Run	username,org,handle	username,url,finding	-	—	REFERENCE_ONLY	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Snusbase	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+SOC Radar Search	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Social Analyzer	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Social Bearing	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Social Blade	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Social Links	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Social Searcher	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Socid Extractor	inventory_stub(no-binary)	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	DEFER	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Sonar DNS	non_executable	passive	Reference	Never Run	domain,subdomain	subdomain,ip,cert	-	—	REFERENCE_ONLY	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Sonar FDNS	non_executable	passive	Reference	Never Run	domain,subdomain	subdomain,ip,cert	-	—	REFERENCE_ONLY	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Sonar OMNI	non_executable	passive	Reference	Never Run	domain,subdomain	subdomain,ip,cert	-	—	REFERENCE_ONLY	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Sonar RDNS	non_executable	passive	Reference	Never Run	domain,subdomain	subdomain,ip,cert	-	—	REFERENCE_ONLY	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Sourcegraph	disabled	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	KEEP_OPTIONAL	False		36	2	gitleaks,trufflehog		declared	
+SpiderFoot	inventory_stub(no-binary)	active	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+SpiderSuite	disabled	passive	Generator	Domain	domain	subdomain,url,finding	-	—	KEEP_OPTIONAL	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Spokeo	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+Spur	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Spur Context API	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Spyse	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+sslyze	skip_missing_binary	validation	Terminal	Subdomain	subdomain	finding	runs:8	jsonl	KEEP_OPTIONAL	False		170	0			med(installable)	
+strings	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+subdomaincenter	RAN_produced	passive	Generator	Domain	domain	subdomain	runs:8	json	KEEP_CORE	True		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	https://api.subdomain.center/?domain={domain}	high(ran+data)	
+subfinder	RAN_produced	passive	Generator	Domain	domain	subdomain	runs:8	jsonl	KEEP_CORE	True		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT		high(ran+data)	
+subjack	RAN_produced	validation	Terminal	Subdomain	subdomain	finding	runs:8	text	KEEP_OPTIONAL	False		170	0		subjack -w /dev/stdin -ssl	high(ran+data)	
+sublist3r	skip_missing_binary	passive	Generator	Domain	domain	subdomain	subdomain:7,runs:8	text	KEEP_OPTIONAL	False		33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	sublist3r -d {domain} -n	med(installable)	
+SubOver	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Subscraper	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Sudomy	inventory_stub(no-binary)	active	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Swisscows	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Team Cymru	disabled	passive	Generator	Seed	domain,ip,asn,org	asn,cidr,ip,org,domain	-	—	KEEP_OPTIONAL	False		171	473	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASM tools		declared	
+Telegram OSINT	inventory_stub(no-binary)	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	DEFER	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Telepathy	inventory_stub(no-binary)	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	DEFER	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Telescan	inventory_stub(no-binary)	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	DEFER	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+ThatsThem	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+theHarvester	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Thingful	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+ThreatBook	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+ThreatConnect	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+ThreatCrowd	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+ThreatFox	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+ThreatMiner	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+Tika	inventory_stub(no-binary)	passive	Generator	Domain	domain,url	document,email,finding,tag	-	—	DEFER	False		195	74	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,BreachDirectory		declared	
+TikTokScraper	inventory_stub(no-binary)	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	DEFER	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+tko-subs	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+tlsx	skip_missing_binary	active	Generator	Subdomain	subdomain	subdomain	subdomain:3,runs:8	jsonl	KEEP_OPTIONAL	False		169	98	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	tlsx -json -san -cn -silent	med(installable)	
+TorBot	inventory_stub(no-binary)	passive	Expander	Seed	domain,org,keyword	onion,finding,url	-	—	DEFER	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Torch	non_executable	passive	Reference	Never Run	domain,org,keyword	onion,finding,url	-	—	REFERENCE_ONLY	False		36	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Torch Search	non_executable	passive	Reference	Never Run	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	REFERENCE_ONLY	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Toutatis	inventory_stub(no-binary)	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	DEFER	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Trivy	inventory_stub(no-binary)	passive	Generator	Seed	org,domain,keyword	repo,endpoint,finding	-	—	DEFER	False		36	2	gitleaks,trufflehog		declared	
+Trivy Secret Scanner	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+TruePeopleSearch	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+trufflehog	skip_missing_binary	passive	Artifact-Analyzer	Repository	repo	finding	-	jsonl	ARTIFACT_ONLY	False		56	0		trufflehog filesystem {repo} --json	med(installable)	
+Trufflehog3	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+TruthNest	non_executable	passive	Reference	Never Run	username,org,handle	username,url,finding	-	—	REFERENCE_ONLY	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+TweetDeck	non_executable	passive	Reference	Never Run	username,org,handle	username,url,finding	-	—	REFERENCE_ONLY	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Twint	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+UK Web Archive	non_executable	passive	Reference	Never Run	domain,live_host	url,js_file	-	—+js	REFERENCE_ONLY	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+uncover	RAN_produced	passive	Generator	Domain	domain	ip,service,subdomain	runs:8	jsonl	KEEP_CORE	True		33	249	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		high(ran+data)	
+uncover-engine	inventory_stub(no-binary)	passive	Generator	Domain	domain	subdomain,url,finding	-	—	DEFER	False		33	182	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+unfurl-domains	skip_missing_binary	passive	Generator	URL	url	subdomain	runs:1,subdomain:1	text	KEEP_OPTIONAL	False		162	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	unfurl -u domains	med(installable)	
+unfurl-keys	skip_missing_binary	passive	Terminal	URL	url	param	runs:1	text	KEEP_OPTIONAL	False		162	0		unfurl -u keys	med(installable)	
+URLCrazy	inventory_stub(no-binary)	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	DEFER	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+URLFinder	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+URLHaus	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+urlscan	RAN_produced	passive	Generator	Domain	domain	url,ip,subdomain	url:98,subdomain:98,runs:8,ip:98	jsonl	KEEP_CORE	True		33	303	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		high(ran+data)	
+URLScan API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+URLScan History	disabled	passive	Expander	Domain	domain,live_host	url,js_file	-	—+js	KEEP_OPTIONAL	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+urlscan screenshots	disabled	passive	Terminal	Live Host	live_host,url	screenshot,tag,tech	-	image+sqlite	KEEP_OPTIONAL	False		165	0			declared	
+URLScan Search	disabled	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	KEEP_OPTIONAL	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+urlscan.io	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+UserRecon	inventory_stub(no-binary)	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	DEFER	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+UserSearch	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+VerifyEmailAddress	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+VesselFinder	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+ViewDNS	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+virustotal	RAN_empty	passive	Generator	Domain	domain	subdomain	ran:0	json	KEEP_OPTIONAL	False	VIRUSTOTAL_API_KEY	33	99	ASNLookup,AltDNS,Appalyzer,Aquatone,Arachni,BBOT	GET https://www.virustotal.com/api/v3/domains/{domain}/subdomains	med(ran+empty)	
+VirusTotal API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+vulners	skip_missing_key	validation	Terminal	Findings	cpe	finding	-	json	KEEP_OPTIONAL	False	VULNERS_API_KEY	0	0		POST https://vulners.com/api/v3/search/lucene/	med(installable)	
+wafninja	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+wafw00f	skip_missing_binary	validation	Terminal	URL	url	finding	runs:1	json	KEEP_OPTIONAL	False		162	0		wafw00f {url} -o /dev/stdout -f json	med(installable)	
+Wappalyzer	disabled	passive	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+Wappalyzer API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+Wappalyzer Lookup	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+wayback	RAN_produced	passive	Expander	Domain	domain	url	runs:8	jsonl	KEEP_CORE	True		33	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		high(ran+data)	
+Wayback Machine	disabled	passive	Expander	Domain	domain,live_host	url,js_file	-	—+js	KEEP_OPTIONAL	False		36	118	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+wayback_cdx	RAN_produced	passive	Expander	Domain	domain	url	runs:8	text	KEEP_CORE	True		33	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	GET http://web.archive.org/cdx/search/cdx?url=*.{domain}/*&fl=original&collapse=urlkey	high(ran+data)	
+waybackurls	RAN_produced	passive	Expander	Domain	domain	url	runs:7	text	KEEP_OPTIONAL	False		33	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	waybackurls {domain}	high(ran+data)	
+waymore	RAN_produced	passive	Expander	Domain	domain	url	runs:7	text	KEEP_OPTIONAL	False		33	114	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk	waymore -i {domain} -mode U -oU /dev/stdout -p 4	high(ran+data)	
+Web Archive Search	disabled	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	KEEP_OPTIONAL	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+webanalyze	inventory_stub(no-binary)	passive	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+webscreenshot	inventory_stub(no-binary)	active	Terminal	Live Host	live_host,url	screenshot,tag,tech	-	image+sqlite	DEFER	False		165	0			declared	
+WebSniffer	non_executable	passive	Reference	Never Run	live_host,url,subdomain	tech,service,tag,finding	-	—	REFERENCE_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+WebTech	disabled	passive	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+WhatCMS	disabled	passive	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+WhatRuns	non_executable	passive	Reference	Never Run	live_host,url,subdomain	tech,service,tag,finding	-	—	REFERENCE_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+WhatsApp Web Enumeration	non_executable	active	Reference	Never Run	username,org,handle	username,url,finding	-	—	REFERENCE_ONLY	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+WhatsMyName	non_executable	passive	Reference	Never Run	domain,email,username,org	email,username,finding	-	—	REFERENCE_ONLY	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+whatweb	skip_missing_binary	validation	Terminal	Live Host	live_host	finding	runs:8	jsonl	KEEP_OPTIONAL	False		3	0			med(installable)	
+Whitepages	disabled	passive	Generator	Seed	domain,email,username,org	email,username,finding	-	—	KEEP_OPTIONAL	False		136	101	AlienVault OTX API,Apollo.io,BeenVerified,BinaryEdge API,Blackbird,Botometer		declared	
+WhoisXML API	disabled	passive	Generator	Domain	domain,subdomain	subdomain,ip,cert	-	—	KEEP_OPTIONAL	False		202	248	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+Wigle	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+WiGLE WiFi Search	disabled	passive	Terminal	Seed	org,bssid,coords,ip	finding,tag	-	—	KEEP_OPTIONAL	False		171	0			declared	
+WitnessMe	inventory_stub(no-binary)	active	Terminal	Live Host	live_host,url	screenshot,tag,tech	-	image+sqlite	DEFER	False		165	0			declared	
+WPScan	inventory_stub(no-binary)	active	Validator	Subdomain	live_host,url,subdomain	tech,service,tag,finding	-	—	VALIDATION_ONLY	False		272	29	ANY.RUN,Abuse.ch,Anomali,CIRCL CVE Search,CVE Details,FIRST EPSS		declared	
+xnLinkFinder	inventory_stub(no-binary)	passive	Generator	Domain	domain,live_host	url,repo,finding	-	—	DEFER	False		36	116	ANY.RUN,Abuse.ch,Anomali,Appalyzer,Arachni,Binwalk		declared	
+Yandex Search	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+YARAify	disabled	validation	Terminal	Domain	ip,domain,url,service,cpe,hash	ioc,finding,tag	-	—	KEEP_OPTIONAL	False		338	0			declared	
+YouTube Data Viewer	non_executable	passive	Reference	Never Run	username,org,handle	username,url,finding	-	—	REFERENCE_ONLY	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+YouTube Metadata	disabled	passive	Generator	Seed	username,org,handle	username,url,finding	-	—	KEEP_OPTIONAL	False		114	192	ANY.RUN,Abuse.ch,Anomali,Apollo.io,Appalyzer,Arachni		declared	
+Zoom Earth	non_executable	passive	Reference	Never Run	org,bssid,coords,ip	finding,tag	-	—	REFERENCE_ONLY	False		171	0			declared	
+ZoomEye	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	
+ZoomEye API	disabled	passive	Generator	Domain	domain,ip,email,asn	service,subdomain,tag,finding	-	—	KEEP_OPTIONAL	False		242	128	ANY.RUN,ASNLookup,Abuse.ch,AltDNS,Anomali,Appalyzer		declared	
+ZoomEye Cyberspace Search	disabled	passive	Generator	Seed	domain,org,ip,asn	subdomain,ip,service,cert,url,tech	-	—	KEEP_OPTIONAL	False		171	302	ADSBExchange,AFRINIC,ANY.RUN,APNIC,ARIN,ASNLookup		declared	

@@ -1,0 +1,64 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Recontool — GENERIC adapter specs (family: subdomain-cli-2)
+#
+# Passive subdomain-SOURCE CLI tools that consume a `domain` seed and emit
+# `subdomain` assets (one host per line). All OFF by default (default_on: false,
+# is_active flips on only under explicit authorization).
+#
+# Format matches config/tools_generic.yaml / recontool/adapters/generic.py.
+# Every wired tool's invocation + output shape is verified against the OFFICIAL
+# source (cited inline). Tools whose flags/output cannot be confirmed are deferred.
+# ─────────────────────────────────────────────────────────────────────────────
+tools:
+
+  # https://github.com/incogbyte/shosubgo — `shosubgo -d {domain} -s {key}` →
+  # default output prints each FQDN one-per-line via fmt.Println(fullDomain)
+  # (verified: https://raw.githubusercontent.com/incogbyte/shosubgo/master/main.go
+  #  loop `for _, v := range subdomain.SubDomains { ... fmt.Println(fullDomain) }`).
+  - name: shosubgo
+    phase: p2_expansion
+    category: 2
+    integration: cli
+    is_active: false
+    default_on: false
+    consumes: [domain]
+    produces: [subdomain]
+    requires_key: SHODAN_API_KEY        # https://github.com/incogbyte/shosubgo — `-s YourAPIKEY`
+    binary: shosubgo
+    invocation: "shosubgo -d {domain} -s {key}"
+    parse:
+      format: text          # one FQDN per line
+      emit:
+        - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
+
+  # ── Deferred (could not verify a domain→subdomain passive invocation + output
+  #    shape from the official source; not guessed) ──────────────────────────
+  #
+  # dnsrecon (https://github.com/darkoperator/dnsrecon)
+  #   defer: undocumented — official README does not confirm a passive
+  #   subdomain-enumeration mode with a documented per-line/JSON output. Its
+  #   subdomain enumeration is `-t brt`, which REQUIRES a wordlist (active
+  #   brute-force, outside the passive-source family); `-t std` enumerates
+  #   general DNS records, not a clean subdomain list. Flags/output for a
+  #   passive subdomain source not verifiable from the official source.
+  #
+  # dnsgrep (https://github.com/erbbysam/DNSGrep)
+  #   defer: undocumented — not a domain→subdomain CLI. It is a local
+  #   binary-search utility over a presorted DNS data file
+  #   (`go run dnsgrep.go -f <presorted-file> -i "<query>"`); it does not
+  #   consume a `domain` seed to produce subdomains, and the README does not
+  #   document an output shape (per-line vs other).
+  #
+  # dsieve (https://github.com/trickest/dsieve)
+  #   defer: by-design (not a discovery tool; conflicts with no-data-loss).
+  #   Invocation + output ARE web-confirmed (`dsieve -i <sub> -f <slice>`, or
+  #   `-if <file>` / stdin; prints one domain per line — README examples). But
+  #   dsieve is a subdomain SIEVE, not a source: it consumes `subdomain` and
+  #   re-emits `subdomain`/apex, whose stated purpose is to "keep the frontier
+  #   focused on meaningful host levels" — i.e. PRUNE the frontier. That
+  #   directly violates the project's completeness-over-speed rule, and the
+  #   re-emission is the over-trigger anti-pattern the engine guards against.
+  #   Any genuinely net-new apex it could surface is a domain NOT under the
+  #   seed, which the emit gate's scope_filter (is_subdomain_of) drops anyway —
+  #   so it yields either nothing-new (scope-filtered) or a scope leak
+  #   (unfiltered). No safe net-new discovery value; not wired on purpose.

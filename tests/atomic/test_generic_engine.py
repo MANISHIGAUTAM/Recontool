@@ -9,6 +9,8 @@ contracts, and register into the pipeline phases.
 from __future__ import annotations
 
 from recontool.adapters.generic import (
+    _expandable_cidr,
+    _input_values,
     build_adapter_class,
     emit_events,
     parse_records,
@@ -70,12 +72,123 @@ def test_emit_value_each_with_scope_filter():
     assert "evil.attacker.com" not in vals     # out-of-scope dropped
 
 
+def test_emit_drops_tool_banner_lines_and_out_of_scope_hosts():
+    """Emit-layer shape+scope gate: a text-parsed tool's banner/usage lines must
+    NOT become assets (paramspider regression), and a value typed `subdomain`
+    that isn't under the seed must be dropped (out-of-scope host regression),
+    even with NO explicit scope_filter on the rule."""
+    # paramspider-style: stdout banner parsed as text -> emitted as url
+    url_spec = {"format": "text", "emit": [
+        {"entity": "asset", "value": "{_value}", "type": "url"}]}
+    banner = parse_records(url_spec, "_    __\nwith <3 by @0xasm0d3us\nhttps://groww.in/?q=1")
+    vals = [e.data["value"] for e in _ev(emit_events(url_spec, banner, "paramspider", "groww.in"), "asset")]
+    assert vals == ["https://groww.in/?q=1"]     # banner art dropped, real url kept
+
+    # subdomain emit with no scope_filter: out-of-scope host dropped, apex+real kept
+    sub_spec = {"format": "text", "emit": [
+        {"entity": "asset", "value": "{_value}", "type": "subdomain"}]}
+    recs = parse_records(sub_spec, "app.groww.in\napps.apple.com\nbit.ly\ngroww.in")
+    got = [e.data["value"] for e in _ev(emit_events(sub_spec, recs, "crawler", "groww.in"), "asset")]
+    assert "app.groww.in" in got and "groww.in" in got
+    assert "apps.apple.com" not in got and "bit.ly" not in got
+
+
+def test_firehose_url_tools_emit_endpoints_not_recursable_assets():
+    """URL-firehose tools (wayback/gau/crawlers) return the target's FULL
+    historical/crawled URL set (100k+). They must emit ENDPOINTs (terminal,
+    stored+deduped but not re-fed), NOT recursable url ASSETS — otherwise each
+    URL re-triggers the whole ~69-tool chain (the 12M-work-item explosion).
+    Only httpx_probe's bounded live ROOTS may recurse as url assets."""
+    from recontool.engine.registry import ToolRegistry
+
+    reg = ToolRegistry.load()
+    firehose = ("wayback_cdx", "gau", "gauplus", "waybackurls", "waymore",
+                "hakrawler", "gospider", "cariddi", "katana")
+    offenders = []
+    for name in firehose:
+        spec = reg.all_tools().get(name)
+        if not spec or not spec.parse:
+            continue
+        for rule in spec.parse.get("emit", []):
+            if rule.get("entity") == "asset" and rule.get("type") == "url":
+                offenders.append(name)
+    assert offenders == [], f"firehose tools emit recursable url assets: {offenders}"
+
+
+def test_shape_tokens_gives_each_tool_its_input_form():
+    """A host tool fed a url key must get the BARE host; a url tool fed a bare
+    host must get a scheme://host URL — otherwise the argv is malformed and the
+    tool silently produces nothing."""
+    from recontool.adapters.generic import _shape_tokens
+
+    # url key -> host tools get bare host, url tools get the full url
+    t = _shape_tokens("https://www.groww.in/p?a=1")
+    assert t["host"] == "www.groww.in" and t["domain"] == "www.groww.in"
+    assert t["url"] == "https://www.groww.in/p?a=1"
+    # bare host key -> url tools get a built https url; host stays bare
+    t = _shape_tokens("api.groww.in")
+    assert t["host"] == "api.groww.in" and t["url"] == "https://api.groww.in"
+    # ip key -> {ip} is the ip
+    t = _shape_tokens("104.18.37.214")
+    assert t["ip"] == "104.18.37.214"
+
+
 def test_emit_bgpview_cidr():
     spec = {"format": "json", "list_path": "data.ipv4_prefixes",
             "emit": [{"entity": "asset", "value": "{prefix}", "type": "cidr"}]}
     recs = parse_records(spec, None, json_obj={"data": {"ipv4_prefixes": [{"prefix": "1.2.3.0/24"}]}})
     ev = emit_events(spec, recs, "bgpview", None)
     assert _ev(ev, "asset")[0].data == {"type": "cidr", "value": "1.2.3.0/24"}
+
+
+def test_emit_cidr_size_scope_filter_drops_oversized_blocks():
+    # ASN-level lookups (ripestat/bgpview) on a shared ASN like Cloudflare's
+    # AS13335 return the provider's entire prefix list -- cidr_size keeps
+    # only blocks small enough to plausibly be a dedicated allocation.
+    spec = {"format": "json", "list_path": "data.prefixes", "emit": [
+        {"entity": "asset", "value": "{prefix}", "type": "cidr", "scope_filter": "cidr_size"}]}
+    recs = parse_records(spec, None, json_obj={"data": {"prefixes": [
+        {"prefix": "104.22.42.0/24"},      # /24 -> kept
+        {"prefix": "104.16.0.0/12"},       # CDN-wide supernet -> dropped
+        {"prefix": "2400:cb00:768::/48"},  # IPv6 supernet -> dropped
+    ]}})
+    ev = emit_events(spec, recs, "ripestat", "groww.in")
+    assert {e.data["value"] for e in _ev(ev, "asset")} == {"104.22.42.0/24"}
+
+
+# ── _input_values: cidr fan-out guard ─────────────────────────────────────────
+def test_expandable_cidr_size_guard():
+    assert _expandable_cidr("1.2.3.0/24") is True
+    assert _expandable_cidr("10.0.0.0/8") is False         # too large to expand per-IP
+    assert _expandable_cidr("2400:cb00:768::/48") is False  # IPv6 supernet
+    assert _expandable_cidr("not-a-cidr") is False
+
+
+def test_input_values_filters_oversized_cidrs_for_mapcidr():
+    class _Ctx:
+        def seeds_of(self, atype):
+            return {"cidr": ["1.2.3.0/24", "10.0.0.0/8", "2400:cb00:768::/48"]}.get(atype, [])
+
+    assert _input_values(_Ctx(), ("cidr",)) == ["1.2.3.0/24"]
+
+
+def test_fan_out_processes_every_input_in_rotating_batches():
+    """_fan_out must run EVERY input (no cap/drop), batching only to bound
+    in-flight concurrency."""
+    import asyncio
+
+    from recontool.adapters.generic import _fan_out
+
+    seen = []
+
+    async def one(v):
+        seen.append(v)
+        return [v]
+
+    inputs = [f"h{i}.example.com" for i in range(125)]   # > any batch size
+    out = asyncio.run(_fan_out(inputs, one, batch_size=10))
+    assert sorted(seen) == sorted(inputs)   # all 125 ran, none dropped
+    assert len(out) == 125
 
 
 def test_emit_edge_service_endpoint_finding():

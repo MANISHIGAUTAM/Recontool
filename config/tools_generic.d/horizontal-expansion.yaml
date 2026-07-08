@@ -1,0 +1,26 @@
+# Batch-12 F5 — horizontal expansion (opt-in family; all default_on:false).
+#
+# Reverse-DNS (PTR) sweep: an in-scope IP often has a PTR record revealing a hostname —
+# self-hosted infra or a sibling subdomain. dnsx -ptr is the grounded producer (real flag,
+# same JSON schema the default dnsx already parses). Scope-filtered so only in-scope PTRs
+# become subdomains.
+#
+# DEFERRED here (docs are placeholders / tools undocumented — would require inventing flags
+# or output formats): whois / reverse-whois (org/email -> apex domains), reverse-IP /
+# hakip2host (ip -> sibling domains). They need captured runtime samples before wiring.
+tools:
+  - name: dnsx-ptr
+    phase: p3_enrichment
+    category: 3
+    integration: cli
+    is_active: false
+    default_on: false
+    consumes: [ip]
+    produces: [subdomain]
+    binary: dnsx
+    invocation: "dnsx -ptr -resp-only -json -silent"
+    stdin: true
+    parse:
+      format: jsonl
+      emit:
+        - {entity: asset, value_each: ptr, type: subdomain, scope_filter: subdomain}

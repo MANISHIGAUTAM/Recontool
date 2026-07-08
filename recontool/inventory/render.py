@@ -68,7 +68,7 @@ def write_all(inv: dict, data_dir: Path, inv_doc_dir: Path, tools_doc_dir: Path,
     print(f"  rows collapsed     : {stats['duplicate_rows_collapsed']}")
     print(f"  multi-section tools: {stats['multi_section_tools']}")
     print(f"  web-only tools     : {stats['web_only_count']}")
-    print(f"  outputs            : data/tool_inventory.json, data/tool_rows_raw.json,")
+    print("  outputs            : data/tool_inventory.json, data/tool_rows_raw.json,")
     print(f"                       docs/inventory/TOOL-INVENTORY.md, docs/tools/*.md "
           f"({len(tools)} files)")
 
@@ -86,9 +86,9 @@ def _render_inventory_md(inv: dict) -> str:
     L.append(f"- **Duplicate rows collapsed:** {stats['duplicate_rows_collapsed']}")
     L.append(f"- **Tools spanning multiple sections:** {stats['multi_section_tools']}")
     L.append(f"- **Web/GUI-only tools:** {stats['web_only_count']}")
-    L.append(f"- **By classification:** "
+    L.append("- **By classification:** "
              + ", ".join(f"{k}={v}" for k, v in stats["by_classification"].items()))
-    L.append(f"- **By cost tier:** "
+    L.append("- **By cost tier:** "
              + ", ".join(f"{k}={v}" for k, v in stats["by_cost_tier"].items()))
     L.append("")
     L.append("**Provenance:** every tool below is `extracted_from_spreadsheet`. "
@@ -200,7 +200,7 @@ def _render_tool_md(t: dict, raw_rows: list[dict]) -> str:
     elif "api" in modes:
         L.append("```text")
         L.append(f"# API integration (fill endpoint/auth in config/tools.yaml -> {t['slug']})")
-        L.append(f"GET https://<provider-endpoint>/...   # key: see config/recontool.yaml")
+        L.append("GET https://<provider-endpoint>/...   # key: see config/recontool.yaml")
         L.append("```")
         L.append("> Invocation template is a placeholder — wire the exact endpoint/flags "
                  "in `config/tools.yaml` and implement an adapter under "

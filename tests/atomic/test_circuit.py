@@ -22,7 +22,8 @@ def test_breaker_trips_open_after_threshold():
     clk = FakeClock()
     b = CircuitBreaker(failure_threshold=3, cooldown=30, clock=clk)
     assert b.state is State.CLOSED and b.allow()
-    b.record_failure(); b.record_failure()
+    b.record_failure()
+    b.record_failure()
     assert b.state is State.CLOSED                 # not yet
     b.record_failure()                              # 3rd -> trip
     assert b.state is State.OPEN
@@ -32,7 +33,8 @@ def test_breaker_trips_open_after_threshold():
 def test_breaker_half_open_then_close_on_success():
     clk = FakeClock()
     b = CircuitBreaker(failure_threshold=2, cooldown=30, half_open_max=1, clock=clk)
-    b.record_failure(); b.record_failure()
+    b.record_failure()
+    b.record_failure()
     assert b.state is State.OPEN and not b.allow()
     clk.advance(31)                                 # cooldown elapsed
     assert b.state is State.HALF_OPEN
@@ -49,16 +51,19 @@ def test_breaker_half_open_failure_reopens():
     assert b.state is State.OPEN
     clk.advance(11)
     assert b.state is State.HALF_OPEN
-    b.allow(); b.record_failure()                    # probe fails -> reopen
+    b.allow()
+    b.record_failure()                    # probe fails -> reopen
     assert b.state is State.OPEN
     assert not b.allow()
 
 
 def test_success_resets_consecutive_failures():
     b = CircuitBreaker(failure_threshold=3)
-    b.record_failure(); b.record_failure()
+    b.record_failure()
+    b.record_failure()
     b.record_success()                               # reset
-    b.record_failure(); b.record_failure()
+    b.record_failure()
+    b.record_failure()
     assert b.state is State.CLOSED                   # never reached 3 in a row
 
 
