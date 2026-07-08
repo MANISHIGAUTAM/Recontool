@@ -44,6 +44,43 @@ tools:
       emit:
         - {entity: asset, value: "{_value}", type: subdomain, scope_filter: subdomain}
 
+  # theHarvester — laramies/theHarvester (multi-source OSINT: subdomains + emails).
+  #   README/wiki don't document flags in detail; grounded from SOURCE instead:
+  #   `theHarvester/__main__.py` argparse block — `-d/--domain` (required),
+  #   `-b/--source` (comma list or "all"; `if args.source.lower() != 'all'`),
+  #   `-q/--quiet` ("Suppress missing API key warnings and reading the api-keys
+  #   file" — avoids a crash/prompt when no api-keys.yaml is mounted). No
+  #   `-f/--filename` -> results print to STDOUT only (file mode is opt-in, not
+  #   used here). https://github.com/laramies/theHarvester/blob/master/theHarvester/__main__.py
+  #   STDOUT shape (verified via source, README has no output spec): sectioned
+  #   plain text — "\n[*] Hosts found: N" / "---" header then `for host in
+  #   full: print(host)` (plain hostname, or "host:ip" only when -r/--dns-resolve
+  #   is used, which we don't pass); "\n[*] Emails found: N" / "---" then
+  #   `print('\n'.join(all_emails))`; "\n[*] IPs found: N" / "---" then one IP
+  #   per line. One line_regex with 3 alternative named groups (host/email/ip)
+  #   -- an unmatched group renders to "" via render_template and is dropped
+  #   (`if not v: return out`), so header/separator/banner lines never match
+  #   any branch and are silently skipped -- no ANSI/decoration to strip.
+  - name: theharvester
+    phase: p2_expansion
+    category: 2
+    integration: cli
+    is_active: false
+    default_on: false
+    consumes: [domain]
+    produces: [subdomain, email]
+    binary: theHarvester
+    invocation: "theHarvester -d {domain} -b all -q"
+    parse:
+      format: text
+      line_regex: '^(?:(?P<email>[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})|(?P<ip>(?:\d{1,3}\.){3}\d{1,3})(?::\d+)?|(?P<host>(?:[a-zA-Z0-9_](?:[a-zA-Z0-9_-]{0,62})?\.)+[a-zA-Z]{2,63})(?::(?:\d{1,3}\.){3}\d{1,3})?)$'
+      emit:
+        - {entity: asset, value: "{host}", type: subdomain, scope_filter: subdomain}
+        - {entity: asset, value: "{email}", type: email}
+        # IP-section lines are NOT emitted as a scoped asset (theHarvester's IP
+        # list mixes resolved-host IPs and third-party lookup IPs with no
+        # per-line provenance) -- host/email are the safe, source-grounded gain.
+
   # ── Deferred (output is NOT confirmable as plain stdout) ────────────────────
   #
   # sublist3r (https://github.com/aboul3la/Sublist3r)

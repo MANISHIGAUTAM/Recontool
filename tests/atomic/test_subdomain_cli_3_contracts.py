@@ -99,3 +99,66 @@ def test_deferred_and_already_wired_not_duplicated():
     assert "dnscan" not in names
     assert "assetfinder" not in names   # already wired elsewhere
     assert "findomain" not in names     # already wired elsewhere
+
+
+# theHarvester's sectioned stdout: header/separator noise mixed with plain
+# host, host:ip (dns-resolved form), email, and bare-IP lines.
+HARVESTER_STDOUT = "\n".join(
+    [
+        "[*] Target: example.com ",
+        "[*] Searching Baidu. ",
+        "",
+        "[*] IPs found: 2",
+        "-------------------",
+        "203.0.113.10",
+        "203.0.113.11",
+        "",
+        "[*] Emails found: 2",
+        "----------------------",
+        "admin@example.com",
+        "security@example.com",
+        "",
+        "[*] Hosts found: 4",
+        "---------------------",
+        "api.example.com",
+        "WWW.Example.com",
+        "vpn.example.com:198.51.100.5",   # -r dns-resolved form (not used, but tolerated)
+        "evil.attacker.com",              # out of scope -> dropped
+    ]
+)
+
+
+def test_theharvester_contract_shape():
+    t = _tools()["theharvester"]
+    assert t["default_on"] is False
+    assert t["is_active"] is False
+    assert t["integration"] == "cli"
+    assert t["consumes"] == ["domain"]
+    assert t["produces"] == ["subdomain", "email"]
+    assert t["binary"] == "theHarvester"
+    assert "-b all" in t["invocation"]
+    assert "-q" in t["invocation"].split()
+
+
+def test_theharvester_emits_hosts_and_emails_only():
+    t = _tools()["theharvester"]
+    recs = parse_records(t["parse"], HARVESTER_STDOUT)
+    events = emit_events(t["parse"], recs, t["name"], SEED)
+    hosts = [e.data["value"] for e in events if e.entity == "asset" and e.data.get("type") == "subdomain"]
+    emails = [e.data["value"] for e in events if e.entity == "asset" and e.data.get("type") == "email"]
+
+    assert "api.example.com" in hosts
+    assert "www.example.com" in hosts       # case-folded
+    assert "vpn.example.com" in hosts       # ":ip" suffix stripped
+    assert "evil.attacker.com" not in hosts  # out of scope -> dropped
+    for h in hosts:
+        assert h == SEED or h.endswith("." + SEED), f"leaked {h!r}"
+
+    assert "admin@example.com" in emails
+    assert "security@example.com" in emails
+    assert len(emails) == 2
+
+    # header/separator/IP lines never masquerade as an asset
+    all_vals = [e.data["value"] for e in events if e.entity == "asset"]
+    assert "203.0.113.10" not in all_vals
+    assert not any(v.startswith("[*]") or v.startswith("---") for v in all_vals)
