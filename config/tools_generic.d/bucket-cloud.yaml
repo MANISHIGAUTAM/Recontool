@@ -8,7 +8,20 @@
 #     ("[HH:MM:SS] [FOUND:IP] <ip>") — fragile to parse; defer.
 #   - CloudBrute (0xsha/CloudBrute): writes results to a FILE (-o out.txt), not stdout —
 #     the generic adapter captures stdout only; defer (needs a file-reading adapter).
-#   - blobhunter / bucketloot / awsbucketdump: output schema unconfirmed; defer pending source/probe.
+#   - BucketLoot (redhuntlabs/BucketLoot, docs/documentation.md, web-verified 2026-07-08):
+#     `bucketloot <bucket-url>` DOES print JSON to stdout, but the schema is NESTED
+#     dict-arrays — Results[].Secrets[{name,url,severity}], .SensitiveFiles[{name,url}],
+#     .Assets[{url,domain,subdomain}]. The declarative generic parser resolves ONE list
+#     level (list_path -> records) and `value_each` only emits STRING lists, so per-secret /
+#     per-asset dict fields can't be reached without a hand adapter. defer: nested-JSON,
+#     needs-hand-adapter (good follow-on — it LOOTS already-discovered buckets: bucket -> finding).
+#   - AWSBucketDump (jordanpotti/AWSBucketDump, README web-verified 2026-07-08):
+#     `python AWSBucketDump.py -l <wordlist> ...` requires an input wordlist file and DOWNLOADS
+#     files into per-bucket dirs; README does not document any stdout result format. defer:
+#     undocumented-output + file-download (also a discovery brute-forcer, overlaps s3scanner).
+#   - BlobHunter (cyberark/BlobHunter, README web-verified 2026-07-08): `python3 BlobHunter.py`
+#     requires an authenticated Azure CLI login (interactive browser auth) and writes a CSV
+#     result file, not stdout. defer: needs-azure-auth + csv-file-output (not pipeline-invocable).
 tools:
   # https://github.com/RhinoSecurityLabs/GCPBucketBrute — `gcpbucketbrute -k <keyword> -u`
   # (unauthenticated). check_permissions() prints, one per line (leading spaces stripped):
