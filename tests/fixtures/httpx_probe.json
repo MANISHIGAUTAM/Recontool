@@ -1,0 +1,73 @@
+{
+  "results": [
+    {
+      "input": "api.example.com",
+      "url": "https://api.example.com",
+      "status_code": 200,
+      "content_length": 4523,
+      "content_type": "application/json",
+      "host": "93.184.216.34",
+      "port": "443",
+      "scheme": "https",
+      "title": "API Documentation",
+      "webserver": "nginx/1.24.0",
+      "tech": ["Nginx", "Node.js"],
+      "chain_status_codes": [301, 200],
+      "tls": {
+        "cipher": "TLS_AES_256_GCM_SHA384",
+        "version": "tls1.3",
+        "subject_cn": "api.example.com",
+        "issuer": "R3"
+      },
+      "hashes": {
+        "body_sha256": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
+      }
+    },
+    {
+      "input": "www.example.com",
+      "url": "https://www.example.com",
+      "status_code": 200,
+      "content_length": 15234,
+      "content_type": "text/html",
+      "host": "93.184.216.36",
+      "port": "443",
+      "scheme": "https",
+      "title": "Example Corp - Home",
+      "webserver": "nginx/1.24.0",
+      "tech": ["Nginx", "React", "Webpack"],
+      "chain_status_codes": [200],
+      "tls": {
+        "cipher": "TLS_AES_256_GCM_SHA384",
+        "version": "tls1.3",
+        "subject_cn": "www.example.com",
+        "issuer": "R3"
+      },
+      "hashes": {
+        "body_sha256": "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3"
+      }
+    },
+    {
+      "input": "mail.example.com",
+      "url": "https://mail.example.com",
+      "status_code": 302,
+      "content_length": 0,
+      "content_type": "",
+      "host": "93.184.216.38",
+      "port": "443",
+      "scheme": "https",
+      "title": "",
+      "webserver": "Microsoft-IIS/10.0",
+      "tech": ["IIS", "ASP.NET"],
+      "chain_status_codes": [302],
+      "tls": {
+        "cipher": "TLS_AES_128_GCM_SHA256",
+        "version": "tls1.2",
+        "subject_cn": "mail.example.com",
+        "issuer": "DigiCert"
+      },
+      "hashes": {
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ]
+}

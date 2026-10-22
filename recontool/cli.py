@@ -83,6 +83,138 @@ def scan(
 
 
 @app.command()
+def engine(
+    seed: str = typer.Argument(..., help="domain / ip / cidr / asn (e.g. www.xyz.com)"),
+    seed_type: str = typer.Option("domain", "--type", "-t",
+                                  help="seed type: domain | subdomain | ip | cidr | asn"),
+    profile: str = typer.Option(settings.profile_name, "--profile", "-p",
+                                help="passive_only | stealth | normal | aggressive"),
+    max_iterations: int = typer.Option(50, "--max-iterations",
+                                       help="hard cap on scheduling iterations (convergence guard)."),
+    max_depth: int = typer.Option(3, "--max-depth", help="max recursion depth from the seed."),
+    tools: str = typer.Option("default", "--tools",
+                              help="tool profile: 'default' (curated) or 'all'/'excessive' (everything runnable)."),
+    workers: int = typer.Option(1, "--workers", "-w",
+                                help="N>1 uses the DB-backed multi-worker queue (resumable, multi-process safe)."),
+    noise_control: bool = typer.Option(
+        False, "--noise-control",
+        help="drop duplicate / out-of-scope leads before re-feeding (optional, G4)."),
+    wildcard_filter: bool = typer.Option(
+        False, "--wildcard-filter",
+        help="also drop wildcard-DNS subdomains (implies --noise-control; does DNS lookups)."),
+    export: Path = typer.Option(None, "--export", "-o", help="Write full JSON results here."),
+):
+    """Run the EVENT-DRIVEN recursive engine (parallel, convergence-based).
+
+    Unlike `scan` (linear P1→P6), tools fire as soon as their inputs exist and
+    every discovery re-feeds the frontier until no eligible tools remain.
+    `--tools all` runs every runnable tool; `--workers N` drains a DB-backed queue
+    with N concurrent workers (run `recontool worker <scan_id>` on other hosts too).
+    """
+    if profile not in PROFILES:
+        console.print(f"[red]Unknown profile {profile!r}. Choose: {list(PROFILES)}[/red]")
+        raise typer.Exit(1)
+
+    console.print(Panel.fit(
+        f"[bold]Recontool engine[/bold]  seed=[cyan]{seed}[/cyan]  "
+        f"type=[cyan]{seed_type}[/cyan]  profile=[yellow]{profile}[/yellow]  "
+        f"tools=[magenta]{tools}[/magenta]  workers=[green]{workers}[/green]  depth≤{max_depth}",
+        title="engine", border_style="blue",
+    ))
+    create_all()
+
+    if workers > 1:
+        from recontool.engine.worker import run_queue_scan
+        with console.status(f"[bold]running queue scan with {workers} workers…[/bold]"):
+            qr = asyncio.run(run_queue_scan(
+                seed, seed_type=seed_type, profile_name=profile, tools=tools,
+                workers=workers, noise_control=noise_control or wildcard_filter,
+                wildcard_filter=wildcard_filter, max_depth=max_depth,
+            ))
+        with session_scope() as s:
+            if not s.get(Scan, qr.scan_id):
+                s.add(Scan(id=qr.scan_id, seed=seed, seed_type=seed_type, profile=profile,
+                           status="done", scope_json="{}", active_authorized=False))
+        console.print(
+            f"\n[bold]items processed:[/bold] {qr.items_processed}   "
+            f"[bold]completed:[/bold] {qr.completed}   [bold]failed:[/bold] {qr.failed}   "
+            f"[bold]entities:[/bold] {qr.entities}")
+        scan_id = qr.scan_id
+    else:
+        from recontool.engine.runner import run_engine_scan
+        with console.status("[bold]running event-driven scan…[/bold]"):
+            result = asyncio.run(run_engine_scan(
+                seed, seed_type=seed_type, profile_name=profile, tools=tools,
+                noise_control=noise_control or wildcard_filter,
+                wildcard_filter=wildcard_filter,
+                max_iterations=max_iterations, max_depth=max_depth,
+            ))
+        with session_scope() as s:
+            if not s.get(Scan, result.scan_id):
+                s.add(Scan(id=result.scan_id, seed=seed, seed_type=seed_type,
+                           profile=profile, status=result.status, scope_json="{}",
+                           active_authorized=False))
+        console.print(
+            f"\n[bold]tools run:[/bold] {result.total_tools_run}   "
+            f"[bold]entities:[/bold] {result.total_entities}   "
+            f"[bold]status:[/bold] {result.status}   "
+            f"[bold]elapsed:[/bold] {result.duration_ms} ms")
+        if result.errors:
+            console.print(f"[dim]{len(result.errors)} tool errors (first 3): "
+                          f"{'; '.join(result.errors[:3])}[/dim]")
+        scan_id = result.scan_id
+
+    _print_summary(scan_id)
+    _print_findings(scan_id)
+    if export:
+        path = rpt.export_json(scan_id, export)
+        console.print(f"\n[green]Exported[/green] full results → {path}")
+    console.print(f"\nScan id: [bold cyan]{scan_id}[/bold cyan] "
+                  f"(artifacts in {settings.artifact_dir}/{scan_id})")
+
+
+@app.command()
+def worker(
+    scan_id: str = typer.Argument(..., help="scan id whose work_item queue to drain"),
+    workers: int = typer.Option(8, "--workers", "-w", help="concurrent workers in this process."),
+    profile: str = typer.Option(settings.profile_name, "--profile", "-p"),
+    tools: str = typer.Option("default", "--tools", help="'default' or 'all'/'excessive'."),
+    seed: str = typer.Option("", "--seed", help="scope seed (defaults to the scan's seed if known)."),
+    seed_type: str = typer.Option("domain", "--type", "-t"),
+):
+    """Attach extra workers to an existing scan's queue (multi-process / multi-host).
+
+    Point several `recontool worker <scan_id>` processes at the same RECON_DB_URL
+    to scale horizontally — items are claimed atomically, so none is run twice.
+    """
+    if profile not in PROFILES:
+        console.print(f"[red]Unknown profile {profile!r}.[/red]")
+        raise typer.Exit(1)
+    create_all()
+    with session_scope() as s:
+        sc = s.get(Scan, scan_id)
+        seed_val = seed or (sc.seed if sc else "")
+        seed_t = (sc.seed_type if sc else seed_type) or seed_type
+    if not seed_val:
+        console.print("[red]Unknown scan; pass --seed to set scope.[/red]")
+        raise typer.Exit(1)
+
+    from recontool.engine.registry import ToolRegistry
+    from recontool.engine.selection import apply_selection
+    from recontool.engine.runner import build_scan_infra
+    from recontool.engine.worker import WorkerPool
+
+    profile_obj, scope, http, api_keys = build_scan_infra(seed_val, seed_t, profile)
+    registry = ToolRegistry.load()
+    apply_selection(registry, tools)
+    pool = WorkerPool(registry, scope=scope, profile=profile_obj, http=http, api_keys=api_keys)
+    console.print(f"[bold]worker[/bold] draining queue for [cyan]{scan_id}[/cyan] "
+                  f"with {workers} workers…")
+    asyncio.run(pool.run(scan_id, workers=workers))
+    console.print(f"[green]done[/green] — processed {pool.processed} items")
+
+
+@app.command()
 def tools():
     """List registered adapters and which are currently available."""
     load_builtin()

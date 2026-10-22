@@ -8,7 +8,10 @@
 #   docker run --rm -v "$PWD/config:/app/config" recontool \
 #       scan www.xyz.com --profile stealth --authorize-active
 # ─────────────────────────────────────────────────────────────────────────────
-FROM golang:1.23-bookworm AS base
+# NOTE: ProjectDiscovery tools (subfinder, httpx, nuclei v3, naabu, ...) installed
+# at @latest by docker/install_tools.sh require Go 1.24+. Keep this >= 1.24 or the
+# go-install layer silently skips those tools (failures are non-fatal by design).
+FROM golang:1.24-bookworm AS base
 
 ENV DEBIAN_FRONTEND=noninteractive \
     GOBIN=/usr/local/bin \

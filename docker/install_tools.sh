@@ -101,6 +101,14 @@ install_all() {
   pip_install arjun arjun
   pip_install theHarvester theHarvester
   pip_install trufflehog3 trufflehog3
+  # Playwright powers the js-render live crawler (the next-gen data source).
+  # Best-effort: js-render degrades to a static fetch if this is absent.
+  if pip3 install --quiet playwright 2>/dev/null; then
+    python3 -m playwright install --with-deps chromium 2>/dev/null \
+      && ok "playwright + chromium" || warn "playwright installed; chromium fetch failed"
+  else
+    warn "playwright (optional) skipped"
+  fi
   # apt packages
   apt_install nmap nmap
   apt_install masscan masscan

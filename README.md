@@ -1,5 +1,10 @@
 # Recontool
 
+> 📐 **Start here:** [`docs/00-FINAL-ARCHITECTURE.md`](docs/00-FINAL-ARCHITECTURE.md)
+> is the single source of truth for the architecture, tools vision, and roadmap.
+> It states the real implementation status (not all docs do) and supersedes the
+> older scattered roadmaps. Read it before relying on any other design doc.
+
 > Modular, AI-supervised **reconnaissance & attack-surface mapping** platform.
 > Give it a domain — it chains 200+-tool-class recon together, stores everything
 > in a database, harvests artifacts (JS, response bodies) to the filesystem,
@@ -71,8 +76,10 @@ bash docker/install_tools.sh core     # or `all` for the full set
 cp config/recontool.example.yaml config/recontool.yaml   # everything works WITHOUT this
 
 # 4. RUN — the platform is driven by a single scope domain
-recontool scan www.xyz.com                               # passive (safe, default)
-recontool scan xyz.com --authorize-active -o results.json # full pipeline (authorised)
+recontool scan www.xyz.com                               # linear pipeline (passive, default)
+recontool scan xyz.com --authorize-active -o results.json # full linear pipeline (authorised)
+recontool engine www.xyz.com                             # recursive event-driven engine
+recontool engine xyz.com --noise-control -o out.json     # recursive + noise filtering
 ```
 
 If you don't `pip install -e .`, run it as a module: `python -m recontool.cli scan www.xyz.com`.
@@ -331,6 +338,90 @@ artifacts/<scan_id>/
   ├── screenshots/*.png       # gowitness (if installed)
   └── nuclei_targets.txt
 ```
+
+---
+
+## Event-Driven Engine (recursive)
+
+The platform includes an event-driven orchestration engine that provides parallel,
+dependency-aware tool scheduling. Instead of fixed phase ordering (P1-P6), tools
+execute as soon as their input dependencies are satisfied, and **every discovery
+re-feeds the frontier** until no eligible tools remain (convergence).
+
+```bash
+# run the recursive engine (parallel, convergence-based)
+recontool engine www.xyz.com                        # default profile (curated tools)
+recontool engine xyz.com --tools all                # excessive: every runnable tool
+recontool engine xyz.com --workers 8                # DB-backed multi-worker queue
+recontool engine xyz.com --noise-control            # drop dup / out-of-scope leads
+recontool engine xyz.com --wildcard-filter          # also drop wildcard-DNS noise (DNS lookups)
+recontool engine xyz.com --profile stealth --max-depth 4 -o out.json
+
+# scale horizontally: point more workers at the same scan + RECON_DB_URL
+recontool worker <scan_id> --workers 8
+```
+
+**Tool profiles (flag-gated, nothing eliminated):** `--tools default` runs the
+curated/recommended set (correct parsers); `--tools all` (a.k.a. excessive) runs
+*every* tool the engine can execute. Tools with no programmatic interface stay in
+the registry and skip cleanly. **Workers:** `--workers 1` uses the in-process
+event engine; `--workers N` drains a persisted `work_item` queue with N concurrent
+workers that **atomically claim** items — so it's resumable and safe to run across
+multiple processes/hosts (`recontool worker <scan_id>`).
+
+Event flow:
+
+```
+ScanRequested -> ToolSelected -> ToolRunning -> EntityDiscovered
+     -> (noise gate) -> downstream ToolSelected -> ... -> ScanCompleted
+```
+
+Key capabilities:
+- **Real end-to-end execution** — `engine/runner.py` runs each scheduled tool through
+  the generic adapters, normalizes results into the DB (idempotent dedupe), and
+  re-feeds `EntityDiscovered` so discovery recurses (`recontool engine`).
+- **Parallel executor** — layered concurrency control (global, per-tool, per-host
+  asyncio semaphores). Recon is I/O-bound, so one node fans out hundreds of
+  concurrent lookups without lag; tune with the rate profile.
+- **Multi-worker queue** (`engine/worker.py`) — N workers atomically claim pending
+  `work_item`s (`pending→running` compare-and-set), so execution is resumable and
+  scales across processes/hosts against one DB. Run with `engine --workers N` or
+  attach more via `recontool worker <scan_id>`.
+- **Tool profiles** (`engine/selection.py`) — `default` (curated) vs `all`
+  (everything runnable), gated by `--tools`; every tool stays registered.
+- **Live JS-render crawler** (`recontool/tools/jsrender.py`, tool `js-render`) —
+  headless-browser render captures the XHR/fetch/GraphQL endpoints, JS-injected
+  routes, and secrets a static crawl misses, then recurses on them. Uses Playwright
+  if installed, else degrades to a static fetch. This is the dynamic-application
+  data layer that sets the engine apart from classic recon.
+- **Deterministic router** — `engine/router.py` answers "which tools consume this
+  key type?" by a plain query over the persisted tool registry (`tool_row`), with
+  type subsumption (a subdomain is also valid input to domain-consuming tools).
+- **Idempotent WorkQueue** — `(scan, key, tool)` items are deduped on enqueue, so a
+  re-discovered entity never triggers a rescan.
+- **Optional noise control** (`--noise-control`) — `engine/noise.py` gates the
+  re-feed path: dedupe + scope (free), wildcard-DNS + CDN (opt-in). Off by default.
+- **Pending keys** — inter-tool dependency tracking (e.g. confirm a host is live
+  before vuln scanning).
+- **Incremental scans** — SHA-256 fingerprinting to skip unchanged inputs.
+
+The engine is additive: the existing `ReconPipeline` (`recontool scan`) still runs
+linear scans. Full documentation lives in [`docs/engine/`](docs/engine/) and the
+single-source design in [`docs/00-FINAL-ARCHITECTURE.md`](docs/00-FINAL-ARCHITECTURE.md):
+
+| Doc | Topic |
+|-----|-------|
+| [00-architecture-overview.md](docs/engine/00-architecture-overview.md) | High-level diagram and component map |
+| [01-event-flow.md](docs/engine/01-event-flow.md) | All events, when they fire, who handles them |
+| [02-tool-registry.md](docs/engine/02-tool-registry.md) | Schema reference, querying, adding tools |
+| [03-adapter-contract.md](docs/engine/03-adapter-contract.md) | Full contract methods with reference implementation |
+| [04-pending-keys.md](docs/engine/04-pending-keys.md) | Lifecycle, rules, database schema |
+| [05-parallel-execution.md](docs/engine/05-parallel-execution.md) | Concurrency model and safety rules |
+| [06-incremental-scans.md](docs/engine/06-incremental-scans.md) | Fingerprinting, staleness, delta reprocessing |
+| [07-ai-decisioning.md](docs/engine/07-ai-decisioning.md) | Interface, heuristics, mocking |
+| [08-observability.md](docs/engine/08-observability.md) | Logging format, metrics, correlation IDs |
+| [09-adding-new-adapter.md](docs/engine/09-adding-new-adapter.md) | Step-by-step guide with examples |
+| [10-troubleshooting.md](docs/engine/10-troubleshooting.md) | Common issues, debugging, FAQ |
 
 ---
 

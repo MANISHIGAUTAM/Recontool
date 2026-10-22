@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from recontool.config import settings
 from recontool.core.models import Base
 
+# Import engine models so their tables are registered with Base.metadata
+import recontool.engine.models  # noqa: F401
+
 _engine = None
 _Session: sessionmaker | None = None
 

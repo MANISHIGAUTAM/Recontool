@@ -97,3 +97,59 @@ class Adapter(abc.ABC):
     async def run(self, ctx: AdapterContext) -> list[Event]:
         """Execute and return normalized events. Must be idempotent-safe."""
         raise NotImplementedError
+
+    # ------------------------------------------------------------------
+    # Optional extended contract methods (event-driven engine).
+    # Existing adapters inherit these no-op defaults and continue working.
+    # ------------------------------------------------------------------
+
+    def install_check(self) -> bool:
+        """Check if the tool is installed and available. Default: True."""
+        return True
+
+    def prepare(self, ctx: AdapterContext) -> None:
+        """Pre-execution setup (create temp dirs, validate config). Default: no-op."""
+
+    def validate_inputs(self, inputs: dict[str, Any]) -> list[str]:
+        """Validate inputs before execution. Returns list of error strings (empty = valid)."""
+        return []
+
+    def build_command(self, ctx: AdapterContext) -> str | None:
+        """Build the shell command string for CLI tools. Returns None for API adapters."""
+        return None
+
+    def parse_stdout(self, stdout: str) -> dict[str, Any]:
+        """Parse raw stdout into a structured dict. Default: wraps in 'raw' key."""
+        return {"raw": stdout}
+
+    def parse_files(self, paths: list[str]) -> dict[str, Any]:
+        """Parse output files into a structured dict. Default: empty."""
+        return {}
+
+    def emit_normalized_events(self, parsed: dict[str, Any]) -> list[Event]:
+        """Convert parsed output into normalized Event objects. Default: empty."""
+        return []
+
+    def map_outputs_to_entities(self, parsed: dict[str, Any]) -> list[Event]:
+        """Map parsed outputs to entity discovery events. Default: empty."""
+        return []
+
+    def resolve_pending_keys(self, parsed: dict[str, Any]) -> list[str]:
+        """Return list of pending key values this output resolves. Default: empty."""
+        return []
+
+    def can_run_in_parallel(self) -> bool:
+        """Whether this adapter is safe to run concurrently. Default: True."""
+        return True
+
+    def dependencies(self) -> list[str]:
+        """Tool names that must complete before this adapter runs. Default: none."""
+        return []
+
+    def timeout_seconds(self) -> int:
+        """Maximum execution time in seconds. Default: 300."""
+        return 300
+
+    def retry_policy(self) -> dict[str, Any]:
+        """Retry configuration. Default: no retries."""
+        return {"max_retries": 0, "backoff_factor": 1.0, "retryable_errors": []}
